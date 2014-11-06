@@ -12,7 +12,7 @@ users.all = function() {
       client.query('SELECT * FROM users', function(err, result) {
         if(err) reject(err);
         done();
-        fulfill(result);
+        fulfill(result.rows);
       });
     });
   });

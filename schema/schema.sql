@@ -6,4 +6,7 @@ CREATE TABLE users (
   encrypted_password character varying(50) DEFAULT ''::character varying NOT NULL
 );
 
-INSERT INTO users values(uuid_generate_v4(), 'jw@slickage.com', 'wangbus', 'testing');
+INSERT INTO users values(uuid_generate_v4(), 'jw@epoch.im', 'wangbus', 'testing1');
+INSERT INTO users values(uuid_generate_v4(), 'julie@epoch.im', 'jsakuda', 'testing2');
+INSERT INTO users values(uuid_generate_v4(), 'ed@epoch.im', 'taesup', 'testing3');
+INSERT INTO users values(uuid_generate_v4(), 'anthony@epoch.im', 'akinsey', 'testing4');
