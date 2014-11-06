@@ -1,0 +1,22 @@
+{
+  "name": "core-pg",
+  "version": "0.1.0",
+  "description": "Epochtalk Core for PostgreSQL",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/epochtalk/core-pg.git"
+  },
+  "author": "James Wang <jw@slickage.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/epochtalk/core-pg/issues"
+  },
+  "homepage": "https://github.com/epochtalk/core-pg",
+  "dependencies": {
+    "pg": "^3.6.2"
+  }
+}
