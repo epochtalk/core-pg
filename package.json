@@ -1,5 +1,5 @@
 {
-  "name": "core-pg",
+  "name": "core-rel",
   "version": "0.1.0",
   "description": "Epochtalk Core for PostgreSQL",
   "main": "index.js",
@@ -17,6 +17,7 @@
   },
   "homepage": "https://github.com/epochtalk/core-pg",
   "dependencies": {
+    "bluebird": "^2.3.10",
     "pg": "^3.6.2"
   }
 }
