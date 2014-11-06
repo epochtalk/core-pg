@@ -1,3 +1,4 @@
+CREATE EXTENSION "uuid-ossp";
 CREATE TABLE users (
   id uuid NOT NULL,
   email character varying(255) DEFAULT ''::character varying NOT NULL,
