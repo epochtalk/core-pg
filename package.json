@@ -17,6 +17,7 @@
   },
   "homepage": "https://github.com/epochtalk/core-pg",
   "dependencies": {
+    "bcrypt": "^0.8.0",
     "bluebird": "^2.3.10",
     "pg": "^3.6.2"
   }
