@@ -9,7 +9,7 @@ var config = require(path.join(__dirname, '..', 'config'));
 var db = require(path.join(__dirname, '..', 'db'));
 
 users.all = function() {
-  return db.sqlQuery('select * from users')
+  return db.sqlQuery('SELECT * FROM users')
 };
 
 users.create = function(user) {
@@ -25,31 +25,24 @@ users.create = function(user) {
     user.passhash = bcrypt.hashSync(user.password, 12);
   }
   delete user.password;
-  return new Promise(function(fulfill, reject) {
-    pg.connect(config.cstring, function(err, client, done) {
-      var q = 'INSERT INTO users(email, username, passhash, created_at, updated_at) VALUES($1, $2, $3, $4, $5) RETURNING id';
-      client.query(q, [user.email, user.username, user.passhash, user.created_at, user.updated_at], function(err, result) {
-        if(err) reject(err);
-        done();
-        user.id = result.rows[0].id;
-        fulfill(user);
-      });
-    });
+  var q = 'INSERT INTO users(email, username, passhash, created_at, updated_at) VALUES($1, $2, $3, $4, $5) RETURNING id';
+  var params = [user.email, user.username, user.passhash, user.created_at, user.updated_at];
+  return db.sqlQuery(q, params)
+  .then(function(rows) {
+    if (rows.length > 0) {
+      return rows[0];
+    }
   });
 };
 
 users.find = function(id) {
   var user;
-  return new Promise(function(fulfill, reject) {
-    pg.connect(config.cstring, function(err, client, done) {
-      client.query('SELECT * FROM users WHERE id = $1', [id], function(err, result) {
-        if(err) reject(err);
-        done();
-        if (result.rows.length > 0) {
-          user = result.rows[0];
-        }
-        fulfill(user);
-      });
-    });
+  var q = 'SELECT * FROM users WHERE id = $1';
+  var params = [id];
+  return db.sqlQuery(q, params)
+  .then(function(rows) {
+    if (rows.length > 0) {
+      return rows[0];
+    }
   });
 };

@@ -10,15 +10,16 @@ c.users.create({
   password: 'asdf1234'
 })
 .then(function(user) {
-  console.log(user);
+  console.log(user.id);
   c.users.find(user.id).then(function(user) {
     console.log('found user');
     console.log(user);
   });
-  c.users.all().then(function(results) {
-    console.log(results);
-    pg.end();
-  });
+  // c.users.all().then(function(results) {
+  //   console.log(results);
+  //   pg.end();
+  // });
+  pg.end();
 })
 .catch(function(err) {
   console.log('error');
