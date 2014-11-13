@@ -6,17 +6,10 @@ var pg = require('pg');
 var bcrypt = require('bcrypt');
 var Promise = require('bluebird');
 var config = require(path.join(__dirname, '..', 'config'));
+var db = require(path.join(__dirname, '..', 'db'));
 
 users.all = function() {
-  return new Promise(function(fulfill, reject) {
-    pg.connect(config.cstring, function(err, client, done) {
-      client.query('SELECT * FROM users', function(err, result) {
-        if(err) reject(err);
-        done();
-        fulfill(result.rows);
-      });
-    });
-  });
+  return db.sqlQuery('select * from users')
 };
 
 users.create = function(user) {
