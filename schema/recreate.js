@@ -1,8 +1,8 @@
-module.exports = loadSchema;
+module.exports = recreate;
 var exec = require('child_process').exec;
 var path = require('path');
-function loadSchema(cb) {
-  exec(path.join(__dirname, 'recreate_db.sh'),
+function recreate(cb) {
+  exec(path.join(__dirname, '..', 'recreate_db.sh'),
   function (error, stdout, stderr) {
     if (error !== null) {
       console.log('exec error: ' + error);
@@ -14,7 +14,9 @@ function loadSchema(cb) {
     }
 
     if (stdout) {
+      console.log('Recreating schema...');
       console.log(stdout);
+      console.log();
       return cb();
     }
     else {
