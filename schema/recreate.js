@@ -16,7 +16,6 @@ function recreate(cb) {
     if (stdout) {
       console.log('Recreating schema...');
       console.log(stdout);
-      console.log();
       return cb();
     }
     else {
