@@ -5,7 +5,9 @@ var core = require(path.join('..'));
 var config = require(path.join(__dirname, '..', 'config'));
 var recreateSchema = require(path.join(__dirname, '..', 'schema', 'recreate'));
 c = core();
-recreateSchema(function() {
+
+recreateSchema()
+.then(function(stdout) {
   test('create and find', function(t) {
     c.users.create({
       email: 'asdf@asdf.com',

@@ -1,25 +1,16 @@
 module.exports = recreate;
 var exec = require('child_process').exec;
 var path = require('path');
-function recreate(cb) {
-  exec(path.join(__dirname, '..', 'recreate_db.sh'),
-  function (error, stdout, stderr) {
-    if (error !== null) {
-      console.log('exec error: ' + error);
-      process.exit(1);
-    }
-    if (stderr) {
-      console.log('stderr: ' + stderr);
-      process.exit(1);
-    }
+var Promise = require('bluebird');
 
-    if (stdout) {
-      console.log('Recreating schema...');
-      console.log(stdout);
-      return cb();
-    }
-    else {
-      process.exit(1);
-    }
+function recreate(cb) {
+  return new Promise(function(fulfill, reject) {
+    exec(path.join(__dirname, '..', 'recreate_db.sh'),
+    function (error, stdout, stderr) {
+      if (error !== null) reject(error);
+      else if (stderr) reject(stderr);
+      else if (stdout) fulfill(stdout);
+      else reject(new Error('Unable to recreate database'));
+    });
   });
 }
