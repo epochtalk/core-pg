@@ -1,17 +1,14 @@
 var users = {};
 module.exports = users;
-
 var path = require('path');
 var pg = require('pg');
 var bcrypt = require('bcrypt');
 var Promise = require('bluebird');
 var config = require(path.join(__dirname, '..', 'config'));
 var db = require(path.join(__dirname, '..', 'db'));
-
 users.all = function() {
   return db.sqlQuery('SELECT * FROM users');
 };
-
 users.import = function(user) {
   var timestamp = new Date();
   user.imported_at = timestamp;
@@ -25,7 +22,6 @@ users.import = function(user) {
     console.log(err)
   });
 };
-
 users.create = function(user) {
   var timestamp = new Date();
   if (!user.created_at) {
@@ -48,7 +44,6 @@ users.create = function(user) {
     }
   });
 };
-
 users.find = function(id) {
   var user;
   var q = 'SELECT * FROM users WHERE id = $1';
