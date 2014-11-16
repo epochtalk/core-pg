@@ -1,14 +1,17 @@
 var posts = {};
 module.exports = posts;
+
 var path = require('path');
 var pg = require('pg');
 var bcrypt = require('bcrypt');
 var Promise = require('bluebird');
 var config = require(path.join(__dirname, '..', 'config'));
 var db = require(path.join(__dirname, '..', 'db'));
+
 posts.all = function() {
   return db.sqlQuery('SELECT * from posts');
 };
+
 posts.import = function(post) {
   var timestamp = new Date();
   post.imported_at = timestamp;
@@ -23,3 +26,13 @@ posts.import = function(post) {
   });
 };
 
+posts.find = function(id) {
+  var q = 'SELECT * FROM posts WHERE id = $1';
+  var params = [id];
+  return db.sqlQuery(q, params)
+  .then(function(rows) {
+    if (rows.length > 0) {
+      return rows[0];
+    }
+  });
+};

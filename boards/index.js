@@ -1,14 +1,17 @@
 var boards = {};
 module.exports = boards;
+
 var path = require('path');
 var pg = require('pg');
 var bcrypt = require('bcrypt');
 var Promise = require('bluebird');
 var config = require(path.join(__dirname, '..', 'config'));
 var db = require(path.join(__dirname, '..', 'db'));
+
 boards.all = function() {
   return db.sqlQuery('SELECT * from boards');
 };
+
 boards.import = function(board) {
   var timestamp = new Date();
   board.imported_at = timestamp;
@@ -20,5 +23,16 @@ boards.import = function(board) {
   })
   .catch(function(err) {
     console.log(err)
+  });
+};
+
+boards.find = function(id) {
+  var q = 'SELECT * FROM boards WHERE id = $1';
+  var params = [id];
+  return db.sqlQuery(q, params)
+  .then(function(rows) {
+    if (rows.length > 0) {
+      return rows[0];
+    }
   });
 };
