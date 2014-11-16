@@ -1,2 +1,1 @@
-### Core Implementation for PostgreSQL
-
+### PostgreSQL core implementation for Epochtalk

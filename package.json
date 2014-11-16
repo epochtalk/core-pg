@@ -1,5 +1,5 @@
 {
-  "name": "core-rel",
+  "name": "epochcore-pg",
   "version": "0.1.0",
   "description": "Epochtalk Core for PostgreSQL",
   "main": "index.js",
