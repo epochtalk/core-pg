@@ -15,14 +15,12 @@ boards.all = function() {
 boards.import = function(board) {
   var timestamp = new Date();
   board.imported_at = timestamp;
-  var q = 'INSERT INTO boards(name, description, imported_at) VALUES($1, $2, $3) RETURNING id';
-  var params = [board.name, board.description, board.imported_at];
+
+  var q = 'INSERT INTO boards(name, description, imported_at, smf_id_board) VALUES($1, $2, $3, $4) RETURNING id';
+  var params = [board.name, board.description, board.imported_at, board.smf.ID_BOARD];
   return db.sqlQuery(q, params)
   .then(function(rows) {
     if (rows.length > 0) return rows[0];
-  })
-  .catch(function(err) {
-    console.log(err)
   });
 };
 

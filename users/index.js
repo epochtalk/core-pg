@@ -15,14 +15,11 @@ users.all = function() {
 users.import = function(user) {
   var timestamp = new Date();
   user.imported_at = timestamp;
-  var q = 'INSERT INTO users(email, username, imported_at) VALUES($1, $2, $3) RETURNING id';
-  var params = [user.email, user.username, user.imported_at];
+  var q = 'INSERT INTO users(email, username, imported_at, smf_id_member) VALUES($1, $2, $3, $4) RETURNING id';
+  var params = [user.email, user.username, user.imported_at, user.smf.ID_MEMBER];
   return db.sqlQuery(q, params)
   .then(function(rows) {
     if (rows.length > 0) return rows[0];
-  })
-  .catch(function(err) {
-    console.log(err)
   });
 };
 

@@ -15,14 +15,13 @@ posts.all = function() {
 posts.import = function(post) {
   var timestamp = new Date();
   post.imported_at = timestamp;
-  var q = 'INSERT INTO posts(title, body, user_id, thread_id, imported_at) VALUES($1, $2, $3, $4, $5) RETURNING id';
-  var params = [post.title, post.body, post.user_id, post.thread_id, post.imported_at];
-  return db.sqlQuery(q, params)
+  var insertPostQuery = 'INSERT INTO posts(title, body, imported_at, smf_id_msg, smf_id_topic, smf_id_member) VALUES($1, $2, $3, $4, $5, $6) RETURNING id';
+  var params = [post.title, post.body, post.imported_at, post.smf.ID_MSG, post.smf.ID_TOPIC, post.smf.ID_MEMBER];
+  return db.sqlQuery(insertPostQuery, params)
   .then(function(rows) {
-    if (rows.length > 0) return rows[0];
-  })
-  .catch(function(err) {
-    console.log(err)
+    if (rows.length > 0) {
+      return rows[0];
+    }
   });
 };
 

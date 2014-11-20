@@ -15,14 +15,13 @@ threads.all = function() {
 threads.import = function(thread) {
   var timestamp = new Date();
   thread.imported_at = timestamp;
-  var q = 'INSERT INTO threads(board_id, imported_at) VALUES($1, $2) RETURNING id';
-  var params = [thread.board_id, thread.imported_at];
-  return db.sqlQuery(q, params)
+  var insertThreadQuery = 'INSERT INTO threads(imported_at, smf_id_topic, smf_id_board) VALUES($1, $2, $3) RETURNING id';
+  var params = [thread.imported_at, thread.smf.ID_TOPIC, thread.smf.ID_BOARD];
+  return db.sqlQuery(insertThreadQuery, params)
   .then(function(rows) {
-    if (rows.length > 0) return rows[0];
-  })
-  .catch(function(err) {
-    console.log(err)
+    if (rows.length > 0) {
+      return rows[0];
+    }
   });
 };
 
