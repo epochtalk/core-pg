@@ -34,3 +34,9 @@ boards.find = function(id) {
     }
   });
 };
+
+boards.allCategories = function() {
+  return new Promise(function(fulfill, reject) {
+    fulfill([]);
+  });
+};
