@@ -1,6 +1,6 @@
 CREATE EXTENSION "uuid-ossp";
 CREATE TABLE users (
-  id uuid DEFAULT uuid_generate_v4() NOT NULL,
+  id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
   email character varying(255) DEFAULT ''::character varying NOT NULL,
   username character varying(50) DEFAULT ''::character varying NOT NULL,
   passhash character varying(255) DEFAULT ''::character varying NOT NULL, 
@@ -16,7 +16,7 @@ CREATE UNIQUE INDEX index_users_on_username ON users USING btree (username);
 CREATE UNIQUE INDEX index_users_on_smf_id_member ON users USING btree (smf_id_member);
 
 CREATE TABLE boards (
-  id uuid DEFAULT uuid_generate_v4() NOT NULL,
+  id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
   parent_board_id uuid,
   name character varying(255) DEFAULT ''::character varying NOT NULL,
   description text DEFAULT '' NOT NULL, 
@@ -30,8 +30,8 @@ CREATE UNIQUE INDEX index_boards_on_id ON boards USING btree (id);
 CREATE UNIQUE INDEX index_boards_on_smf_id_board ON boards USING btree (smf_id_board);
 
 CREATE TABLE threads (
-  id uuid DEFAULT uuid_generate_v4() NOT NULL,
-  board_id uuid,
+  id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
+  board_id uuid REFERENCES boards (id),
   created_at timestamp without time zone,
   updated_at timestamp without time zone,
   imported_at timestamp without time zone,
@@ -45,9 +45,9 @@ CREATE UNIQUE INDEX index_threads_on_smf_id_topic ON threads USING btree (smf_id
 CREATE INDEX index_threads_on_smf_id_board ON threads USING btree (smf_id_board);
 
 CREATE TABLE posts (
-  id uuid DEFAULT uuid_generate_v4() NOT NULL,
-  thread_id uuid,
-  user_id uuid,
+  id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
+  thread_id uuid REFERENCES threads (id),
+  user_id uuid REFERENCES users (id),
   title character varying(255) DEFAULT ''::character varying NOT NULL,
   body text DEFAULT '' NOT NULL, 
   created_at timestamp without time zone,
