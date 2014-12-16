@@ -45,3 +45,7 @@ threads.byBoard = function(boardId, opts) {
     return rows;
   });
 };
+
+threads.incViewCount = function(threadId) {
+  console.log('STUB: inc view count');
+};
