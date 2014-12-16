@@ -15,7 +15,6 @@ boards.all = function() {
 boards.import = function(board) {
   var timestamp = new Date();
   board.imported_at = timestamp;
-
   var q = 'INSERT INTO boards(name, description, imported_at, smf_id_board) VALUES($1, $2, $3, $4) RETURNING id';
   var params = [board.name, board.description, board.imported_at, board.smf.ID_BOARD];
   return db.sqlQuery(q, params)
@@ -38,9 +37,20 @@ boards.find = function(id) {
 boards.allCategories = function() {
   var q = 'SELECT * FROM categories';
   return db.sqlQuery(q)
-  .then(function(rows) {
-    if (rows.length > 0) {
-      return rows[0];
-    }
+  .then(function(categories) {
+    var categoryBoardQueries = [];
+    categories.forEach(function(category) {
+      var q = 'SELECT * from boards WHERE category_id = $1';
+      var params = [category.id];
+      var categoryBoardQuery = db.sqlQuery(q, params)
+      .then(function(boards) {
+        category.boards = boards;
+      });
+      categoryBoardQueries.push(categoryBoardQuery);
+    })
+    return Promise.all(categoryBoardQueries)
+    .then(function() {
+      return categories;
+    });
   });
 }
