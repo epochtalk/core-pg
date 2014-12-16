@@ -81,12 +81,11 @@ CREATE INDEX index_posts_on_user_id ON posts USING btree (user_id);
 CREATE UNIQUE INDEX index_posts_on_smf_id_msg ON posts USING btree (smf_id_msg);
 CREATE INDEX index_posts_on_smf_id_topic ON posts USING btree (smf_id_topic);
 
-
-INSERT INTO categories (name) VALUES ('Example Category 1') RETURNING id;
-INSERT INTO categories (name) VALUES ('Example Category 2') RETURNING id;
-INSERT INTO categories (name) VALUES ('Example Category 3') RETURNING id;
-INSERT INTO categories (name) VALUES ('Example Category 4') RETURNING id;
-INSERT INTO categories (name) VALUES ('Example Category 5') RETURNING id;
-INSERT INTO boards (category_id, name, description) VALUES (LASTVAL(), 'General', 'General Board') RETURNING id;
-INSERT INTO threads (board_id) VALUES (LASTVAL()) RETURNING id;
-INSERT INTO posts (thread_id, title, body) VALUES (LASTVAL(), 'Hello World', 'This is an example post.') RETURNING id;
+-- INSERT INTO categories (name) VALUES ('Example Category 1') RETURNING id;
+-- INSERT INTO categories (name) VALUES ('Example Category 2') RETURNING id;
+-- INSERT INTO categories (name) VALUES ('Example Category 3') RETURNING id;
+-- INSERT INTO categories (name) VALUES ('Example Category 4') RETURNING id;
+-- INSERT INTO categories (name) VALUES ('Example Category 5') RETURNING id;
+-- INSERT INTO boards (category_id, name, description) VALUES (LASTVAL(), 'General', 'General Board') RETURNING id;
+-- INSERT INTO threads (board_id) VALUES (LASTVAL()) RETURNING id;
+-- INSERT INTO posts (thread_id, title, body) VALUES (LASTVAL(), 'Hello World', 'This is an example post.') RETURNING id;
