@@ -87,5 +87,6 @@ INSERT INTO categories (name) VALUES ('Example Category 2') RETURNING id;
 INSERT INTO categories (name) VALUES ('Example Category 3') RETURNING id;
 INSERT INTO categories (name) VALUES ('Example Category 4') RETURNING id;
 INSERT INTO categories (name) VALUES ('Example Category 5') RETURNING id;
-
-INSERT INTO boards (category_id, name, description) VALUES (LASTVAL(), 'General', 'General Board');
+INSERT INTO boards (category_id, name, description) VALUES (LASTVAL(), 'General', 'General Board') RETURNING id;
+INSERT INTO threads (board_id) VALUES (LASTVAL()) RETURNING id;
+INSERT INTO posts (thread_id, title, body) VALUES (LASTVAL(), 'Hello World', 'This is an example post.') RETURNING id;

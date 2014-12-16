@@ -35,3 +35,11 @@ posts.find = function(id) {
     }
   });
 };
+
+posts.byThread = function(threadId, opts) {
+  var q = 'SELECT * FROM posts WHERE thread_id = $1';
+  var params = [threadId];
+  return db.sqlQuery(q, params);
+};
+
+

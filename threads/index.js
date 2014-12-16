@@ -35,3 +35,13 @@ threads.find = function(id) {
     }
   });
 };
+
+threads.byBoard = function(boardId, opts) {
+  var q = 'SELECT * FROM threads t, posts p WHERE board_id = $1 AND p.thread_id = t.id';
+  var params = [boardId];
+  return db.sqlQuery(q, params)
+  .then(function(rows) {
+    console.log(rows);
+    return rows;
+  });
+};
