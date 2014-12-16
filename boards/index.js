@@ -34,3 +34,13 @@ boards.find = function(id) {
     }
   });
 };
+
+boards.allCategories = function() {
+  var q = 'SELECT * FROM categories';
+  return db.sqlQuery(q)
+  .then(function(rows) {
+    if (rows.length > 0) {
+      return rows[0];
+    }
+  });
+}
