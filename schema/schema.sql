@@ -8,7 +8,7 @@ CREATE TABLE users (
   created_at timestamp without time zone,
   updated_at timestamp without time zone,
   imported_at timestamp without time zone,
-  smf_id_member integer NOT NULL
+  smf_id_member integer
 );
 
 CREATE UNIQUE INDEX index_users_on_email ON users USING btree (email);

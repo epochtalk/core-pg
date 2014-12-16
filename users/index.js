@@ -12,6 +12,22 @@ users.all = function() {
   return db.sqlQuery('SELECT * FROM users');
 };
 
+users.userByEmail = function(email) {
+  var q = 'SELECT * FROM users where email = $1';
+  var params = [email];
+  return db.sqlQuery(q).then(function(rows) {
+    if (rows.length > 0) return rows[0];
+  });
+};
+
+users.userByUsername = function(username) {
+  var q = 'SELECT * FROM users where username = $1';
+  var params = [username];
+  return db.sqlQuery(q).then(function(rows) {
+    if (rows.length > 0) return rows[0];
+  });
+};
+
 users.import = function(user) {
   var timestamp = new Date();
   user.imported_at = timestamp;
@@ -41,7 +57,12 @@ users.create = function(user) {
   return db.sqlQuery(q, params)
   .then(function(rows) {
     if (rows.length > 0) {
-      return rows[0];
+      user.id = rows[0].id;
+      delete user.passhash;
+      return user;
+    }
+    else {
+      Promise.reject();
     }
   });
 };
