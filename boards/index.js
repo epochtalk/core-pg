@@ -26,11 +26,24 @@ boards.import = function(board) {
 boards.find = function(id) {
   var q = 'SELECT * FROM boards WHERE id = $1';
   var params = [id];
+  var board;
   return db.sqlQuery(q, params)
   .then(function(rows) {
+    if (rows.length > 0) return rows[0];
+    else Promise.resolve();
+  })
+  .then(function(dbBoard) {
+    board = dbBoard;
+    var q = 'SELECT count(id) FROM threads WHERE board_id = $1';
+    var params = [dbBoard.id];
+    return db.sqlQuery(q, params)
+  })
+  .then(function(rows) {
     if (rows.length > 0) {
-      return rows[0];
-    }
+      var threadCount = Number(rows[0].count);
+      board.thread_count = threadCount;
+    };
+    return board;
   });
 };
 
