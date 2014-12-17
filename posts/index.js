@@ -37,8 +37,11 @@ posts.find = function(id) {
 };
 
 posts.byThread = function(threadId, opts) {
-  var q = 'SELECT * FROM posts WHERE thread_id = $1 LIMIT 10';
-  var params = [threadId];
+  var q = 'SELECT * FROM posts WHERE thread_id = $1 LIMIT $2 OFFSET $3';
+  var limit = opts.limit || 10;
+  var page = opts.page || 1;
+  var offset = (page * limit) - limit;
+  var params = [threadId, limit, offset];
   return db.sqlQuery(q, params);
 };
 
