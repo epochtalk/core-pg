@@ -15,8 +15,8 @@ threads.all = function() {
 threads.import = function(thread) {
   var timestamp = new Date();
   thread.imported_at = timestamp;
-  var insertThreadQuery = 'INSERT INTO threads(imported_at, smf_id_topic, smf_id_board) VALUES($1, $2, $3) RETURNING id';
-  var params = [thread.imported_at, thread.smf.ID_TOPIC, thread.smf.ID_BOARD];
+  var insertThreadQuery = 'INSERT INTO threads(id, board_id, imported_at) VALUES($1, $2, $3) RETURNING id';
+  var params = [thread.smf.ID_TOPIC, thread.smf.ID_BOARD, thread.imported_at];
   return db.sqlQuery(insertThreadQuery, params)
   .then(function(rows) {
     if (rows.length > 0) {
@@ -37,7 +37,7 @@ threads.find = function(id) {
 };
 
 threads.byBoard = function(boardId, opts) {
-  var q = 'SELECT * FROM threads t, posts p WHERE board_id = $1 AND p.thread_id = t.id';
+  var q = 'SELECT DISTINCT ON(t.id) t.id, t.created_at, t.updated_at, p.title, p.body FROM posts p LEFT JOIN threads t ON p.thread_id = t.id WHERE t.board_id = $1 LIMIT 10';
   var params = [boardId];
   return db.sqlQuery(q, params)
   .then(function(rows) { return rows; });
