@@ -52,8 +52,8 @@ users.create = function(user) {
     user.passhash = bcrypt.hashSync(user.password, 12);
   }
   delete user.password;
-  var q = 'INSERT INTO users(email, username, passhash, created_at, updated_at) VALUES($1, $2, $3, $4, $5) RETURNING id';
-  var params = [user.email, user.username, user.passhash, user.created_at, user.updated_at];
+  var q = 'INSERT INTO users(email, username, passhash, confirmation_token, created_at, updated_at) VALUES($1, $2, $3, $4, $5, $6) RETURNING id';
+  var params = [user.email, user.username, user.passhash, user.confirmation_token, user.created_at, user.updated_at];
   return db.sqlQuery(q, params)
   .then(function(rows) {
     if (rows.length > 0) {
