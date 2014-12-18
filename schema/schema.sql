@@ -17,7 +17,8 @@ CREATE TABLE categories (
   -- id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
   id serial PRIMARY KEY,
   name character varying(255) DEFAULT ''::character varying NOT NULL,
-  view_order integer
+  view_order integer,
+  imported_at timestamp without time zone
 );
 
 CREATE TABLE boards (
