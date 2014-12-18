@@ -5,6 +5,7 @@ CREATE TABLE users (
   email character varying(255) DEFAULT ''::character varying NOT NULL,
   username character varying(50) DEFAULT ''::character varying NOT NULL,
   passhash character varying(255) DEFAULT ''::character varying NOT NULL, 
+  confirmation_token character varying(255),
   created_at timestamp without time zone,
   updated_at timestamp without time zone,
   imported_at timestamp without time zone
