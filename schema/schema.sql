@@ -7,10 +7,11 @@ CREATE TABLE users (
   passhash character varying(255),
   confirmation_token character varying(255),
   reset_token character varying(255),
-  reset_expiration timestamp with timezone,
+  reset_expiration timestamp with time zone,
   created_at timestamp with time zone,
   updated_at timestamp with time zone,
-  imported_at timestamp with time zone
+  imported_at timestamp with time zone,
+  profile_fields json
 );
 
 CREATE UNIQUE INDEX index_users_on_email ON users USING btree (email);
