@@ -77,3 +77,54 @@ users.find = function(id) {
     }
   });
 };
+
+users.getUserViews = function(userId) {
+  // build userView key
+  var q = 'SELECT thread_id, time FROM userviews WHERE user_id = $1';
+  var params = [userId];
+  return db.sqlQuery(q, params)
+  .then(function(rows) {
+    if (rows.length > 0) { return rows; }
+    else { return []; }
+  })
+  .then(function(rows) {
+    var userviews = {};
+    rows.forEach(function(row) {
+      userviews[row.thread_id] = row.time.getTime();
+    });
+    return userviews;
+  });
+};
+
+users.putUserViews = function(userId, userViewsArray) {
+  return Promise.each(userViewsArray, function(view) {
+    userviewExists(userId, view.threadId) // check if userview exists
+    .then(function(exists) {
+      if (exists) { updateUserview(userId, view.threadId, view.timestamp); }
+      else { insertUserview(userId, view.threadId, view.timestamp); }
+    });
+  });
+};
+
+var userviewExists = function(userId, threadId) {
+  // build userView key
+  var q = 'SELECT * FROM userviews WHERE user_id = $1 AND thread_id = $2';
+  var params = [userId, threadId];
+  return db.sqlQuery(q, params)
+  .then(function(rows) {
+    if (rows.length > 0) { return true; }
+    else { return false; }
+  });
+};
+
+var insertUserview = function(userId, threadId, time) {
+  var q = 'INSERT INTO userviews (user_id, thread_id, time) VALUES ($1, $2, $3)';
+  var params = [userId, threadId, new Date(time)];
+  return db.sqlQuery(q, params);
+};
+
+var updateUserview = function(userId, threadId, time) {
+  var q = 'UPDATE userviews SET time = $1 WHERE user_id = $2 AND thread_id = $3';
+  var params = [new Date(time), userId, threadId];
+  return db.sqlQuery(q, params);
+};
