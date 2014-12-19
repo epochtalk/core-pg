@@ -67,15 +67,6 @@ CREATE TABLE posts (
 CREATE INDEX index_posts_on_thread_id ON posts USING btree (thread_id);
 CREATE INDEX index_posts_on_user_id ON posts USING btree (user_id);
 
-CREATE TABLE userviews (
-  -- id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
-  id serial PRIMARY KEY,
-  user_id integer,
-  thread_id integer,
-  time timestamp with time zone
-);
-CREATE INDEX index_userviews_on_user_id ON userviews USING btree (user_id);
-
 -- INSERT INTO categories (name) VALUES ('Example Category 1') RETURNING id;
 -- INSERT INTO categories (name) VALUES ('Example Category 2') RETURNING id;
 -- INSERT INTO categories (name) VALUES ('Example Category 3') RETURNING id;
