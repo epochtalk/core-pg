@@ -24,7 +24,9 @@ users.userByUsername = function(username) {
   var q = 'SELECT * FROM users WHERE username = $1';
   var params = [username];
   return db.sqlQuery(q, params).then(function(rows) {
-    if (rows.length > 0) return rows[0];
+    if (rows.length > 0) {
+     return rows[0];
+    }
   });
 };
 
@@ -64,6 +66,35 @@ users.create = function(user) {
     else {
       Promise.reject();
     }
+  });
+};
+
+users.update = function(user) {
+  var q = 'SELECT * FROM users WHERE id = $1';
+  var params = [user.id];
+  var updatedUser;
+  return db.sqlQuery(q, params)
+  .then(function(rows) {
+    if (rows.length > 0) {
+      updatedUser = rows[0];
+      if (user.username) { updatedUser.username = user.username; }
+      if (user.email) { updatedUser.email = user.email; }
+      if (user.password) { updatedUser.passhash = bcrypt.hashSync(user.password, 12); }
+      // if (user.reset_token) { updatedUser.reset_token = user.reset_token; }
+      // if (user.reset_expiration) { updatedUser.reset_expiration = user.reset_expiration; }
+      if (user.confirmation_token === undefined) { updatedUser.confirmation_token = null; }
+      updatedUser.updated_at = new Date();
+
+      delete updatedUser.password;
+      delete updatedUser.confirmation;
+      var q = 'UPDATE users SET username = $1, email = $2, passhash = $3, confirmation_token = $4, updated_at = $5 WHERE id = $6';
+      var params = [updatedUser.username, updatedUser.email, updatedUser.passhash, updatedUser.confirmation_token, updatedUser.updated_at, updatedUser.id];
+      return db.sqlQuery(q, params);
+    }
+    else { Promise.reject(); }
+  })
+  .then(function() {
+    return updatedUser;
   });
 };
 
