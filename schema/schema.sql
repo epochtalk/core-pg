@@ -6,6 +6,8 @@ CREATE TABLE users (
   username character varying(50) NOT NULL,
   passhash character varying(255),
   confirmation_token character varying(255),
+  reset_token character varying(255),
+  reset_expiration timestamp with timezone,
   created_at timestamp with time zone,
   updated_at timestamp with time zone,
   imported_at timestamp with time zone

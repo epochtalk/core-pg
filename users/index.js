@@ -80,15 +80,15 @@ users.update = function(user) {
       if (user.username) { updatedUser.username = user.username; }
       if (user.email) { updatedUser.email = user.email; }
       if (user.password) { updatedUser.passhash = bcrypt.hashSync(user.password, 12); }
-      // if (user.reset_token) { updatedUser.reset_token = user.reset_token; }
-      // if (user.reset_expiration) { updatedUser.reset_expiration = user.reset_expiration; }
+      if (user.reset_token) { updatedUser.reset_token = user.reset_token; }
+      if (user.reset_expiration) { updatedUser.reset_expiration = user.reset_expiration; }
       if (user.confirmation_token === undefined) { updatedUser.confirmation_token = null; }
       updatedUser.updated_at = new Date();
 
       delete updatedUser.password;
       delete updatedUser.confirmation;
-      var q = 'UPDATE users SET username = $1, email = $2, passhash = $3, confirmation_token = $4, updated_at = $5 WHERE id = $6';
-      var params = [updatedUser.username, updatedUser.email, updatedUser.passhash, updatedUser.confirmation_token, updatedUser.updated_at, updatedUser.id];
+      var q = 'UPDATE users SET username = $1, email = $2, passhash = $3, reset_token = $4, reset_expiration = $5, confirmation_token = $6, updated_at = $7 WHERE id = $8';
+      var params = [updatedUser.username, updatedUser.email, updatedUser.passhash, updatedUser.reset_token, new Date(updatedUser.reset_expiration), updatedUser.confirmation_token, updatedUser.updated_at, updatedUser.id];
       return db.sqlQuery(q, params);
     }
     else { Promise.reject(); }
