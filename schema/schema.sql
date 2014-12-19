@@ -2,9 +2,9 @@
 CREATE TABLE users (
   -- id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
   id serial PRIMARY KEY,
-  email character varying(255) DEFAULT ''::character varying NOT NULL,
-  username character varying(50) DEFAULT ''::character varying NOT NULL,
-  passhash character varying(255) DEFAULT ''::character varying NOT NULL, 
+  email character varying(255) NOT NULL,
+  username character varying(50) NOT NULL,
+  passhash character varying(255), 
   confirmation_token character varying(255),
   created_at timestamp without time zone,
   updated_at timestamp without time zone,

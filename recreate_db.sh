@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
+wd=`dirname $BASH_SOURCE`
 dropdb epoch_dev
 createdb epoch_dev
-psql epoch_dev < schema/schema.sql
-psql epoch_dev < schema/add_constraints.sql
+psql epoch_dev < $wd/schema/schema.sql
+psql epoch_dev < $wd/schema/add_constraints.sql

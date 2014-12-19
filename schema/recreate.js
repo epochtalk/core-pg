@@ -3,7 +3,7 @@ var exec = require('child_process').exec;
 var path = require('path');
 var Promise = require('bluebird');
 
-function recreate(cb) {
+function recreate() {
   return new Promise(function(fulfill, reject) {
     exec(path.join(__dirname, '..', 'recreate_db.sh'),
     function (error, stdout, stderr) {
