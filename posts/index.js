@@ -15,8 +15,8 @@ posts.all = function() {
 posts.import = function(post) {
   var timestamp = new Date();
   post.imported_at = timestamp;
-  var insertPostQuery = 'INSERT INTO posts(id, thread_id, user_id, title, body, created_at, updated_at, imported_at) VALUES($1, $2, $3, $4, $5, to_timestamp($6), to_timestamp($7), $8) RETURNING id';
-  var params = [post.smf.ID_MSG, post.smf.ID_TOPIC, post.smf.ID_MEMBER, post.title, post.body, post.created_at, post.updated_at, post.imported_at];
+  var insertPostQuery = 'INSERT INTO posts(id, thread_id, user_id, title, body, created_at, updated_at, imported_at) VALUES($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id';
+  var params = [post.smf.ID_MSG, post.smf.ID_TOPIC, post.smf.ID_MEMBER, post.title, post.body, new Date(post.created_at), new Date(post.updated_at), post.imported_at];
   return db.sqlQuery(insertPostQuery, params)
   .then(function(rows) {
     if (rows.length > 0) {
