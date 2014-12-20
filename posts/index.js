@@ -46,8 +46,7 @@ posts.byThread = function(threadId, opts) {
   return db.sqlQuery(q, params)
   .then(function(posts) {
     return Promise.map(posts, function(post) {
-      var user = { id: post.user_id, username: post.username };
-      post.user = user;
+      post.user = { id: post.user_id, username: post.username };
       delete post.user_id;
       delete post.username;
       return post;
