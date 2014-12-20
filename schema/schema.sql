@@ -11,7 +11,6 @@ CREATE TABLE users (
   created_at timestamp with time zone,
   updated_at timestamp with time zone,
   imported_at timestamp with time zone,
-  profile_fields json
 );
 
 CREATE INDEX index_users_on_email ON users USING btree (email);
