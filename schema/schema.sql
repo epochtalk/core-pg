@@ -14,7 +14,7 @@ CREATE TABLE users (
   profile_fields json
 );
 
-CREATE UNIQUE INDEX index_users_on_email ON users USING btree (email);
+CREATE INDEX index_users_on_email ON users USING btree (email);
 CREATE UNIQUE INDEX index_users_on_username ON users USING btree (username);
 
 CREATE TABLE categories (
