@@ -66,6 +66,7 @@ CREATE TABLE posts (
 
 CREATE INDEX index_posts_on_thread_id ON posts USING btree (thread_id);
 CREATE INDEX index_posts_on_user_id ON posts USING btree (user_id);
+CREATE INDEX index_posts_on_created_at ON posts USING btree (created_at);
 
 -- INSERT INTO categories (name) VALUES ('Example Category 1') RETURNING id;
 -- INSERT INTO categories (name) VALUES ('Example Category 2') RETURNING id;

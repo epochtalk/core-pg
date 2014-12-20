@@ -31,8 +31,14 @@ var threadCountPosts = function(thread) {
   return db.sqlQuery(q, params);
 };
 
+var threadLastPost = function(thread) {
+  var q = 'SELECT p.created_at, u.username FROM posts p LEFT JOIN users u ON p.user_id = u.id WHERE p.thread_id = $1 ORDER BY p.created_at DESC LIMIT 1';
+  var params = [thread.id];
+  return db.sqlQuery(q, params);
+};
+
 threads.find = function(id) {
-  var q = 'SELECT DISTINCT ON(t.id) t.id, t.board_id, t.created_at, t.updated_at, p.user_id, p.title, u.username FROM threads t LEFT JOIN posts p on t.id = p.thread_id LEFT JOIN users u ON p.user_id = u.id WHERE t.id = $1 ORDER BY t.id DESC';
+  var q = 'SELECT DISTINCT ON(t.id) t.id, t.board_id, t.created_at, t.updated_at, p.user_id, p.title, u.username FROM threads t LEFT JOIN posts p on t.id = p.thread_id LEFT JOIN users u ON p.user_id = u.id WHERE t.id = $1 ORDER BY t.id DESC, p.created_at';
   var params = [id];
   var thread;
   return db.sqlQuery(q, params)
@@ -41,6 +47,9 @@ threads.find = function(id) {
     else Promise.resolve();
   })
   .then(function(dbThread) {
+    dbThread.user = { id: dbThread.user_id, username: dbThread.username };
+    delete dbThread.user_id;
+    delete dbThread.username;
     thread = dbThread;
     return dbThread;
   })
@@ -51,17 +60,11 @@ threads.find = function(id) {
       thread.post_count = postCount;
     }
     return thread;
-  })
-  .then(function(thread) {
-    thread.user = { id: thread.user_id, username: thread.username };
-    delete thread.user_id;
-    delete thread.username;
-    return thread;
   });
 };
 
 threads.byBoard = function(boardId, opts) {
-  var q = 'SELECT DISTINCT ON(t.id) t.id, t.created_at, t.updated_at, p.title, p.body, p.user_id, u.username FROM posts p LEFT JOIN threads t ON p.thread_id = t.id LEFT JOIN users u ON p.user_id = u.id WHERE t.board_id = $1 ORDER BY t.id DESC LIMIT $2 OFFSET $3';
+  var q = 'SELECT DISTINCT ON (t.id) t.id, t.created_at, t.updated_at, p.title, p.body, p.user_id, u.username FROM threads t LEFT JOIN posts p ON t.id = p.thread_id LEFT JOIN users u ON p.user_id = u.id WHERE t.board_id = $1 ORDER BY t.id DESC, p.created_at LIMIT $2 OFFSET $3;';
   var limit = opts.limit || 10;
   var page = opts.page || 1;
   var offset = (page * limit) - limit;
@@ -69,6 +72,9 @@ threads.byBoard = function(boardId, opts) {
   return db.sqlQuery(q, params)
   .then(function(threads) {
     return Promise.map(threads, function(thread) {
+      thread.user = { id: thread.user_id, username: thread.username };
+      delete thread.user_id;
+      delete thread.username;
       return threadCountPosts(thread)
       .then(function(rows) {
         if (rows.length > 0) {
@@ -77,10 +83,12 @@ threads.byBoard = function(boardId, opts) {
         }
         return thread;
       })
-      .then(function(thread) {
-        thread.user = { id: thread.user_id, username: thread.username };
-        delete thread.user_id;
-        delete thread.username;
+      .then(threadLastPost)
+      .then(function(rows) {
+        if (rows.length > 0) {
+          thread.last_post_created_at = rows[0].created_at;
+          thread.last_post_username = rows[0].username;
+        }
         return thread;
       });
     });
