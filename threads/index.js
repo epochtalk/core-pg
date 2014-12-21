@@ -19,8 +19,17 @@ threads.import = function(thread) {
   var params = [thread.smf.ID_TOPIC, thread.smf.ID_BOARD, thread.imported_at];
   return db.sqlQuery(insertThreadQuery, params)
   .then(function(rows) {
-    if (rows.length > 0) {
-      return rows[0];
+    if (rows.length > 0) { return rows[0]; }
+    else { return; }
+  })
+  .then(function(threadId) {
+    if (threadId) {
+      // create initial view count
+      // TODO: this should be seeded with the imported view count
+      var q = 'INSERT INTO metadata.threads (thread_id, views) VALUES($1, $2);';
+      var parmas = [threadId, 1];
+      db.sqlQuery(q, params);
+      return threadId;
     }
   });
 };
@@ -28,13 +37,37 @@ threads.import = function(thread) {
 var threadCountPosts = function(thread) {
   var q = 'SELECT count(id) FROM posts WHERE thread_id = $1';
   var params = [thread.id];
-  return db.sqlQuery(q, params);
+  return db.sqlQuery(q, params)
+  .then(function(rows) {
+    if (rows.length > 0) {
+      var postCount = Number(rows[0].count);
+      thread.post_count = postCount;
+    }
+    return thread;
+  });
 };
 
 var threadLastPost = function(thread) {
   var q = 'SELECT p.created_at, u.username FROM posts p LEFT JOIN users u ON p.user_id = u.id WHERE p.thread_id = $1 ORDER BY p.created_at DESC LIMIT 1';
   var params = [thread.id];
-  return db.sqlQuery(q, params);
+  return db.sqlQuery(q, params)
+  .then(function(rows) {
+    if (rows.length > 0) {
+      thread.last_post_created_at = rows[0].created_at;
+      thread.last_post_username = rows[0].username;
+    }
+    return thread;
+  });
+};
+
+var threadViews = function(thread) {
+  var q = 'SELECT views FROM metadata.threads WHERE thread_id = $1';
+  var params = [thread.id];
+  return db.sqlQuery(q, params)
+  .then(function(rows) {
+    if (rows.length > 0) { thread.view_count = rows[0].views; }
+    return thread;
+  });
 };
 
 threads.find = function(id) {
@@ -53,14 +86,7 @@ threads.find = function(id) {
     thread = dbThread;
     return dbThread;
   })
-  .then(threadCountPosts)
-  .then(function(rows) {
-    if (rows.length > 0) {
-      var postCount = Number(rows[0].count);
-      thread.post_count = postCount;
-    }
-    return thread;
-  });
+  .then(threadCountPosts);
 };
 
 threads.byBoard = function(boardId, opts) {
@@ -76,25 +102,25 @@ threads.byBoard = function(boardId, opts) {
       delete thread.user_id;
       delete thread.username;
       return threadCountPosts(thread)
-      .then(function(rows) {
-        if (rows.length > 0) {
-          var postCount = Number(rows[0].count);
-          thread.post_count = postCount;
-        }
-        return thread;
-      })
       .then(threadLastPost)
-      .then(function(rows) {
-        if (rows.length > 0) {
-          thread.last_post_created_at = rows[0].created_at;
-          thread.last_post_username = rows[0].username;
-        }
-        return thread;
-      });
+      .then(threadViews);
     });
   });
 };
 
 threads.incViewCount = function(threadId) {
-  console.log('STUB: inc view count');
+  // TODO remove exists check when views are more solid
+  var existsQ = 'SELECT EXISTS(SELECT 1 FROM metadata.threads WHERE thread_id = $1)';
+  var params = [threadId];
+  return db.sqlQuery(existsQ, params)
+  .then(function(rows) {
+    if (rows.length > 0 && rows[0].exists) {
+      var increment = 'UPDATE metadata.threads SET views = views + 1 WHERE thread_id = $1;';
+      return db.sqlQuery(increment, params);
+    }
+    else if (rows.length > 0 && !rows[0].exists) {
+      var insert = 'INSERT INTO metadata.threads (thread_id, views) VALUES($1, 1);';
+      return db.sqlQuery(insert, params);
+    }
+  });
 };
