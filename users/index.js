@@ -16,7 +16,8 @@ users.userByEmail = function(email) {
   var q = 'SELECT * FROM users WHERE email = $1';
   var params = [email];
   return db.sqlQuery(q, params).then(function(rows) {
-    if (rows.length > 0) return rows[0];
+    if (rows.length > 0) { return rows[0]; }
+    else { throw new Error('User not found.'); }
   });
 };
 
@@ -29,6 +30,7 @@ users.userByUsername = function(username) {
      var user = rows[0];
      return formatUser(user);
     }
+    else { throw new Error('User not found.'); }
   });
 };
 
@@ -39,7 +41,7 @@ users.import = function(user) {
   var params = [user.smf.ID_MEMBER, user.email, user.username, user.imported_at];
   return db.sqlQuery(q, params)
   .then(function(rows) {
-    if (rows.length > 0) return rows[0];
+    if (rows.length > 0) { return rows[0]; }
   });
 };
 
@@ -65,9 +67,7 @@ users.create = function(user) {
       delete user.passhash;
       return user;
     }
-    else {
-      Promise.reject();
-    }
+    else { Promise.reject(); }
   });
 };
 
@@ -117,9 +117,7 @@ users.update = function(user) {
     }
     else { Promise.reject(); }
   })
-  .then(function() {
-    return formatUser(updatedUser);
-  });
+  .then(function() { return formatUser(updatedUser); });
 };
 
 var formatUser = function(user) {
