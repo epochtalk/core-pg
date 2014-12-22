@@ -14,9 +14,8 @@ posts.all = function() {
 
 posts.import = function(post) {
   var timestamp = new Date();
-  post.imported_at = timestamp;
   var insertPostQuery = 'INSERT INTO posts(id, thread_id, user_id, title, body, created_at, updated_at, imported_at) VALUES($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id';
-  var params = [post.smf.ID_MSG, post.smf.ID_TOPIC, post.smf.ID_MEMBER, post.title, post.body, new Date(post.created_at), new Date(post.updated_at), post.imported_at];
+  var params = [post.smf.ID_MSG, post.smf.ID_TOPIC, post.smf.ID_MEMBER, post.title, post.body, new Date(post.created_at), new Date(post.updated_at), timestamp];
   return db.sqlQuery(insertPostQuery, params)
   .then(function(rows) {
     if (rows.length > 0) { return rows[0]; }
@@ -55,6 +54,28 @@ var incrementPostCount = function increment(boardId, initial) {
     if (rows.length > 0) {
       increment(rows[0].parent_board_id);
     }
+  });
+};
+
+posts.create = function(post) {
+  var timestamp = new Date();
+  var createQuery = 'INSERT INTO posts(thread_id, user_id, title, body, encodedBody, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id';
+  var params = [post.thread_id, post.user_id, post.title, post.body, post.encodedBody, timestamp, timestamp];
+  return db.sqlQuery(createQuery, params)
+  .then(function(rows) {
+    if (rows.length > 0) { return rows[0]; }
+    else { Promise.reject(); }
+  })
+  .then(function(createPost) {
+    var q = 'SELECT board_id FROM threads WHERE id = $1';
+    params = [post.thread_id];
+    db.sqlQuery(q, params)
+    .then(function(thread) {
+      if (thread.length > 0) {
+        incrementPostCount(thread[0].board_id, true);
+      }
+    });
+    return createPost;
   });
 };
 
