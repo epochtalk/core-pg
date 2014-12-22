@@ -19,8 +19,41 @@ posts.import = function(post) {
   var params = [post.smf.ID_MSG, post.smf.ID_TOPIC, post.smf.ID_MEMBER, post.title, post.body, new Date(post.created_at), new Date(post.updated_at), post.imported_at];
   return db.sqlQuery(insertPostQuery, params)
   .then(function(rows) {
+    if (rows.length > 0) { return rows[0]; }
+    else { Promise.reject(); }
+  })
+  // increment post count on board
+  .then(function(importPost) {
+    var q = 'SELECT board_id FROM threads WHERE id = $1';
+    params = [post.smf.ID_TOPIC];
+    db.sqlQuery(q, params)
+    .then(function(thread) {
+      if (thread.length > 0) {
+        incrementPostCount(thread[0].board_id, true);
+      }
+    });
+    return importPost;
+  });
+};
+
+var incrementPostCount = function increment(boardId, initial) {
+  var inc, params = [boardId];
+  if (initial) {
+    inc = 'UPDATE metadata.boards SET post_count = post_count + 1, total_post_count = total_post_count + 1 WHERE board_id = $1';
+    db.sqlQuery(inc, params);
+
+  }
+  else {
+    inc = 'UPDATE metadata.boards SET total_post_count = total_post_count + 1 WHERE board_id = $1';
+    db.sqlQuery(inc, params);
+  }
+
+  // check if theres any parent boards
+  var q = 'SELECT parent_board_id from boards WHERE id = $1';
+  db.sqlQuery(q, params)
+  .then(function(rows) {
     if (rows.length > 0) {
-      return rows[0];
+      increment(rows[0].parent_board_id);
     }
   });
 };
