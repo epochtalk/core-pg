@@ -17,7 +17,7 @@ users.userByEmail = function(email) {
   var params = [email];
   return db.sqlQuery(q, params).then(function(rows) {
     if (rows.length > 0) { return rows[0]; }
-    else { throw new Error('User not found.'); }
+    else { return undefined; }
   });
 };
 
@@ -30,7 +30,7 @@ users.userByUsername = function(username) {
      var user = rows[0];
      return formatUser(user);
     }
-    else { throw new Error('User not found.'); }
+    else { return undefined; }
   });
 };
 
