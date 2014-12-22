@@ -76,6 +76,10 @@ posts.create = function(post) {
       }
     });
     return createPost;
+  })
+  .then(function(createPost) {
+    createPost.thread_id = post.thread_id;
+    return createPost;
   });
 };
 

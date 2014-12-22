@@ -24,13 +24,11 @@ threads.import = function(thread) {
   })
   // initialize thread metadata
   .then(function(importThread) {
-    if (importThread) {
-      // TODO: this should be seeded with the imported view count
-      var q = 'INSERT INTO metadata.threads (thread_id, views) VALUES($1, $2);';
-      var params = [importThread.id, 1];
-      db.sqlQuery(q, params);
-      return importThread;
-    }
+    // TODO: this should be seeded with the imported view count
+    var q = 'INSERT INTO metadata.threads (thread_id, views) VALUES($1, $2);';
+    var params = [importThread.id, 1];
+    db.sqlQuery(q, params);
+    return importThread;
   })
   // increment thread count on board
   .then(function(importThread) {
@@ -58,6 +56,27 @@ var incrementThreadCount = function increment(boardId, initial) {
     if (rows.length > 0) {
       increment(rows[0].parent_board_id);
     }
+  });
+};
+
+threads.create = function(thread) {
+  var timestamp = new Date();
+  var createQuery = 'INSERT INTO threads(board_id, created_at, updated_at) VALUES ($1, $2, $3) RETURNING id';
+  var params = [thread.board_id, timestamp, timestamp];
+  return db.sqlQuery(createQuery, params)
+  .then(function(rows) {
+    if (rows.length > 0) { return rows[0]; }
+    else { return Promise.reject(); }
+  })
+  .then(function(createThread) {
+    var q = 'INSERT INTO metadata.threads (thread_id, views) VALUES($1, $2);';
+    var params = [createThread.id, 1];
+    db.sqlQuery(q, params);
+    return createThread;
+  })
+  .then(function(createThread) {
+    incrementThreadCount(thread.board_id, true);
+    return createThread;
   });
 };
 
