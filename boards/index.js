@@ -19,7 +19,15 @@ boards.import = function(board) {
   var params = [board.smf.ID_BOARD, board.smf.ID_CAT, board.name, board.description, board.imported_at];
   return db.sqlQuery(q, params)
   .then(function(rows) {
-    if (rows.length > 0) return rows[0];
+    if (rows.length > 0) { return rows[0]; }
+    else { Promise.reject(); }
+  })
+  // set up board metadata
+  .then(function(importBoard) {
+    var setup = 'INSERT INTO metadata.boards (board_id) VALUES ($1)';
+    params = [importBoard.id];
+    db.sqlQuery(setup, params);
+    return importBoard;
   });
 };
 
@@ -36,34 +44,46 @@ boards.find = function(id) {
     board = dbBoard;
     var q = 'SELECT count(id) FROM threads WHERE board_id = $1';
     var params = [dbBoard.id];
-    return db.sqlQuery(q, params)
+    return db.sqlQuery(q, params);
   })
   .then(function(rows) {
     if (rows.length > 0) {
       var threadCount = Number(rows[0].count);
       board.thread_count = threadCount;
-    };
+    }
     return board;
   });
 };
 
 boards.allCategories = function() {
   var q = 'SELECT * FROM categories';
+  var categories;
   return db.sqlQuery(q)
-  .then(function(categories) {
-    var categoryBoardQueries = [];
-    categories.forEach(function(category) {
+  .then(function(dbCategories) { categories = dbCategories; })
+  .then(function() {
+    return Promise.map(categories, function(category) {
       var q = 'SELECT * from boards WHERE category_id = $1';
       var params = [category.id];
-      var categoryBoardQuery = db.sqlQuery(q, params)
+      return db.sqlQuery(q, params)
       .then(function(boards) {
-        category.boards = boards;
-      });
-      categoryBoardQueries.push(categoryBoardQuery);
-    })
-    return Promise.all(categoryBoardQueries)
-    .then(function() {
-      return categories;
+        return Promise.map(boards, function(board) {
+          var b = 'SELECT * from metadata.boards WHERE board_id = $1';
+          var bParams = [board.id];
+          return db.sqlQuery(b, bParams)
+          .then(function(rows) {
+            if (rows.length > 0){
+              var boardMeta = rows[0];
+              board.post_count = boardMeta.post_count;
+              board.thread_count = boardMeta.thread_count;
+              board.total_post_count = boardMeta.total_post_count;
+              board.total_thread_count = boardMeta.total_thread_count;
+            }
+            return board;
+          });
+        });
+      })
+      .then(function(boards) { category.boards = boards; });
     });
-  });
-}
+  })
+  .then(function() { return categories; });
+};

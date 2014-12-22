@@ -20,16 +20,43 @@ threads.import = function(thread) {
   return db.sqlQuery(insertThreadQuery, params)
   .then(function(rows) {
     if (rows.length > 0) { return rows[0]; }
-    else { return; }
+    else { return Promise.reject(); }
   })
-  .then(function(threadId) {
-    if (threadId) {
-      // create initial view count
+  // initialize thread metadata
+  .then(function(importThread) {
+    if (importThread) {
       // TODO: this should be seeded with the imported view count
       var q = 'INSERT INTO metadata.threads (thread_id, views) VALUES($1, $2);';
-      var parmas = [threadId, 1];
+      var params = [importThread.id, 1];
       db.sqlQuery(q, params);
-      return threadId;
+      return importThread;
+    }
+  })
+  // increment thread count on board
+  .then(function(importThread) {
+    incrementThreadCount(thread.smf.ID_BOARD, true);
+    return importThread;
+  });
+};
+
+var incrementThreadCount = function increment(boardId, initial) {
+  var inc, params = [boardId];
+  if (initial) {
+    inc = 'UPDATE metadata.boards SET thread_count = thread_count + 1, total_thread_count = total_thread_count + 1 WHERE board_id = $1';
+    db.sqlQuery(inc, params);
+
+  }
+  else {
+    inc = 'UPDATE metadata.boards SET total_thread_count = total_thread_count + 1 WHERE board_id = $1';
+    db.sqlQuery(inc, params);
+  }
+
+  // check if theres any parent boards
+  var q = 'SELECT parent_board_id from boards WHERE id = $1';
+  db.sqlQuery(q, params)
+  .then(function(rows) {
+    if (rows.length > 0) {
+      increment(rows[0].parent_board_id);
     }
   });
 };
@@ -109,18 +136,7 @@ threads.byBoard = function(boardId, opts) {
 };
 
 threads.incViewCount = function(threadId) {
-  // TODO remove exists check when views are more solid
-  var existsQ = 'SELECT EXISTS(SELECT 1 FROM metadata.threads WHERE thread_id = $1)';
+  var increment = 'UPDATE metadata.threads SET views = views + 1 WHERE thread_id = $1;';
   var params = [threadId];
-  return db.sqlQuery(existsQ, params)
-  .then(function(rows) {
-    if (rows.length > 0 && rows[0].exists) {
-      var increment = 'UPDATE metadata.threads SET views = views + 1 WHERE thread_id = $1;';
-      return db.sqlQuery(increment, params);
-    }
-    else if (rows.length > 0 && !rows[0].exists) {
-      var insert = 'INSERT INTO metadata.threads (thread_id, views) VALUES($1, 1);';
-      return db.sqlQuery(insert, params);
-    }
-  });
+  return db.sqlQuery(increment, params);
 };
