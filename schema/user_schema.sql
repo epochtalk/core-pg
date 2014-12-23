@@ -13,6 +13,7 @@ ALTER TABLE users.thread_views ADD CONSTRAINT thread_views_thread_id_fk FOREIGN 
 ALTER TABLE users.thread_views ADD CONSTRAINT thread_views_user_id_fk FOREIGN KEY (user_id) REFERENCES users (id);
 
 CREATE TABLE users.profiles (
+  id serial PRIMARY KEY,
   user_id integer,
   avatar character varying(255),
   position character varying(255),
@@ -20,4 +21,5 @@ CREATE TABLE users.profiles (
   fields json
 );
 
+CREATE UNIQUE INDEX index_profiles_on_user_id ON users.profiles USING btree (user_id);
 ALTER TABLE users.profiles ADD CONSTRAINT profiles_user_id_fk FOREIGN KEY (user_id) REFERENCES users (id);

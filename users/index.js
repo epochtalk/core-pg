@@ -22,7 +22,7 @@ users.userByEmail = function(email) {
 };
 
 users.userByUsername = function(username) {
-  var q = 'SELECT * FROM users u LEFT JOIN users.profiles p ON u.id = p.user_id WHERE u.username = $1';
+  var q = 'SELECT u.id, u.username, u.email, u.passhash, u.confirmation_token, u.reset_token, u.reset_expiration, u.created_at, u.updated_at, u.imported_at, p.avatar, p.position, p.signature, p.fields FROM users u LEFT JOIN users.profiles p ON u.id = p.user_id WHERE u.username = $1';
   var params = [username];
   return db.sqlQuery(q, params)
   .then(function(rows) {
@@ -135,6 +135,8 @@ var formatUser = function(user) {
   return user;
 };
 
+
+
 var userProfileExists = function(userId) {
   var q = 'SELECT * FROM users.profiles WHERE user_id = $1';
   var params = [userId];
@@ -152,7 +154,7 @@ var insertUserProfile = function(user) {
 };
 
 var updateUserProfile = function(user) {
-  var q = 'UPDATE users.profiles SET user_id = $1, avatar = $2, position = $3, signature = $4, fields = $5';
+  var q = 'UPDATE users.profiles SET user_id = $1, avatar = $2, position = $3, signature = $4, fields = $5 WHERE user_id = $1';
   var params = [user.id, user.avatar, user.position, user.signature, user.fields];
   return db.sqlQuery(q, params);
 };
