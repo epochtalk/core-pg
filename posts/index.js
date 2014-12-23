@@ -96,7 +96,11 @@ posts.find = function(id) {
 
 posts.byThread = function(threadId, opts) {
   // var q = 'SELECT * FROM posts WHERE thread_id = $1 LIMIT $2 OFFSET $3';
-  var q = 'SELECT p.id, p.thread_id, p.user_id, p.title, p.body, p.created_at, p.updated_at, p.imported_at, u.username FROM posts p LEFT JOIN users u on p.user_id = u.id WHERE p.thread_id = $1 ORDER BY p.created_at LIMIT $2 OFFSET $3';
+  var q = 'SELECT p.id, p.thread_id, p.user_id, p.title, p.body, p.created_at, p.updated_at, p.imported_at, u.username, up.signature ' +
+          'FROM posts p ' +
+          'LEFT JOIN users u on p.user_id = u.id ' +
+          'LEFT JOIN users.profiles up on u.id = up.user_id ' +
+          'WHERE p.thread_id = $1 ORDER BY p.created_at LIMIT $2 OFFSET $3';
   var limit = opts.limit || 10;
   var page = opts.page || 1;
   var offset = (page * limit) - limit;
@@ -104,9 +108,10 @@ posts.byThread = function(threadId, opts) {
   return db.sqlQuery(q, params)
   .then(function(posts) {
     return Promise.map(posts, function(post) {
-      post.user = { id: post.user_id, username: post.username };
+      post.user = { id: post.user_id, username: post.username, signature: post.signature };
       delete post.user_id;
       delete post.username;
+      delete post.signature;
       return post;
     });
   });
