@@ -59,8 +59,8 @@ var incrementPostCount = function increment(boardId, initial) {
 
 posts.create = function(post) {
   var timestamp = new Date();
-  var createQuery = 'INSERT INTO posts(thread_id, user_id, title, body, encodedBody, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id';
-  var params = [post.thread_id, post.user_id, post.title, post.body, post.encodedBody, timestamp, timestamp];
+  var createQuery = 'INSERT INTO posts(thread_id, user_id, title, body, raw_body, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id';
+  var params = [post.thread_id, post.user_id, post.title, post.body, post.raw_body, timestamp, timestamp];
   return db.sqlQuery(createQuery, params)
   .then(function(rows) {
     if (rows.length > 0) { return rows[0]; }

@@ -56,7 +56,7 @@ CREATE TABLE posts (
   thread_id integer,
   user_id integer,
   title character varying(255) DEFAULT ''::character varying NOT NULL,
-  encodedBody text DEFAULT '',
+  raw_body text DEFAULT '',
   body text DEFAULT '' NOT NULL,
   created_at timestamp with time zone,
   updated_at timestamp with time zone,
