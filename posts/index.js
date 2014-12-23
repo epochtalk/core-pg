@@ -107,7 +107,7 @@ posts.create = function(post) {
   var timestamp = new Date();
   var createQuery = 'INSERT INTO posts(thread_id, user_id, title, body, raw_body, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id';
   var params = [post.thread_id, post.user_id, post.title, post.body, post.raw_body, timestamp, timestamp];
-  var createdPost, boardId;
+  var createdPost, boardId, thread_created_at;
   return db.sqlQuery(createQuery, params)
   .then(function(rows) {
     if (rows.length > 0) {
@@ -116,18 +116,32 @@ posts.create = function(post) {
     }
     else { Promise.reject(); }
   })
-  // update post count and last post by on metadata.board
+  // get thread for this post
   .then(function() {
-    var q = 'SELECT board_id FROM threads WHERE id = $1';
+    var q = 'SELECT board_id, created_at FROM threads WHERE id = $1';
     params = [post.thread_id];
-    db.sqlQuery(q, params)
-    .then(function(thread) {
-      if (thread.length > 0) {
-        boardId = thread[0].board_id;
-        incrementPostCount(boardId, true);
-        updateLastPostBy(boardId, post.thread_id, post.user_id, timestamp);
+    return db.sqlQuery(q, params)
+    .then(function(rows){
+      if (rows.length > 0) {
+        boardId = rows[0].board_id;
+        thread_created_at = rows[0].created_at;
       }
     });
+  })
+  // update thread created_at if earlier post
+  .then(function() {
+    if (!thread_created_at || thread_created_at > timestamp) {
+      q = 'UPDATE threads SET created_at = $1, updated_at = $1 WHERE id = $2';
+      params = [timestamp, post.thread_id];
+      db.sqlQuery(q, params);
+    }
+  })
+  // update post count and last post by on metadata.board
+  .then(function() {
+    if (boardId) {
+      incrementPostCount(boardId, true);
+      updateLastPostBy(boardId, post.thread_id, post.user_id, timestamp);
+    }
   })
   .then(function() { return createdPost; });
 };
