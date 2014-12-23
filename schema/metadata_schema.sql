@@ -8,7 +8,11 @@ CREATE TABLE metadata.boards (
   post_count integer DEFAULT 0,
   thread_count integer DEFAULT 0,
   total_post_count integer DEFAULT 0,
-  total_thread_count integer DEFAULT 0
+  total_thread_count integer DEFAULT 0,
+  last_post_username character varying(255),
+  last_post_created_at timestamp with time zone,
+  last_thread_id integer,
+  last_thread_title character varying (255)
 );
 CREATE UNIQUE INDEX index_boards_on_board_id ON metadata.boards USING btree (board_id);
 

@@ -77,6 +77,10 @@ boards.allCategories = function() {
               board.thread_count = boardMeta.thread_count;
               board.total_post_count = boardMeta.total_post_count;
               board.total_thread_count = boardMeta.total_thread_count;
+              board.last_post_username = boardMeta.last_post_username;
+              board.last_thread_id = boardMeta.last_thread_id;
+              board.last_post_created_at = boardMeta.last_post_created_at;
+              board.last_thread_title = boardMeta.last_thread_title;
             }
             return board;
           });
