@@ -72,7 +72,7 @@ users.create = function(user) {
 };
 
 users.update = function(user) {
-  var q = 'SELECT * FROM users WHERE id = $1';
+  var q = 'SELECT u.id, u.username, u.email, u.passhash, u.confirmation_token, u.reset_token, u.reset_expiration, u.created_at, u.updated_at, u.imported_at, p.avatar, p.position, p.signature, p.fields FROM users u LEFT JOIN users.profiles p ON u.id = p.user_id WHERE u.id = $1';
   var params = [user.id];
   var updatedUser;
   return db.sqlQuery(q, params)
@@ -97,19 +97,29 @@ users.update = function(user) {
       .then(function(exists) { // Update or Insert profile fields
 
         // Special Profile Fields
-        if (user.avatar)      { updatedUser.avatar = user.avatar; }
-        if (user.position)    { updatedUser.position = user.position; }
-        if (user.signature)   { updatedUser.signature = user.signature; }
+        if (user.avatar)                  { updatedUser.avatar = user.avatar; }
+        else if (user.avatar === '')      { updatedUser.avatar = null; }
+        if (user.position)                { updatedUser.position = user.position; }
+        else if (user.position === '')    { updatedUser.position = null; }
+        if (user.signature)               { updatedUser.signature = user.signature; }
+        else if (user.signature === '')   { updatedUser.signature = null; }
 
         // Generic Profile Fields
-        updatedUser.fields = {};
-        if (user.name)        { updatedUser.fields.name = user.name; }
-        if (user.website)     { updatedUser.fields.website = user.website; }
-        if (user.btcAddress)  { updatedUser.fields.btcAddress = user.btcAddress; }
-        if (user.gender)      { updatedUser.fields.gender = user.gender; }
-        if (user.dob)         { updatedUser.fields.dob = user.dob; }
-        if (user.location)    { updatedUser.fields.location = user.location; }
-        if (user.language)    { updatedUser.fields.language = user.language; }
+        if (!updatedUser.fields)          { updatedUser.fields = {}; }
+        if (user.name)                    { updatedUser.fields.name = user.name; }
+        else if (user.name === '')        { updatedUser.fields.name = null; }
+        if (user.website)                 { updatedUser.fields.website = user.website; }
+        else if (user.website === '')     { updatedUser.fields.website = null; }
+        if (user.btcAddress)              { updatedUser.fields.btcAddress = user.btcAddress; }
+        else if (user.btcAddress === '')  { updatedUser.fields.btcAddress = null; }
+        if (user.gender)                  { updatedUser.fields.gender = user.gender; }
+        else if (user.gender === '')      { updatedUser.fields.gender = null; }
+        if (user.dob)                     { updatedUser.fields.dob = user.dob; }
+        else if (user.dob === '')         { updatedUser.fields.dob = null; }
+        if (user.location)                { updatedUser.fields.location = user.location; }
+        else if (user.location === '')    { updatedUser.fields.location = null; }
+        if (user.language)                { updatedUser.fields.language = user.language; }
+        else if (user.language === '')    { updatedUser.fields.language = null; }
 
         if (exists) { return updateUserProfile(updatedUser); }
         else { return insertUserProfile(updatedUser); }
@@ -135,8 +145,6 @@ var formatUser = function(user) {
   return user;
 };
 
-
-
 var userProfileExists = function(userId) {
   var q = 'SELECT * FROM users.profiles WHERE user_id = $1';
   var params = [userId];
@@ -158,7 +166,6 @@ var updateUserProfile = function(user) {
   var params = [user.id, user.avatar, user.position, user.signature, user.fields];
   return db.sqlQuery(q, params);
 };
-
 
 users.find = function(id) {
   var q = 'SELECT * FROM users WHERE id = $1';
