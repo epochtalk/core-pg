@@ -159,7 +159,7 @@ posts.find = function(id) {
 
 posts.byThread = function(threadId, opts) {
   // var q = 'SELECT * FROM posts WHERE thread_id = $1 LIMIT $2 OFFSET $3';
-  var q = 'SELECT p.id, p.thread_id, p.user_id, p.title, p.body, p.created_at, p.updated_at, p.imported_at, u.username, up.signature ' +
+  var q = 'SELECT p.id, p.thread_id, p.user_id, p.title, p.body, p.raw_body, p.created_at, p.updated_at, p.imported_at, u.username, up.signature ' +
           'FROM posts p ' +
           'LEFT JOIN users u on p.user_id = u.id ' +
           'LEFT JOIN users.profiles up on u.id = up.user_id ' +
