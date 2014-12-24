@@ -49,6 +49,7 @@ CREATE TABLE threads (
 );
 
 CREATE INDEX index_threads_on_board_id ON threads USING btree (board_id);
+CREATE INDEX index_threads_on_updated_at ON threads USING btree (updated_at);
 
 CREATE TABLE posts (
   -- id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,

@@ -136,7 +136,7 @@ threads.find = function(id) {
 };
 
 threads.byBoard = function(boardId, opts) {
-  var q = 'SELECT DISTINCT ON (t.id) t.id, t.created_at, t.updated_at, p.title, p.body, p.user_id, u.username FROM threads t LEFT JOIN posts p ON t.id = p.thread_id LEFT JOIN users u ON p.user_id = u.id WHERE t.board_id = $1 ORDER BY t.id DESC, p.created_at LIMIT $2 OFFSET $3;';
+  var q = 'SELECT t.id, t.created_at, t.updated_at, p.title, p.user_id, u.username FROM threads t LEFT JOIN ( SELECT DISTINCT ON (thread_id) thread_id, title, user_id from posts order by thread_id, created_at ) p ON t.id = p.thread_id LEFT JOIN users u ON p.user_id = u.id WHERE t.board_id = $1 ORDER BY t.updated_at DESC LIMIT $2 OFFSET $3;';
   var limit = opts.limit || 10;
   var page = opts.page || 1;
   var offset = (page * limit) - limit;
