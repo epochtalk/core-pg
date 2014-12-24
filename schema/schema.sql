@@ -3,7 +3,7 @@ CREATE EXTENSION citext;
 CREATE TABLE users (
   -- id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
   id serial PRIMARY KEY,
-  email character varying(255) NOT NULL,
+  email citext CHECK (length(email) <= 255) NOT NULL,
   username citext CHECK (length(username) <= 50) NOT NULL,
   passhash character varying(255),
   confirmation_token character varying(255),
