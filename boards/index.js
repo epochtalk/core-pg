@@ -12,6 +12,28 @@ boards.all = function() {
   return db.sqlQuery('SELECT * from boards');
 };
 
+
+// TODO: ADD SUPPORT FOR CHILD BOARDS WHEN BOARDS.UPDATE IS ADDED
+boards.create = function(board) {
+  var timestamp = new Date();
+  if (!board.created) { board.created_at = timestamp; }
+  if (!board.updated_at) { board.updated_at = timestamp; }
+  var q = 'INSERT INTO boards(category_id, name, description, created_at, updated_at) VALUES($1, $2, $3, $4, $5) RETURNING id';
+  var params = [board.category_id, board.name, board.description, board.created_at, board.updated_at];
+  return db.sqlQuery(q, params)
+  .then(function(rows) {
+    if (rows.length > 0) { return rows[0]; }
+    else { Promise.reject(); }
+  })
+  // set up board metadata
+  .then(function(createdBoard) {
+    var setup = 'INSERT INTO metadata.boards (board_id) VALUES ($1)';
+    params = [createdBoard.id];
+    db.sqlQuery(setup, params);
+    return createdBoard;
+  });
+};
+
 boards.import = function(board) {
   var timestamp = new Date();
   board.imported_at = timestamp;
