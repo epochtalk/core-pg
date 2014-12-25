@@ -77,6 +77,15 @@ boards.find = function(id) {
   });
 };
 
+boards.updateCategories = function(categories) {
+  categories.forEach(function(cat) {
+    console.log(cat);
+    cat.boards.forEach(function(board) {
+      console.log(board);
+    });
+  });
+};
+
 boards.allCategories = function() {
   var q = 'SELECT * FROM categories';
   var categories;
