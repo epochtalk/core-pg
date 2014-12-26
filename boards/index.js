@@ -34,6 +34,39 @@ boards.create = function(board) {
   });
 };
 
+boards.update = function(board) {
+  var q = 'SELECT * FROM boards WHERE id = $1';
+  var params = [board.id];
+  var updatedBoard;
+  return db.sqlQuery(q, params)
+  .then(function(rows) {
+    if (rows.length > 0) {
+      updatedBoard = rows[0];
+      if (board.name) { updatedBoard.name = board.name; }
+
+      if (board.description) { updatedBoard.description = board.description; }
+      else if (board.description === null || board.description === '') { updatedBoard.description = ''; }
+
+      if (board.category_id) { updatedBoard.category_id = board.category_id; }
+      else if (board.category_id === null || board.category_id === '') { updatedBoard.category_id = null; }
+
+      if (board.parent_id) { updatedBoard.parent_id = board.parent_id; }
+      else if (board.parent_id === null || board.category_id === '') { updatedBoard.parent_id = null; }
+
+      if (board.children_ids) { updatedBoard.children_ids = board.children_ids; }
+      else if (board.children_ids === null) { updatedBoard.children_ids = null; }
+      else if (board.children_ids && board.children_ids.length === 0) { updatedBoard.children_ids = null; }
+
+      updatedBoard.updated_at = new Date();
+      var q = 'UPDATE boards SET name = $1, description = $2, category_id = $3, parent_id = $4, children_ids = $5, updated_at = $6 WHERE id = $7';
+      var params = [updatedBoard.name, updatedBoard.description, updatedBoard.category_id, updatedBoard.parent_id, updatedBoard.children_ids, updatedBoard.updated_at, updatedBoard.id];
+      return db.sqlQuery(q, params);
+    }
+    else { Promise.reject(); }
+  })
+  .then(function() { return updatedBoard; });
+};
+
 boards.import = function(board) {
   var timestamp = new Date();
   board.imported_at = timestamp;
