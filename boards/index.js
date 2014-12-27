@@ -18,8 +18,8 @@ boards.create = function(board) {
   var timestamp = new Date();
   if (!board.created) { board.created_at = timestamp; }
   if (!board.updated_at) { board.updated_at = timestamp; }
-  var q = 'INSERT INTO boards(category_id, name, description, created_at, updated_at, parent_id, children_ids) VALUES($1, $2, $3, $4, $5, $6, $7)';
-  var params = [board.category_id, board.name, board.description, board.created_at, board.updated_at, board.parent_id, board.children_ids];
+  var q = 'INSERT INTO boards(category_id, name, description, created_at, updated_at, parent_board_id, children_ids) VALUES($1, $2, $3, $4, $5, $6, $7)';
+  var params = [board.category_id, board.name, board.description, board.created_at, board.updated_at, board.parent_board_id, board.children_ids];
   var createdBoard;
   return db.sqlQuery(q, params)
   .then(function(rows) {
@@ -36,8 +36,8 @@ boards.create = function(board) {
     return db.sqlQuery(setup, params);
   })
   .then(function() {
-    if (board.parent_id) {
-      return addChildToBoard(board.id, board.parent_id);
+    if (board.parent_board_id) {
+      return addChildToBoard(board.id, board.parent_board_id);
     }
     else { return; }
   })
@@ -85,23 +85,23 @@ boards.update = function(board) {
       if (board.category_id) { updatedBoard.category_id = board.category_id; }
       else if (board.category_id === null || board.category_id === '') { updatedBoard.category_id = null; }
 
-      if (board.parent_id) { updatedBoard.parent_id = board.parent_id; }
-      else if (board.parent_id === null || board.category_id === '') { updatedBoard.parent_id = null; }
+      if (board.parent_board_id) { updatedBoard.parent_board_id = board.parent_board_id; }
+      else if (board.parent_board_id === null || board.category_id === '') { updatedBoard.parent_board_id = null; }
 
       if (board.children_ids) { updatedBoard.children_ids = board.children_ids; }
       else if (board.children_ids === null) { updatedBoard.children_ids = null; }
       else if (board.children_ids && board.children_ids.length === 0) { updatedBoard.children_ids = null; }
 
       updatedBoard.updated_at = new Date();
-      var q = 'UPDATE boards SET name = $1, description = $2, category_id = $3, parent_id = $4, children_ids = $5, updated_at = $6 WHERE id = $7';
-      var params = [updatedBoard.name, updatedBoard.description, updatedBoard.category_id, updatedBoard.parent_id, updatedBoard.children_ids, updatedBoard.updated_at, updatedBoard.id];
+      var q = 'UPDATE boards SET name = $1, description = $2, category_id = $3, parent_board_id = $4, children_ids = $5, updated_at = $6 WHERE id = $7';
+      var params = [updatedBoard.name, updatedBoard.description, updatedBoard.category_id, updatedBoard.parent_board_id, updatedBoard.children_ids, updatedBoard.updated_at, updatedBoard.id];
       return db.sqlQuery(q, params);
     }
     else { Promise.reject(); }
   })
   .then(function() {
-    if (board.parent_id) {
-      return addChildToBoard(board.id, board.parent_id);
+    if (board.parent_board_id) {
+      return addChildToBoard(board.id, board.parent_board_id);
     }
     else { return; }
   })

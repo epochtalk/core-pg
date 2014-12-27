@@ -28,7 +28,7 @@ CREATE TABLE categories (
 CREATE TABLE boards (
   -- id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
   id serial PRIMARY KEY,
-  parent_id integer,
+  parent_board_id integer,
   children_ids integer[],
   category_id integer,
   name character varying(255) DEFAULT ''::character varying NOT NULL,
