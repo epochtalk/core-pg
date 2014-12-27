@@ -143,6 +143,23 @@ var updateLastPostBy = function(boardId, threadId, userId, created_at) {
   });
 };
 
+posts.update = function(post) {
+  var timestamp = new Date();
+  var q = 'SELECT title, body, raw_body FROM posts WHERE id = $1';
+  var params = [post.id];
+  return db.sqlQuery(q, params)
+  .then(function(oldPost) {
+    q = 'UPDATE posts SET title = $1, body = $2, raw_body = $3, thread_id = $4 WHERE id = $5 RETURNING id, title, body, raw_body, thread_id';
+    var title = post.title || oldPost.title;
+    var body = post.body || oldPost.body;
+    var raw_body = post.raw_body || oldPost.raw_body;
+    var thread_id = post.thread_id || oldPost.thread_id;
+    params = [title, body, raw_body, thread_id, post.id];
+    return db.sqlQuery(q, params);
+  })
+  .then(function(newPost) { return newPost[0]; });
+};
+
 posts.find = function(id) {
   var q = 'SELECT * FROM posts WHERE id = $1';
   var params = [id];
