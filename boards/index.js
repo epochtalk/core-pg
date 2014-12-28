@@ -152,9 +152,8 @@ boards.find = function(id) {
 };
 
 boards.updateCategories = function(categories) {
+  var viewOrder = 1;
   return Promise.each(categories, function (category) {
-    var viewOrder = 1;
-
     // Check if category exists
     var q = 'SELECT * FROM categories WHERE id = $1';
     var params = [category.id];
