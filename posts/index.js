@@ -15,7 +15,7 @@ posts.all = function() {
 posts.import = function(post) {
   var timestamp = new Date();
   var q = 'INSERT INTO posts(id, thread_id, user_id, title, body, raw_body, created_at, updated_at, imported_at) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id';
-  var params = [post.smf.ID_MSG, post.smf.ID_TOPIC, post.smf.ID_MEMBER, post.title, post.body, post.raw_body, new Date(post.created_at), new Date(post.updated_at), timestamp];
+  var params = [post.smf.ID_MSG, post.smf.ID_TOPIC, post.smf.ID_MEMBER || null, post.title, post.body, post.raw_body, new Date(post.created_at), new Date(post.updated_at), timestamp];
   return insertPostProcessing(timestamp, post.smf.ID_MEMBER, post.smf.ID_TOPIC, q, params);
 };
 
