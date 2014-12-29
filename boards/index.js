@@ -161,8 +161,8 @@ boards.updateCategories = function(categories) {
     .then(function(rows) {
       var q, params;
       if (rows.length > 0) { // Update view order based on array order
-        q = 'UPDATE categories SET view_order = $1 WHERE id = $2 RETURNING id';
-        params = [viewOrder++, category.id];
+        q = 'UPDATE categories SET name = $1, view_order = $2 WHERE id = $3 RETURNING id';
+        params = [category.name, viewOrder++, category.id];
       }
       else { // Category doesn't exist create it
         q = 'INSERT INTO categories(name, view_order) VALUES($1, $2) RETURNING id';
