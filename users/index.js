@@ -37,8 +37,8 @@ users.userByUsername = function(username) {
 users.import = function(user) {
   var timestamp = new Date();
   user.imported_at = timestamp;
-  var q = 'INSERT INTO users(id, email, username, imported_at) VALUES($1, $2, $3, $4) RETURNING id';
-  var params = [user.smf.ID_MEMBER, user.email, user.username, user.imported_at];
+  var q = 'INSERT INTO users(id, email, username, imported_at, created_at) VALUES($1, $2, $3, $4, $5) RETURNING id';
+  var params = [user.smf.ID_MEMBER, user.email, user.username, user.imported_at, user.created_at];
   return db.sqlQuery(q, params)
   .then(function(rows) {
     if (rows.length > 0) { return rows[0]; }
