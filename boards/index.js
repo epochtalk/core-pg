@@ -70,6 +70,7 @@ var addChildToBoard = function(childId, parentId) {
 };
 
 boards.update = function(board) {
+  console.log('board.update', board);
   var q = 'SELECT * FROM boards WHERE id = $1';
   var params = [board.id];
   var updatedBoard;
