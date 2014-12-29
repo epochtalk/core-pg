@@ -42,6 +42,16 @@ users.import = function(user) {
   return db.sqlQuery(q, params)
   .then(function(rows) {
     if (rows.length > 0) { return rows[0]; }
+  })
+  .then(function(returnObject) {
+    var profile = {};
+    profile.id = returnObject.id;
+    profile.avatar = user.avatar || null;
+    profile.position = user.position || null;
+    profile.signature = user.signature || null;
+    profile.fields = user.fields || null;
+    insertUserProfile(profile);
+    return returnObject;
   });
 };
 
