@@ -17,7 +17,7 @@ CREATE TABLE users.profiles (
   user_id integer,
   avatar character varying(255),
   position character varying(255),
-  signature character varying(255),
+  signature text,
   fields json
 );
 
