@@ -24,7 +24,7 @@ threads.create = function(thread) {
   var timestamp = new Date();
   var q = 'INSERT INTO threads(board_id, created_at, updated_at) VALUES ($1, $2, $3) RETURNING id';
   var params = [thread.board_id, timestamp, timestamp];
-  return insertPostProcessing(thread.board_id, 1, q, params);
+  return insertPostProcessing(thread.board_id, 0, q, params);
 };
 
 var insertPostProcessing = function(boardId, views, insertQuery, insertParams) {
