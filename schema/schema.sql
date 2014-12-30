@@ -17,6 +17,20 @@ CREATE TABLE users (
 CREATE INDEX index_users_on_email ON users USING btree (email);
 CREATE UNIQUE INDEX index_users_on_username ON users USING btree (username);
 
+CREATE TABLE roles (
+  id serial PRIMARY KEY,
+  name character varying(255) DEFAULT ''::character varying NOT NULL,
+  description text DEFAULT '' NOT NULL,
+  created_at timestamp with time zone,
+  updated_at timestamp with time zone
+);
+
+CREATE TABLE roles_users (
+  role_id integer,
+  user_id integer
+);
+
+
 CREATE TABLE categories (
   -- id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
   id serial PRIMARY KEY,
