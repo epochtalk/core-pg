@@ -3,9 +3,9 @@ var exec = require('child_process').exec;
 var path = require('path');
 var Promise = require('bluebird');
 
-function recreate() {
+function recreate(database) {
   return new Promise(function(fulfill, reject) {
-    exec(path.join(__dirname, '..', 'recreate_db.sh'),
+    exec(path.join(__dirname, '..', 'recreate_db.sh') + ' ' + database,
     function (error, stdout, stderr) {
       if (error !== null) reject(error);
       else if (stderr) reject(stderr);
