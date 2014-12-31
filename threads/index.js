@@ -15,7 +15,7 @@ threads.all = function() {
 threads.import = function(thread) {
   var timestamp = new Date();
   var q = 'INSERT INTO threads(id, board_id, created_at, imported_at) VALUES($1, $2, $3, $4) RETURNING id';
-  var params = [thread.smf.ID_TOPIC, thread.smf.ID_BOARD, thread.created_at, timestamp];
+  var params = [thread.smf.ID_TOPIC, thread.smf.ID_BOARD, new Date(thread.created_at), timestamp];
     // TODO: this should be seeded with the imported view count
   return insertPostProcessing(thread.smf.ID_BOARD, thread.view_count, q, params);
 };
