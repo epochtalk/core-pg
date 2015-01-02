@@ -5,7 +5,13 @@ var Promise = require('bluebird');
 
 function recreate(database) {
   return new Promise(function(fulfill, reject) {
-    exec(path.join(__dirname, '..', 'recreate_db.sh') + ' ' + database,
+    if (database) {
+      database = ' ' + database;
+    }
+    else {
+      database = '';
+    }
+    exec(path.join(__dirname, '..', 'recreate_db.sh') + database,
     function (error, stdout, stderr) {
       if (error !== null) reject(error);
       else if (stderr) reject(stderr);
