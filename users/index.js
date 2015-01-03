@@ -24,13 +24,29 @@ users.userByEmail = function(email) {
 users.userByUsername = function(username) {
   var q = 'SELECT u.id, u.username, u.email, u.passhash, u.confirmation_token, u.reset_token, u.reset_expiration, u.created_at, u.updated_at, u.imported_at, p.avatar, p.position, p.signature, p.fields FROM users u LEFT JOIN users.profiles p ON u.id = p.user_id WHERE u.username = $1';
   var params = [username];
+  var user;
   return db.sqlQuery(q, params)
   .then(function(rows) {
     if (rows.length > 0) {
-     var user = rows[0];
-     return formatUser(user);
+     user = formatUser(rows[0]);
+     return user;
     }
-    else { return undefined; }
+    else { Promise.fulfill(undefined); }
+  })
+  .then(function(user) { // Query for users roles
+    var q = 'SELECT roles.* FROM roles_users, roles WHERE roles_users.user_id = $1 AND roles.id = roles_users.role_id';
+    var params = [user.id];
+    return db.sqlQuery(q, params);
+  })
+  .then(function(rows) {  // Append users roles
+    if (rows.length > 0) {
+      user.roles = rows;
+      return user;
+    }
+    else { // User has no roles
+      user.roles = [];
+      return user;
+    }
   });
 };
 
@@ -75,6 +91,23 @@ users.create = function(user) {
     if (rows.length > 0) {
       user.id = rows[0].id;
       delete user.passhash;
+      return;
+    }
+    else { Promise.reject(); }
+  })
+  .then(function() {
+    var q = 'INSERT INTO roles_users(role_id, user_id) VALUES($1, $2)';
+    var params = [1, user.id]; // 1 is Hardcoded "User" role
+    return db.sqlQuery(q, params);
+  })
+  .then(function() { // Query for users roles
+    var q = 'SELECT roles.* FROM roles_users, roles WHERE roles_users.user_id = $1 AND roles.id = roles_users.role_id';
+    var params = [user.id];
+    return db.sqlQuery(q, params);
+  })
+  .then(function(rows) {  // Append users roles
+    if (rows.length > 0) {
+      user.roles = rows;
       return user;
     }
     else { Promise.reject(); }

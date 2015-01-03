@@ -82,7 +82,7 @@ CREATE INDEX index_posts_on_thread_id ON posts USING btree (thread_id);
 CREATE INDEX index_posts_on_user_id ON posts USING btree (user_id);
 CREATE INDEX index_posts_on_created_at ON posts USING btree (created_at);
 
-INSERT INTO roles (name) VALUES ('Administrator');
-INSERT INTO roles (name) VALUES ('Moderator');
-INSERT INTO roles (name) VALUES ('Global Moderator');
 INSERT INTO roles (name) VALUES ('User');
+INSERT INTO roles (name) VALUES ('Administrator');
+INSERT INTO roles (name) VALUES ('Global Moderator');
+INSERT INTO roles (name) VALUES ('Moderator');
