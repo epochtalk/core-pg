@@ -213,10 +213,28 @@ var updateUserProfile = function(user) {
 users.find = function(id) {
   var q = 'SELECT * FROM users WHERE id = $1';
   var params = [id];
+  var user;
   return db.sqlQuery(q, params)
   .then(function(rows) {
     if (rows.length > 0) {
-      return rows[0];
+      user = rows[0];
+      return user;
+    }
+    else { return Promise.fulfill(undefined); }
+  })
+  .then(function(user) { // Query for users roles
+    var q = 'SELECT roles.* FROM roles_users, roles WHERE roles_users.user_id = $1 AND roles.id = roles_users.role_id';
+    var params = [user.id];
+    return db.sqlQuery(q, params);
+  })
+  .then(function(rows) {  // Append users roles
+    if (rows.length > 0) {
+      user.roles = rows;
+      return user;
+    }
+    else { // User has no roles
+      user.roles = [];
+      return user;
     }
   });
 };
