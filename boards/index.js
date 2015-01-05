@@ -152,29 +152,34 @@ boards.find = function(id) {
 };
 
 boards.updateCategories = function(categories) {
-  var viewOrder = 1;
-  return Promise.each(categories, function (category) {
-    // Check if category exists
-    var q = 'SELECT * FROM categories WHERE id = $1';
-    var params = [category.id];
-    return db.sqlQuery(q, params)
-    .then(function(rows) {
-      var q, params;
-      if (rows.length > 0) { // Update view order based on array order
-        q = 'UPDATE categories SET name = $1, view_order = $2 WHERE id = $3 RETURNING id';
-        params = [category.name, viewOrder++, category.id];
-      }
-      else { // Category doesn't exist create it
-        q = 'INSERT INTO categories(name, view_order) VALUES($1, $2) RETURNING id';
-        params = [category.name, viewOrder++];
-      }
-
+  var q = 'UPDATE boards SET category_id = $1';
+  var params = [null];
+  return db.sqlQuery(q, params) // Clear boards of categories
+  .then(function() {
+    var viewOrder = 1;
+    return Promise.each(categories, function (category) {
+      // Check if category exists
+      var q = 'SELECT * FROM categories WHERE id = $1';
+      var params = [category.id];
       return db.sqlQuery(q, params)
-      .then(function(rows) { // Update boards for this category
-        var categoryId = rows[0].id;
-        var q = 'UPDATE boards SET category_id = $1 WHERE id = ANY($2::int[])';
-        var params = [categoryId, category.board_ids];
-        return db.sqlQuery(q, params);
+      .then(function(rows) {
+        var q, params;
+        if (rows.length > 0) { // Update view order based on array order
+          q = 'UPDATE categories SET name = $1, view_order = $2 WHERE id = $3 RETURNING id';
+          params = [category.name, viewOrder++, category.id];
+        }
+        else { // Category doesn't exist create it
+          q = 'INSERT INTO categories(name, view_order) VALUES($1, $2) RETURNING id';
+          params = [category.name, viewOrder++];
+        }
+
+        return db.sqlQuery(q, params)
+        .then(function(rows) { // Update boards for this category
+          var categoryId = rows[0].id;
+          var q = 'UPDATE boards SET category_id = $1 WHERE id = ANY($2::int[])';
+          var params = [categoryId, category.board_ids];
+          return db.sqlQuery(q, params);
+        });
       });
     });
   });
