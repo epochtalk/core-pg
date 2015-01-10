@@ -1,0 +1,26 @@
+{
+  "dev": {
+    "driver": "pg",
+    "user": "jianshi",
+    "password": "",
+    "host": "localhost",
+    "database": "epoch_development"
+  },
+
+  "test": {
+    "driver": "pg",
+    "user": "root",
+    "password": "",
+    "host": "localhost",
+    "database": "epoch_test"
+  },
+
+  "prod": {
+    "driver": "pg",
+    "user": "prod",
+    "password": "prod",
+    "host": "localhost",
+    "database": "epoch"
+  },
+  "sql-file" : true
+}
