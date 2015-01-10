@@ -8,10 +8,6 @@ var Promise = require('bluebird');
 var config = require(path.join(__dirname, '..', 'config'));
 var db = require(path.join(__dirname, '..', 'db'));
 
-threads.all = function() {
-  return db.sqlQuery('SELECT * from threads');
-};
-
 threads.import = function(thread) {
   var timestamp = new Date();
   var q = 'INSERT INTO threads(id, board_id, imported_at) VALUES($1, $2, $3) RETURNING id';
