@@ -4,7 +4,7 @@
     "user": "jianshi",
     "password": "",
     "host": "localhost",
-    "database": "epoch_development"
+    "database": "epochtalk_dev"
   },
 
   "test": {
@@ -12,7 +12,7 @@
     "user": "root",
     "password": "",
     "host": "localhost",
-    "database": "epoch_test"
+    "database": "epochtalk_test"
   },
 
   "prod": {
@@ -20,7 +20,7 @@
     "user": "prod",
     "password": "prod",
     "host": "localhost",
-    "database": "epoch"
+    "database": "epochtalk"
   },
   "sql-file" : true
 }
