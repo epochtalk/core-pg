@@ -13,6 +13,8 @@ function core(opts) {
       config.update(updateOptions);
     }
   }
+  console.log('config --');
+  console.log(config);
   core.users = require(path.join(__dirname, 'users'));
   core.categories = require(path.join(__dirname, 'categories'));
   core.boards = require(path.join(__dirname, 'boards'));
