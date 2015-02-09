@@ -5,16 +5,13 @@ var pg = require('pg');
 var core = {};
 
 function core(opts) {
-  if (opts) {
-    if (opts.db) {
-      var updateOptions = {
-        cstring: 'postgres://localhost/' + opts.db
-      };
-      config.update(updateOptions);
-    }
+  if (opts && opts.host && opts.database) {
+    var updateOptions = {
+      cstring: 'postgres://' + opts.host + '/' + opts.database
+    };
+    config.update(updateOptions);
   }
-  console.log('config --');
-  console.log(config);
+
   core.users = require(path.join(__dirname, 'users'));
   core.categories = require(path.join(__dirname, 'categories'));
   core.boards = require(path.join(__dirname, 'boards'));
