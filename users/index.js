@@ -94,7 +94,12 @@ users.create = function(user) {
   })
   .then(function() {
     var q = 'INSERT INTO roles_users(role_id, user_id) VALUES($1, $2)';
-    var params = [1, user.id]; // 1 is Hardcoded "User" role
+    var defaultRole = 1;
+    // admin for first user
+    if (user.id === 1) {
+      defaultRole = 2;
+    }
+    var params = [defaultRole, user.id]; // 1 is Hardcoded "User" role
     return db.sqlQuery(q, params);
   })
   .then(function() { // Query for users roles

@@ -12,6 +12,18 @@ categories.all = function() {
   return db.sqlQuery('SELECT * from categories');
 };
 
+categories.create = function(category) {
+  var timestamp = new Date();
+  var insertCategoryQuery = 'INSERT INTO categories(name) VALUES($1) RETURNING id';
+  var params = [category.name];
+  return db.sqlQuery(insertCategoryQuery, params)
+  .then(function(rows) {
+    if (rows.length > 0) {
+      return rows[0];
+    }
+  });
+};
+
 categories.import = function(category) {
   var timestamp = new Date();
   category.imported_at = timestamp;
