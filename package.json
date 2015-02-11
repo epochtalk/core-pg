@@ -1,6 +1,6 @@
 {
   "name": "epochtalk-core-pg",
-  "version": "0.9.2",
+  "version": "0.9.3",
   "description": "Epochtalk Core for PostgreSQL",
   "main": "index.js",
   "scripts": {
