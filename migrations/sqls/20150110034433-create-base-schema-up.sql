@@ -1,9 +1,7 @@
-/* Replace with your SQL commands */
--- CREATE EXTENSION "uuid-ossp";
+CREATE EXTENSION "uuid-ossp";
 CREATE EXTENSION citext;
 CREATE TABLE users (
-  -- id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
-  id serial PRIMARY KEY,
+  id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
   email citext CHECK (length(email) <= 255) NOT NULL,
   username citext CHECK (length(username) <= 50) NOT NULL,
   passhash character varying(255),
@@ -19,7 +17,7 @@ CREATE INDEX index_users_on_email ON users USING btree (email);
 CREATE UNIQUE INDEX index_users_on_username ON users USING btree (username);
 
 CREATE TABLE roles (
-  id serial PRIMARY KEY,
+  id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
   name character varying(255) DEFAULT ''::character varying NOT NULL,
   description text DEFAULT '' NOT NULL,
   permissions json,
@@ -28,25 +26,23 @@ CREATE TABLE roles (
 );
 
 CREATE TABLE roles_users (
-  role_id integer,
-  user_id integer
+  role_id uuid,
+  user_id uuid
 );
 
 
 CREATE TABLE categories (
-  -- id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
-  id serial PRIMARY KEY,
+  id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
   name character varying(255) DEFAULT ''::character varying NOT NULL,
   view_order integer,
   imported_at timestamp with time zone
 );
 
 CREATE TABLE boards (
-  -- id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
-  id serial PRIMARY KEY,
-  parent_board_id integer,
-  children_ids integer[],
-  category_id integer,
+  id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
+  parent_board_id uuid,
+  children_ids uuid[],
+  category_id uuid,
   name character varying(255) DEFAULT ''::character varying NOT NULL,
   description text DEFAULT '' NOT NULL,
   created_at timestamp with time zone,
@@ -55,9 +51,8 @@ CREATE TABLE boards (
 );
 
 CREATE TABLE threads (
-  -- id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
-  id serial PRIMARY KEY,
-  board_id integer,
+  id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
+  board_id uuid,
   created_at timestamp with time zone,
   updated_at timestamp with time zone,
   imported_at timestamp with time zone
@@ -67,10 +62,9 @@ CREATE INDEX index_threads_on_board_id ON threads USING btree (board_id);
 CREATE INDEX index_threads_on_updated_at ON threads USING btree (updated_at);
 
 CREATE TABLE posts (
-  -- id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
-  id serial PRIMARY KEY,
-  thread_id integer,
-  user_id integer,
+  id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
+  thread_id uuid,
+  user_id uuid,
   title character varying(255) DEFAULT ''::character varying NOT NULL,
   raw_body text DEFAULT '',
   body text DEFAULT '' NOT NULL,

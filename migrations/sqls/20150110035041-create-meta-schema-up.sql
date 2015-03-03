@@ -2,9 +2,8 @@ CREATE SCHEMA metadata;
 
 -- Boards
 CREATE TABLE metadata.boards (
-  -- id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
-  id serial PRIMARY KEY,
-  board_id integer UNIQUE,
+  id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
+  board_id uuid UNIQUE,
   post_count integer DEFAULT 0,
   thread_count integer DEFAULT 0,
   total_post_count integer DEFAULT 0,
@@ -20,8 +19,8 @@ ALTER TABLE metadata.boards ADD CONSTRAINT boards_board_id_fk FOREIGN KEY (board
 
 --Threads 
 CREATE TABLE metadata.threads (
-  id serial PRIMARY KEY,
-  thread_id integer UNIQUE,
+  id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
+  thread_id uuid UNIQUE,
   views integer DEFAULT 0
 );
 CREATE UNIQUE INDEX index_threads_on_thread_id ON metadata.threads USING btree(thread_id);
