@@ -88,17 +88,14 @@ users.create = function(user) {
     if (rows.length > 0) {
       user.id = rows[0].id;
       delete user.passhash;
-      return;
+      return user;
     }
     else { Promise.reject(); }
   })
-  .then(function() {
+  .then(function(user) {
     var q = 'INSERT INTO roles_users(role_id, user_id) VALUES($1, $2)';
-    var defaultRole = 1;
-    // admin for first user
-    if (user.id === 1) {
-      defaultRole = 2;
-    }
+    // user role - edcd8f77-ce34-4433-ba85-17f9b17a3b60
+    var defaultRole = 'edcd8f77-ce34-4433-ba85-17f9b17a3b60';
     var params = [defaultRole, user.id]; // 1 is Hardcoded "User" role
     return db.sqlQuery(q, params);
   })

@@ -77,7 +77,7 @@ CREATE INDEX index_posts_on_thread_id ON posts USING btree (thread_id);
 CREATE INDEX index_posts_on_user_id ON posts USING btree (user_id);
 CREATE INDEX index_posts_on_created_at ON posts USING btree (created_at);
 
-INSERT INTO roles (name) VALUES ('User');
-INSERT INTO roles (name) VALUES ('Administrator');
-INSERT INTO roles (name) VALUES ('Global Moderator');
-INSERT INTO roles (name) VALUES ('Moderator');
+INSERT INTO roles (id, name) VALUES ('edcd8f77-ce34-4433-ba85-17f9b17a3b60', 'User');
+INSERT INTO roles (id, name) VALUES ('06860e6f-9ac0-4c2a-8d9c-417343062fb8', 'Administrator');
+INSERT INTO roles (id, name) VALUES ('fb0f70b7-3652-4f7d-a166-05ee68e7428d', 'Global Moderator');
+INSERT INTO roles (id, name) VALUES ('c0d39771-1541-4b71-9122-af0736cad23d', 'Moderator');
