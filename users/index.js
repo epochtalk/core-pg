@@ -81,9 +81,17 @@ users.create = function(user) {
     user.passhash = bcrypt.hashSync(user.password, 12);
   }
   delete user.password;
-  var q = 'INSERT INTO users(email, username, passhash, confirmation_token, created_at, updated_at) VALUES($1, $2, $3, $4, $5, $6) RETURNING id';
-  var params = [user.email, user.username, user.passhash, user.confirmation_token, user.created_at, user.updated_at];
-  return db.sqlQuery(q, params)
+  var firstUser;
+
+  var q = 'SELECT COUNT(id) FROM users';
+  return db.sqlQuery(q)
+  .then(function(rows) {
+    var count = Number(rows[0].count);
+    firstUser = (count === 0);
+    var q = 'INSERT INTO users(email, username, passhash, confirmation_token, created_at, updated_at) VALUES($1, $2, $3, $4, $5, $6) RETURNING id';
+    var params = [user.email, user.username, user.passhash, user.confirmation_token, user.created_at, user.updated_at];
+    return db.sqlQuery(q, params)
+  })
   .then(function(rows) {
     if (rows.length > 0) {
       user.id = rows[0].id;
@@ -96,7 +104,9 @@ users.create = function(user) {
     var q = 'INSERT INTO roles_users(role_id, user_id) VALUES($1, $2)';
     // user role - edcd8f77-ce34-4433-ba85-17f9b17a3b60
     var defaultRole = 'edcd8f77-ce34-4433-ba85-17f9b17a3b60';
-    var params = [defaultRole, user.id]; // 1 is Hardcoded "User" role
+    // admin role = 06860e6f-9ac0-4c2a-8d9c-417343062fb8
+    if (firstUser) defaultRole = '06860e6f-9ac0-4c2a-8d9c-417343062fb8';
+    var params = [defaultRole, user.id];
     return db.sqlQuery(q, params);
   })
   .then(function() { // Query for users roles
@@ -107,6 +117,7 @@ users.create = function(user) {
   .then(function(rows) {  // Append users roles
     if (rows.length > 0) {
       user.roles = rows;
+      console.log(user);
       return user;
     }
     else { Promise.reject(); }
