@@ -11,8 +11,11 @@ var db = require(path.join(__dirname, '..', 'db'));
 posts.import = function(post) {
   var timestamp = new Date();
   var q = 'INSERT INTO posts(id, thread_id, user_id, title, body, raw_body, created_at, updated_at, imported_at) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id';
-  var params = [post.smf.ID_MSG, post.smf.ID_TOPIC, post.smf.ID_MEMBER || null, post.title, post.body, post.raw_body, new Date(post.created_at), new Date(post.updated_at), timestamp];
-  return insertPostProcessing(new Date(post.created_at), post.smf.ID_MEMBER, post.smf.ID_TOPIC, q, params);
+  var postUUID = helper.intToUUID(post.smf.ID_MSG);
+  var threadUUID = helper.intToUUID(post.smf.ID_TOPIC);
+  var userUUID = helper.intToUUID(post.smf.ID_MEMBER);
+  var params = [postUUID, threadUUID, userUUID || null, post.title, post.body, post.raw_body, new Date(post.created_at), new Date(post.updated_at), timestamp];
+  return insertPostProcessing(new Date(post.created_at), userUUID, threadUUID, q, params);
 };
 
 posts.create = function(post) {

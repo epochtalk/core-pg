@@ -7,6 +7,7 @@ var bcrypt = require('bcrypt');
 var Promise = require('bluebird');
 var config = require(path.join(__dirname, '..', 'config'));
 var db = require(path.join(__dirname, '..', 'db'));
+var helper = require(path.join(__dirname, '..', 'helper'));
 var _ = require('lodash');
 
 boards.all = function() {
@@ -112,7 +113,8 @@ boards.import = function(board) {
   var timestamp = new Date();
   board.imported_at = timestamp;
   var q = 'INSERT INTO boards(id, category_id, name, description, imported_at) VALUES($1, $2, $3, $4, $5) RETURNING id';
-  var params = [board.smf.ID_BOARD, board.smf.ID_CAT, board.name, board.description, board.imported_at];
+  var boardUUID = helper.intToUUID(board.smf.ID_BOARD);
+  var params = [boardUUID, board.smf.ID_CAT, board.name, board.description, board.imported_at];
   return db.sqlQuery(q, params)
   .then(function(rows) {
     if (rows.length > 0) { return rows[0]; }

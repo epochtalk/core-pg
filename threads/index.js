@@ -7,13 +7,17 @@ var bcrypt = require('bcrypt');
 var Promise = require('bluebird');
 var config = require(path.join(__dirname, '..', 'config'));
 var db = require(path.join(__dirname, '..', 'db'));
+var helper = require(path.join(__dirname, '..', 'helper'));
 
 threads.import = function(thread) {
   var timestamp = new Date();
   var q = 'INSERT INTO threads(id, board_id, imported_at) VALUES($1, $2, $3) RETURNING id';
-  var params = [thread.smf.ID_TOPIC, thread.smf.ID_BOARD, timestamp];
+  var threadUUID = helper.intToUUID(thread.smf.ID_TOPIC);
+  var boardUUID = helper.intToUUID(thread.smf.ID_BOARD);
+
+  var params = [threadUUID, boardUUID, timestamp];
     // TODO: this should be seeded with the imported view count
-  return insertPostProcessing(thread.smf.ID_BOARD, thread.view_count, q, params);
+  return insertPostProcessing(boardUUID, thread.view_count, q, params);
 };
 
 threads.create = function(thread) {

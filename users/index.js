@@ -7,6 +7,7 @@ var bcrypt = require('bcrypt');
 var Promise = require('bluebird');
 var config = require(path.join(__dirname, '..', 'config'));
 var db = require(path.join(__dirname, '..', 'db'));
+var helper = require(path.join(__dirname, '..', 'helper'));
 
 users.all = function() {
   return db.sqlQuery('SELECT * FROM users');
@@ -51,7 +52,8 @@ users.import = function(user) {
   var timestamp = new Date();
   user.imported_at = timestamp;
   var q = 'INSERT INTO users(id, email, username, imported_at, created_at) VALUES($1, $2, $3, $4, $5) RETURNING id';
-  var params = [user.smf.ID_MEMBER, user.email, user.username, user.imported_at, user.created_at];
+  var userUUID = helper.intToUUID(user.smf.ID_MEMBER);
+  var params = [userUUID, user.email, user.username, user.imported_at, user.created_at];
   return db.sqlQuery(q, params)
   .then(function(rows) {
     if (rows.length > 0) { return rows[0]; }
