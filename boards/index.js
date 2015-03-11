@@ -160,6 +160,7 @@ boards.updateCategories = function(categories) {
   .then(function() {
     var viewOrder = 1;
     return Promise.each(categories, function (category) {
+      if (category.id === -1) { category.id = undefined; }
       // Check if category exists
       var q = 'SELECT * FROM categories WHERE id = $1';
       var params = [category.id];
@@ -178,7 +179,7 @@ boards.updateCategories = function(categories) {
         return db.sqlQuery(q, params)
         .then(function(rows) { // Update boards for this category
           var categoryId = rows[0].id;
-          var q = 'UPDATE boards SET category_id = $1 WHERE id = ANY($2::int[])';
+          var q = 'UPDATE boards SET category_id = $1 WHERE id = ANY($2::uuid[])';
           var params = [categoryId, category.board_ids];
           return db.sqlQuery(q, params);
         });
