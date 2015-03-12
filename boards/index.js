@@ -113,7 +113,8 @@ boards.import = function(board) {
   board.imported_at = timestamp;
   var q = 'INSERT INTO boards(id, category_id, name, description, imported_at) VALUES($1, $2, $3, $4, $5) RETURNING id';
   var boardUUID = helper.intToUUID(board.smf.ID_BOARD);
-  var params = [boardUUID, board.smf.ID_CAT, board.name, board.description, board.imported_at];
+  var catUUID = helper.intToUUID(board.smf.ID_CAT);
+  var params = [boardUUID, catUUID, board.name, board.description, board.imported_at];
   return db.sqlQuery(q, params)
   .then(function(rows) {
     if (rows.length > 0) { return rows[0]; }
