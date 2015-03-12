@@ -14,7 +14,6 @@ boards.all = function() {
   return db.sqlQuery('SELECT * from boards');
 };
 
-
 boards.create = function(board) {
   var timestamp = new Date();
   if (!board.created) { board.created_at = timestamp; }
@@ -149,7 +148,15 @@ boards.find = function(id) {
       var threadCount = Number(rows[0].count);
       board.thread_count = threadCount;
     }
-    return board;
+  })
+  .then(function() { // add board moderators
+    var q = 'SELECT bm.user_id as id, u.username from board_moderators bm LEFT JOIN users u ON bm.user_id = u.id WHERE bm.board_id = $1';
+    var params = [id];
+    return db.sqlQuery(q, params)
+    .then(function(rows) {
+      board.moderators = rows;
+      return board;
+    });
   });
 };
 
@@ -215,7 +222,15 @@ boards.allCategories = function() {
               board.last_post_created_at = boardMeta.last_post_created_at;
               board.last_thread_title = boardMeta.last_thread_title;
             }
-            return board;
+          })
+          .then(function() { // add board moderators
+            var q = 'SELECT bm.user_id as id, u.username from board_moderators bm LEFT JOIN users u ON bm.user_id = u.id WHERE bm.board_id = $1';
+            var params = [board.id];
+            return db.sqlQuery(q, params)
+            .then(function(rows) {
+              board.moderators = rows;
+              return board;
+            });
           });
         });
       })
