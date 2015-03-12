@@ -67,19 +67,18 @@ var insertPostProcessing = function(timestamp, userId, threadId, insertQuery, in
   // update post count and last post by on metadata.board
   .then(function() {
     if (thread.boardId) {
-      incrementPostCount(thread.boardId, true);
+      incrementPostCount(thread.boardId, userId, true);
       updateLastPostBy(thread.boardId, threadId, userId, timestamp);
     }
   })
   .then(function() { return insertedPost; });
 };
 
-var incrementPostCount = function increment(boardId, initial) {
+var incrementPostCount = function increment(boardId, userId, initial) {
   var inc, params = [boardId];
   if (initial) {
     inc = 'UPDATE metadata.boards SET post_count = post_count + 1, total_post_count = total_post_count + 1 WHERE board_id = $1';
     db.sqlQuery(inc, params);
-
   }
   else {
     inc = 'UPDATE metadata.boards SET total_post_count = total_post_count + 1 WHERE board_id = $1';
@@ -93,6 +92,12 @@ var incrementPostCount = function increment(boardId, initial) {
     if (rows.length > 0) {
       increment(rows[0].parent_board_id);
     }
+  })
+  // increment user.profiles post_count
+  .then(function() {
+    var q = 'UPDATE users.profiles SET post_count = post_count+1 WHERE user_id = $1';
+    var params = [userId];
+    db.sqlQuery(q, params);
   });
 };
 
@@ -169,7 +174,6 @@ posts.find = function(id) {
 };
 
 posts.byThread = function(threadId, opts) {
-  // var q = 'SELECT * FROM posts WHERE thread_id = $1 LIMIT $2 OFFSET $3';
   var q = 'SELECT p.id, p.thread_id, p.user_id, p.title, p.body, p.raw_body, p.created_at, p.updated_at, p.imported_at, u.username, up.signature, up.avatar ' +
           'FROM posts p ' +
           'LEFT JOIN users u on p.user_id = u.id ' +
