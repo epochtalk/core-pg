@@ -3,7 +3,7 @@ var Promise = require('bluebird');
 var fake = {};
 module.exports = fake;
 
-fake.userData = function(options) {
+fake.userData = function() {
   var user = {
     password: faker.internet.password(),
     email: faker.internet.email(),
