@@ -16,7 +16,23 @@ posts.import = function(post) {
   var threadUUID = helper.intToUUID(post.smf.ID_TOPIC);
   var userUUID = helper.intToUUID(post.smf.ID_MEMBER);
   var params = [postUUID, threadUUID, userUUID || null, post.title, post.body, post.raw_body, new Date(post.created_at), new Date(post.updated_at), timestamp];
-  return insertPostProcessing(new Date(post.created_at), userUUID, threadUUID, q, params);
+
+  var queryUser = 'SELECT id FROM users WHERE id = $1';
+  var queryUserParams = [userUUID];
+  return db.scalar(queryUser, queryUserParams)
+  .then(function(user) {
+    if (user) {
+      insertPostProcessing(new Date(post.created_at), userUUID, threadUUID, q, params);
+    }
+    else {
+      var userInsert = 'INSERT INTO users(id, username, email, imported_at) VALUES ($1, $2, $3, $4)';
+      var userInsertParams = [userUUID, post.smf.posterName, post.smf.posterName + '@noemail.org.', timestamp];
+      return db.sqlQuery(userInsert, userInsertParams)
+      .then(function() {
+        insertPostProcessing(new Date(post.created_at), userUUID, threadUUID, q, params);
+      });
+    }
+  });
 };
 
 posts.create = function(post) {

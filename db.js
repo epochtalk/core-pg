@@ -19,3 +19,23 @@ db.sqlQuery = function(sqlQuery, sqlParams) {
     });
   });
 };
+
+db.scalar = function(q, params) {
+  return new Promise(function(fulfill, reject) {
+    pg.connect(config.cstring, function(err, client, done) {
+      if (err) reject(err);
+      else {
+        client.query(q, params, function(err, res) {
+          done();
+          if (err) reject(err);
+          if (!res || res.rows.length === 0) {
+            fulfill(null);
+          }
+          else {
+            fulfill(res.rows[0]);
+          }
+        });
+      }
+    });
+  });
+};
