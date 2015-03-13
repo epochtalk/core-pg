@@ -7,6 +7,7 @@ var bcrypt = require('bcrypt');
 var Promise = require('bluebird');
 var config = require(path.join(__dirname, '..', 'config'));
 var db = require(path.join(__dirname, '..', 'db'));
+var helper = require(path.join(__dirname, '..', 'helper'));
 
 posts.import = function(post) {
   var timestamp = new Date();
