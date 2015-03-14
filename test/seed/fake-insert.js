@@ -13,5 +13,8 @@ module.exports = {
   },
   boards: function(input) {
     return fake.boardData(input).then(core.boards.create);
+  },
+  threads: function(input) {
+    return fake.threadData(input).then(core.threads.create);
   }
 };
