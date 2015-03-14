@@ -23,6 +23,7 @@
   "dependencies": {
     "bcrypt": "^0.8.0",
     "bluebird": "^2.3.10",
+    "brototype": "0.0.2",
     "db-migrate": "^0.8.0",
     "faker": "^2.1.2",
     "json": "^9.0.3",
