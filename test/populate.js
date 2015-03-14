@@ -8,11 +8,11 @@ module.exports = function(configuration) {
     runtime[dataType] = [];
   });
   return Promise.each(configuration.run, function(dataType) {
-    return Promise.each(configuration.data[dataType], function(thing) {
-      Object.keys(thing).forEach(function(option) {
-        thing[option] = Bro(runtime).iCanHaz(thing[option]);
+    return Promise.each(configuration.data[dataType], function(options) {
+      Object.keys(options).forEach(function(field) {
+        options[field] = Bro(runtime).iCanHaz(options[field]);
       });
-      return configuration.methods[dataType](thing).then(function(result) {
+      return configuration.methods[dataType](options).then(function(result) {
         runtime[dataType].push(result);
       });
     });
