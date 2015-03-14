@@ -7,5 +7,8 @@ var Promise = require('bluebird');
 module.exports = {
   users: function(input) {
     return fake.userData(input).then(core.users.create);
+  },
+  categories: function(input) {
+    return fake.categoryData(input).then(core.categories.create);
   }
 };
