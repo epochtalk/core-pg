@@ -1,6 +1,5 @@
 var path = require('path');
-var fake = require(path.join(__dirname, '..', 'seed', 'fake'));
-var core = require(path.join(__dirname, '..', '..'))();
+var fakeInsert = require(path.join(__dirname, '..', 'seed', 'fake-insert'));
 
 // self-reference using a string
 // ex: 'users.0'
@@ -9,7 +8,7 @@ module.exports = {
     'users'
   ],
   methods: {
-    users: [ fake.userData, core.users.create ]
+    users: fakeInsert.users
   },
   data: {
     users: [
