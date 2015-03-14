@@ -46,8 +46,8 @@ module.exports = {
       { category_id: 'categories.0' }, // has children boards.1,2,3
       { category_id: 'categories.0', parent_board_id: 'boards.0' },
       { category_id: 'categories.0', parent_board_id: 'boards.0' },
-      { parentBoard: 'boards.0' },
-      { category: 'categories.1' },
+      { parent_board_id: 'boards.0' },
+      { category_id: 'categories.1' },
       {} // board with no parent, no children, no category
     ],
     /*
@@ -74,20 +74,20 @@ module.exports = {
     * });
     */
     posts: [
-      { thread_id: 'threads.0', user: 'users.0' },
-      { thread_id: 'threads.0', user: 'users.1' },
-      { thread_id: 'threads.0', user: 'users.2' },
-      { thread_id: 'threads.1', user: 'users.0' },
-      { thread_id: 'threads.2', user: 'users.1' },
-      { thread_id: 'threads.3', user: 'users.2' },
-      { thread_id: 'threads.4', user: 'users.0' },
-      { thread_id: 'threads.5', user: 'users.1' },
-      { thread_id: 'threads.6', user: 'users.2' },
-      { thread_id: 'threads.7', user: 'users.0' },
-      { thread_id: 'threads.8', user: 'users.1' },
-      { thread_id: 'threads.9', user: 'users.2' },
+      { thread_id: 'threads.0', user_id: 'users.0' },
+      { thread_id: 'threads.0', user_id: 'users.1' },
+      { thread_id: 'threads.0', user_id: 'users.2' },
+      { thread_id: 'threads.1', user_id: 'users.0' },
+      { thread_id: 'threads.2', user_id: 'users.1' },
+      { thread_id: 'threads.3', user_id: 'users.2' },
+      { thread_id: 'threads.4', user_id: 'users.0' },
+      { thread_id: 'threads.5', user_id: 'users.1' },
+      { thread_id: 'threads.6', user_id: 'users.2' },
+      { thread_id: 'threads.7', user_id: 'users.0' },
+      { thread_id: 'threads.8', user_id: 'users.1' },
+      { thread_id: 'threads.9', user_id: 'users.2' },
       { thread_id: 'threads.0' },
-      { user: 'users.0' },
+      { user_id: 'users.0' },
       {}
     ]
   }
