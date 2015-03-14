@@ -10,5 +10,8 @@ module.exports = {
   },
   categories: function(input) {
     return fake.categoryData(input).then(core.categories.create);
+  },
+  boards: function(input) {
+    return fake.boardData(input).then(core.boards.create);
   }
 };
