@@ -1,5 +1,5 @@
 var Promise = require('bluebird');
-var Bro = require('brototype').bro;
+var Bro = require('brototype').Bro;
 
 module.exports = function(configuration) {
   var runtime = {};
