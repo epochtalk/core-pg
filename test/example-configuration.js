@@ -3,7 +3,7 @@ var fake = require(path.join(__dirname, 'seed', 'fake'));
 var core = require(path.join(__dirname, '..'));
 
 // self-reference using a string
-// ex: 'users.0'
+// ex: 'users.0.id'
 module.exports = {
   run: [
     'users',
@@ -43,11 +43,11 @@ module.exports = {
     * });
     */
     boards: [
-      { category_id: 'categories.0' }, // has children boards.1,2,3
-      { category_id: 'categories.0', parent_board_id: 'boards.0' },
-      { category_id: 'categories.0', parent_board_id: 'boards.0' },
-      { parent_board_id: 'boards.0' },
-      { category_id: 'categories.1' },
+      { category_id: 'categories.0.id' }, // has children boards.1,2,3
+      { category_id: 'categories.0.id', parent_board_id: 'boards.0.id' },
+      { category_id: 'categories.0.id', parent_board_id: 'boards.0.id' },
+      { parent_board_id: 'boards.0.id' },
+      { category_id: 'categories.1.id' },
       {} // board with no parent, no children, no category
     ],
     /*
@@ -56,15 +56,15 @@ module.exports = {
     * });
     */
     threads: [
-      { board_id: 'boards.0' },
-      { board_id: 'boards.0' },
-      { board_id: 'boards.0' },
-      { board_id: 'boards.1' },
-      { board_id: 'boards.1' },
-      { board_id: 'boards.1' },
-      { board_id: 'boards.2' },
-      { board_id: 'boards.2' },
-      { board_id: 'boards.2' },
+      { board_id: 'boards.0.id' },
+      { board_id: 'boards.0.id' },
+      { board_id: 'boards.0.id' },
+      { board_id: 'boards.1.id' },
+      { board_id: 'boards.1.id' },
+      { board_id: 'boards.1.id' },
+      { board_id: 'boards.2.id' },
+      { board_id: 'boards.2.id' },
+      { board_id: 'boards.2.id' },
       {}
     ],
     /*
@@ -74,20 +74,20 @@ module.exports = {
     * });
     */
     posts: [
-      { thread_id: 'threads.0', user_id: 'users.0' },
-      { thread_id: 'threads.0', user_id: 'users.1' },
-      { thread_id: 'threads.0', user_id: 'users.2' },
-      { thread_id: 'threads.1', user_id: 'users.0' },
-      { thread_id: 'threads.2', user_id: 'users.1' },
-      { thread_id: 'threads.3', user_id: 'users.2' },
-      { thread_id: 'threads.4', user_id: 'users.0' },
-      { thread_id: 'threads.5', user_id: 'users.1' },
-      { thread_id: 'threads.6', user_id: 'users.2' },
-      { thread_id: 'threads.7', user_id: 'users.0' },
-      { thread_id: 'threads.8', user_id: 'users.1' },
-      { thread_id: 'threads.9', user_id: 'users.2' },
-      { thread_id: 'threads.0' },
-      { user_id: 'users.0' },
+      { thread_id: 'threads.0.id', user_id: 'users.0.id' },
+      { thread_id: 'threads.0.id', user_id: 'users.1.id' },
+      { thread_id: 'threads.0.id', user_id: 'users.2.id' },
+      { thread_id: 'threads.1.id', user_id: 'users.0.id' },
+      { thread_id: 'threads.2.id', user_id: 'users.1.id' },
+      { thread_id: 'threads.3.id', user_id: 'users.2.id' },
+      { thread_id: 'threads.4.id', user_id: 'users.0.id' },
+      { thread_id: 'threads.5.id', user_id: 'users.1.id' },
+      { thread_id: 'threads.6.id', user_id: 'users.2.id' },
+      { thread_id: 'threads.7.id', user_id: 'users.0.id' },
+      { thread_id: 'threads.8.id', user_id: 'users.1.id' },
+      { thread_id: 'threads.9.id', user_id: 'users.2.id' },
+      { thread_id: 'threads.0.id' },
+      { user_id: 'users.0.id' },
       {}
     ]
   }
