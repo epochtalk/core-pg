@@ -16,5 +16,8 @@ module.exports = {
   },
   threads: function(input) {
     return fake.threadData(input).then(core.threads.create);
+  },
+  posts: function(input) {
+    return fake.postData(input).then(core.posts.create);
   }
 };
