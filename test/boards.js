@@ -71,4 +71,16 @@ lab.experiment('Boards', function() {
     });
     done();
   });
+  lab.test('should not have a parent', function(done) {
+    var seededNonChildBoards = [
+      runtime.boards[0],
+      runtime.boards[4]
+    ];
+    seededNonChildBoards.forEach(function(seededNonChildBoard) {
+      core.boards.find(seededNonChildBoard.id).then(function(board) {
+        expect(board.parent_board_id).to.not.exist;
+      });
+    });
+    done();
+  });
 });
