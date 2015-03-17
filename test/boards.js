@@ -12,6 +12,8 @@ lab.experiment('Boards', function() {
   var expectations = function(seededBoard, board) {
     expect(board).to.exist;
     expect(board.name).to.equal(seededBoard.name);
+    expect(board.description).to.equal(seededBoard.description);
+    expect(board.id).to.equal(seededBoard.id);
   };
   lab.before(function(done) {
     return seed(fixture).then(function(results) {
