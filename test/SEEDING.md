@@ -26,7 +26,7 @@ module.exports = {
 }
 ```
 
-(See [example fixture](./example-fixture.js) for more help)
+(See [example fixture](./seed/example-fixture.js) for more help)
 
 ### data
 
