@@ -1,3 +1,5 @@
+var path = require('path');
+var core = require(path.join(__dirname, '..', '..'))();
 var faker = require('faker');
 var Promise = require('bluebird');
 var fake = {};
@@ -9,14 +11,14 @@ fake.userData = function() {
     email: faker.internet.email(),
     username: faker.internet.userName()
   };
-  return Promise.resolve(user);
+  return Promise.resolve(user).then(core.users.create);
 };
 
 fake.categoryData = function() {
   var category = {
     name: faker.company.bsAdjective()
   };
-  return Promise.resolve(category);
+  return Promise.resolve(category).then(core.categories.create);
 };
 
 fake.boardData = function(options) {
@@ -29,7 +31,7 @@ fake.boardData = function(options) {
     if (options.category_id) board.category_id = options.category_id;
     if (options.children_ids) board.children_ids = options.children_ids;
   }
-  return Promise.resolve(board);
+  return Promise.resolve(board).then(core.boards.create);
 };
 
 fake.threadData = function(options) {
@@ -37,7 +39,7 @@ fake.threadData = function(options) {
   if (options) {
     if (options.board_id) thread.board_id = options.board_id;
   }
-  return Promise.resolve(thread);
+  return Promise.resolve(thread).then(core.threads.create);
 };
 
 fake.postData = function(options) {
@@ -55,5 +57,5 @@ fake.postData = function(options) {
     if (options.thread_id) post.thread_id = options.thread_id;
     if (options.user_id) post.user_id = options.user_id;
   }
-  return Promise.resolve(post);
+  return Promise.resolve(post).then(core.posts.create);
 };
