@@ -43,4 +43,12 @@ lab.experiment('Users', function() {
     });
     done();
   });
+  lab.test('should find a user by id', function(done) {
+    runtime.users.forEach(function(seededUser) {
+      core.users.find(seededUser.id).then(function(user) {
+        expectations(seededUser, user);
+      });
+    });
+    done();
+  });
 });
