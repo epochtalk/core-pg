@@ -9,6 +9,10 @@ var fixture = require(path.join(__dirname, 'fixtures', 'boards'));
 
 lab.experiment('Boards', function() {
   var runtime;
+  var expectations = function(seededBoard, board) {
+    expect(board).to.exist;
+    expect(board.name).to.equal(seededBoard.name);
+  };
   lab.before(function(done) {
     return seed(fixture).then(function(results) {
       runtime = results;
@@ -20,5 +24,13 @@ lab.experiment('Boards', function() {
       expect(boards.length).to.equal(runtime.boards.length);
       done();
     });
+  });
+  lab.test('should find a board by id', function(done) {
+    runtime.boards.forEach(function(seededBoard) {
+      core.boards.find(seededBoard.id).then(function(board) {
+        expectations(seededBoard, board);
+      });
+    });
+    done();
   });
 });
