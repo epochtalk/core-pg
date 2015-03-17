@@ -119,7 +119,6 @@ users.create = function(user) {
   .then(function(rows) {  // Append users roles
     if (rows.length > 0) {
       user.roles = rows;
-      console.log(user);
       return user;
     }
     else { Promise.reject(); }
