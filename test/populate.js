@@ -3,7 +3,6 @@ var Bro = require('brototype').Bro;
 
 module.exports = function(configuration) {
   var runtime = {};
-  // initialize runtime
   Object.keys(configuration.data).forEach(function(dataType) {
     runtime[dataType] = [];
   });
