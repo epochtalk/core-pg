@@ -38,4 +38,12 @@ lab.experiment('_Fixtures', function() {
       done();
     });
   });
+  lab.test('should have corresponding amount of runtime data', function(done) {
+    Object.keys(fixtures).forEach(function(datatype) {
+      Object.keys(fixtures[datatype].data).forEach(function(subDatatype) {
+        expect(fixtures[datatype].data[subDatatype].length).to.equal(runtime[datatype][subDatatype].length);
+      });
+    });
+    done();
+  });
 });
