@@ -15,4 +15,10 @@ lab.experiment('Categories', function() {
       done();
     });
   });
+  lab.test('should return all categories', function(done) {
+    core.categories.all(function(categories) {
+      expect(categories.length).to.equal(runtime.categories.length);
+    });
+    done();
+  });
 });
