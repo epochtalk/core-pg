@@ -5,7 +5,7 @@ var Promise = require('bluebird');
 var fake = {};
 module.exports = fake;
 
-fake.userData = function() {
+fake.users = function() {
   var user = {
     password: faker.internet.password(),
     email: faker.internet.email(),
@@ -14,14 +14,14 @@ fake.userData = function() {
   return Promise.resolve(user).then(core.users.create);
 };
 
-fake.categoryData = function() {
+fake.categories = function() {
   var category = {
     name: faker.company.bsAdjective()
   };
   return Promise.resolve(category).then(core.categories.create);
 };
 
-fake.boardData = function(options) {
+fake.boards = function(options) {
   var board = {
     name: faker.company.bsNoun(),
     description: faker.company.bsBuzz() + ' ' + faker.company.bsAdjective() + ' ' + faker.company.bsNoun()
@@ -34,7 +34,7 @@ fake.boardData = function(options) {
   return Promise.resolve(board).then(core.boards.create);
 };
 
-fake.threadData = function(options) {
+fake.threads = function(options) {
   var thread = {};
   if (options) {
     if (options.board_id) thread.board_id = options.board_id;
@@ -42,7 +42,7 @@ fake.threadData = function(options) {
   return Promise.resolve(thread).then(core.threads.create);
 };
 
-fake.postData = function(options) {
+fake.posts = function(options) {
   var body = '';
   var length = faker.helpers.randomNumber(7) + 1;
   for(var i = 0; i < length; i++) {
