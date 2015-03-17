@@ -15,6 +15,7 @@ coverage
 
 # Coverage html file from Lab
 test/coverage.html
+test/seed/coverage.html
 
 # Grunt intermediate storage (http://gruntjs.com/creating-plugins#storing-task-files)
 .grunt
