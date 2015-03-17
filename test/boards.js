@@ -43,6 +43,20 @@ lab.experiment('Boards', function() {
     });
     done();
   });
+  lab.test('should not have children', function(done) {
+    var seededBoards = [
+      runtime.boards[1],
+      runtime.boards[2],
+      runtime.boards[3],
+      runtime.boards[4]
+    ];
+    seededBoards.forEach(function(seededBoard) {
+      core.boards.find(seededBoard.id).then(function(board) {
+        expect(board.children_ids).to.not.exist;
+      });
+    });
+    done();
+  });
   lab.test('should have a parent', function(done) {
     var seededParentBoard = runtime.boards[0];
     var seededChildBoards = [
