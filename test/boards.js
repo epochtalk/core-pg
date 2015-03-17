@@ -42,4 +42,18 @@ lab.experiment('Boards', function() {
     });
     done();
   });
+  lab.test('should have a parent', function(done) {
+    var seededParentBoard = runtime.boards[0];
+    var seededChildBoards = [
+      runtime.boards[1],
+      runtime.boards[2],
+      runtime.boards[3]
+    ];
+    seededChildBoards.forEach(function(seededChildBoard) {
+      core.boards.find(seededChildBoard.id).then(function(board) {
+        expect(board.parent_board_id).to.equal(seededParentBoard.id);
+      });
+    });
+    done();
+  });
 });
