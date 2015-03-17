@@ -18,7 +18,12 @@ fake.categories = function() {
   var category = {
     name: faker.company.bsAdjective()
   };
-  return Promise.resolve(category).then(core.categories.create);
+  return Promise.resolve(category).then(core.categories.create)
+    .then(function(createdCategory) {
+      // return name for runtime
+      createdCategory.name = category.name;
+      return createdCategory;
+    });
 };
 
 fake.boards = function(options) {
