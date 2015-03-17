@@ -1,5 +1,5 @@
 var path = require('path');
-var fakeInsert = require(path.join(__dirname, '..', 'seed', 'fake-insert'));
+var fake = require(path.join(__dirname, '..', 'seed', 'fake'));
 
 // self-reference using a string
 // ex: 'users.0'
@@ -8,7 +8,7 @@ module.exports = {
     'categories'
   ],
   methods: {
-    categories : fakeInsert.categories
+    categories : fake.categories
   },
   data: {
     categories: [
