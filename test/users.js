@@ -10,6 +10,7 @@ var fixture = require(path.join(__dirname, 'fixtures', 'users'));
 lab.experiment('Users', function() {
   var runtime;
   var expectations = function(seededUser, user) {
+    expect(user).to.exist;
     expect(user.username).to.equal(seededUser.username);
     expect(user.email).to.equal(seededUser.email);
     expect(user.id).to.equal(seededUser.id);
