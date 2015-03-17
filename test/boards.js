@@ -23,6 +23,7 @@ lab.experiment('Boards', function() {
   });
   lab.test('should return all boards', function(done) {
     core.boards.all().then(function(boards) {
+      expect(boards).to.exist;
       expect(boards.length).to.equal(runtime.boards.length);
       done();
     });
