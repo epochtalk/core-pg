@@ -35,4 +35,11 @@ lab.experiment('Boards', function() {
     });
     done();
   });
+  lab.test('should have children', function(done) {
+    var seededBoard = runtime.boards[0];
+    core.boards.find(seededBoard.id).then(function(board) {
+      expect(board.children_ids.length).to.equal(3);
+    });
+    done();
+  });
 });
