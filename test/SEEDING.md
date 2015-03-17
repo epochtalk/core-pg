@@ -4,9 +4,9 @@ Seeding
 For seeding the test database.
 
 Seeding is designed to be readable and somewhat easily configurable.
-The current configuration style is as follows...
+The current fixture style is as follows...
 
-configuration.js
+fixture.js
 ```javascript
 module.exports = {
   run: [         // order in which to run "methods" on "data", by typeName
@@ -26,13 +26,13 @@ module.exports = {
 }
 ```
 
-(See [example configuration](./example-configuration) for more help)
+(See [example fixture](./example-fixture.js) for more help)
 
 ### data
 
 The `typeName` specifies what kind of data you are generating. The name itself
 is not important, but it does need to remain consistent throughout the
-configuration file in `methods` and `run`.
+fixture file in `methods` and `run`.
 
 For each object, `data[typeName][index]` in the array `data[typeName]`, the
 process will call the method defined in `methods` with the same `typeName` using
