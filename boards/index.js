@@ -53,8 +53,8 @@ var addChildToBoard = function(childId, parentId) {
     var params = [parentId];
     return db.sqlQuery(q, params)
     .then(function(dbParentBoard) {
-      parentBoard = dbParentBoard;
-      parentBoard.children_ids = dbParentBoard.children_ids || [];
+      parentBoard = dbParentBoard[0];
+      parentBoard.children_ids = parentBoard.children_ids || [];
       if (!_.contains(parentBoard.children_ids, childId)) {
         parentBoard.children_ids.push(childId);
         var q = 'UPDATE boards SET children_ids = $1 WHERE id = $2';
