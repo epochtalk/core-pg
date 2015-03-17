@@ -13,7 +13,7 @@ var fixtures = {
   posts: require(path.join(__dirname, 'fixtures', 'categories'))
 };
 
-lab.experiment('Fixtures', function() {
+lab.experiment('_Fixtures', function() {
   var runtime = {};
   lab.before(function(done) {
     return seed(fixtures.categories)
