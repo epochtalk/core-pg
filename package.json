@@ -8,7 +8,7 @@
     "db-drop": "dropdb $(cat database.json | ./node_modules/.bin/json $NODE_ENV.database) --if-exists",
     "db-create": "createdb $(cat database.json | ./node_modules/.bin/json $NODE_ENV.database)",
     "test-migrate": "./node_modules/.bin/db-migrate up -e test",
-    "test": "NODE_ENV=test npm run db-drop && NODE_ENV=test npm run db-create && npm run test-migrate && NODE_ENV=test node_modules/.bin/lab -r html -o coverage.html"
+    "test": "NODE_ENV=test npm run db-drop && NODE_ENV=test npm run db-create && npm run test-migrate && NODE_ENV=test node_modules/.bin/lab -r html -o test/coverage.html"
   },
   "repository": {
     "type": "git",
