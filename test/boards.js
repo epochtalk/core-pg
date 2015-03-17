@@ -83,4 +83,30 @@ lab.experiment('Boards', function() {
     });
     done();
   });
+  lab.test('should belong to a category', function(done) {
+    var seededBoards = [
+      runtime.boards[0],
+      runtime.boards[1],
+      runtime.boards[2]
+    ];
+    seededBoards.forEach(function(seededBoard) {
+      core.boards.find(seededBoard.id).then(function(board) {
+        expect(board.category_id).to.exist;
+        expect(board.category_id).to.equal(seededBoard.category_id);
+      });
+    });
+    done();
+  });
+  lab.test('should not belong to a category', function(done) {
+    var seededBoards = [
+      runtime.boards[3],
+      runtime.boards[4]
+    ];
+    seededBoards.forEach(function(seededBoard) {
+      core.boards.find(seededBoard.id).then(function(board) {
+        expect(board.category_id).to.not.exist;
+      });
+    });
+    done();
+  });
 });
