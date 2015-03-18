@@ -125,20 +125,25 @@ threads.find = function(id) {
 };
 
 threads.byBoard = function(boardId, opts) {
-  var q = 'SELECT t.id, t.created_at, t.updated_at, p.title, p.user_id, u.username FROM threads t LEFT JOIN ( SELECT DISTINCT ON (thread_id) thread_id, title, user_id from posts order by thread_id, created_at ) p ON t.id = p.thread_id LEFT JOIN users u ON p.user_id = u.id WHERE t.board_id = $1 ORDER BY t.updated_at DESC LIMIT $2 OFFSET $3;';
+  var threadsQuery = 'SELECT t.id, t.created_at, t.updated_at FROM threads t WHERE t.board_id = $1 ORDER BY t.updated_at DESC LIMIT $2 OFFSET $3;';
   var limit = opts.limit || 10;
   var page = opts.page || 1;
   var offset = (page * limit) - limit;
   var params = [boardId, limit, offset];
-  return db.sqlQuery(q, params)
+  return db.sqlQuery(threadsQuery, params)
   .then(function(threads) {
+    console.log(threads);
     return Promise.map(threads, function(thread) {
-      thread.user = { id: thread.user_id, username: thread.username };
-      delete thread.user_id;
-      delete thread.username;
-      return threadCountPosts(thread)
-      .then(threadLastPost)
-      .then(threadViews);
+      var postsQuery = 'SELECT DISTINCT ON (p.thread_id) p.thread_id, p.title, p.user_id, u.username FROM posts p LEFT JOIN users u ON p.user_id = u.id WHERE p.thread_id = $1 ORDER BY p.thread_id, p.created_at LIMIT 1';
+      var postsQueryParams = [thread.id];
+      return db.scalar(postsQuery, postsQueryParams)
+      .then(function(post) {
+        thread.user = { id: post.user_id, username: post.username };
+        thread.title = post.title;
+        return threadCountPosts(thread)
+        .then(threadLastPost)
+        .then(threadViews);
+      });
     });
   });
 };
