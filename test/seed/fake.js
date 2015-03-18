@@ -44,7 +44,12 @@ fake.threads = function(options) {
   if (options) {
     if (options.board_id) thread.board_id = options.board_id;
   }
-  return Promise.resolve(thread).then(core.threads.create);
+  return Promise.resolve(thread).then(core.threads.create)
+    .then(function(createdThread) {
+      // return board_id for runtime
+      createdThread.board_id = thread.board_id;
+      return createdThread;
+    });
 };
 
 fake.posts = function(options) {
