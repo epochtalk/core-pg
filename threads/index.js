@@ -126,8 +126,10 @@ threads.find = function(id) {
 
 threads.byBoard = function(boardId, opts) {
   var threadsQuery = 'SELECT t.id, t.created_at, t.updated_at FROM threads t WHERE t.board_id = $1 ORDER BY t.updated_at DESC LIMIT $2 OFFSET $3;';
-  var limit = opts.limit || 10;
-  var page = opts.page || 1;
+  var limit = 10;
+  var page = 1;
+  if (opts && opts.limit) limit = opts.limit;
+  if (opts && opts.page) page = opts.page;
   var offset = (page * limit) - limit;
   var params = [boardId, limit, offset];
   return db.sqlQuery(threadsQuery, params)
