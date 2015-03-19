@@ -134,7 +134,6 @@ threads.byBoard = function(boardId, opts) {
   var params = [boardId, limit, offset];
   return db.sqlQuery(threadsQuery, params)
   .then(function(threads) {
-    console.log(threads);
     return Promise.map(threads, function(thread) {
       var postsQuery = 'SELECT DISTINCT ON (p.thread_id) p.thread_id, p.title, p.user_id, u.username FROM posts p LEFT JOIN users u ON p.user_id = u.id WHERE p.thread_id = $1 ORDER BY p.thread_id, p.created_at LIMIT 1';
       var postsQueryParams = [thread.id];
