@@ -27,4 +27,18 @@ lab.experiment('Threads', function() {
     });
     done();
   });
+  lab.test('should return threads for a board', function(done) {
+    var parentBoards = [
+      runtime.boards[0],
+      runtime.boards[1],
+      runtime.boards[2]
+    ];
+    parentBoards.forEach(function(parentBoard) {
+      core.threads.byBoard(parentBoard.id).then(function(threads) {
+        expect(threads).to.exist;
+        expect(threads.length).to.equal(3);
+      });
+    });
+    done();
+  });
 });
