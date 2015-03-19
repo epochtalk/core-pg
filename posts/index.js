@@ -127,7 +127,7 @@ var updateLastPostBy = function(boardId, threadId, userId, created_at) {
   db.sqlQuery(q, params)
   .then(function(rows) {
     if (rows.length > 0) {
-      row = rows[0];
+      var row = rows[0];
       if (!row.last_post_created_at || row.last_post_created_at < created_at) {
         meta = row;
       }
