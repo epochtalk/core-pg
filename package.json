@@ -4,8 +4,17 @@
   "description": "Epochtalk Core for PostgreSQL",
   "main": "index.js",
   "scripts": {
-    "test": "node_modules/.bin/tape test/*.js",
-    "db-migrate": "node_modules/.bin/db-migrate up"
+    "db-migrate": "node_modules/.bin/db-migrate up",
+    "db-drop": "dropdb $(cat database.json | ./node_modules/.bin/json $NODE_ENV.database) --if-exists",
+    "db-create": "createdb $(cat database.json | ./node_modules/.bin/json $NODE_ENV.database)",
+    "test-migrate": "./node_modules/.bin/db-migrate up -e test",
+    "test-report": "NODE_ENV=test npm run db-drop && NODE_ENV=test npm run db-create && npm run test-migrate && NODE_ENV=test node_modules/.bin/lab --flat -r html -o test/coverage.html",
+    "test-fixtures": "NODE_ENV=test npm run db-drop && NODE_ENV=test npm run db-create && npm run test-migrate && NODE_ENV=test node_modules/.bin/lab test/seed/test-fixtures.js --flat -r console",
+    "test-categories": "NODE_ENV=test npm run db-drop && NODE_ENV=test npm run db-create && npm run test-migrate && NODE_ENV=test node_modules/.bin/lab test/categories.js --flat -r console",
+    "test-users": "NODE_ENV=test npm run db-drop && NODE_ENV=test npm run db-create && npm run test-migrate && NODE_ENV=test node_modules/.bin/lab test/users.js --flat -r console",
+    "test-boards": "NODE_ENV=test npm run db-drop && NODE_ENV=test npm run db-create && npm run test-migrate && NODE_ENV=test node_modules/.bin/lab test/boards.js --flat -r console",
+    "test-threads": "NODE_ENV=test npm run db-drop && NODE_ENV=test npm run db-create && npm run test-migrate && NODE_ENV=test node_modules/.bin/lab test/threads.js --flat -r html -o coverage.html",
+    "test": "npm run test-categories && npm run test-users && npm run test-boards && npm run test-threads"
   },
   "repository": {
     "type": "git",
@@ -20,11 +29,15 @@
   "dependencies": {
     "bcrypt": "^0.8.0",
     "bluebird": "^2.3.10",
+    "brototype": "0.0.2",
     "db-migrate": "^0.8.0",
+    "faker": "^2.1.2",
+    "json": "^9.0.3",
     "lodash": "^2.4.1",
     "pg": "^3.6.2"
   },
   "devDependencies": {
-    "tape": "^3.0.3"
+    "code": "^1.3.0",
+    "lab": "^5.5.0"
   }
 }
