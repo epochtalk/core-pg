@@ -7,7 +7,6 @@ exports.up = function(db, callback) {
   var filePath = path.join(__dirname + '/sqls/20150110034433-create-base-schema-up.sql');
   fs.readFile(filePath, {encoding: 'utf-8'}, function(err,data){
     if (err) return console.log(err);
-      console.log('received data: ' + data);
 
     db.runSql(data, function(err) {
       if (err) return console.log(err);
@@ -20,7 +19,6 @@ exports.down = function(db, callback) {
   var filePath = path.join(__dirname + '/sqls/20150110034433-create-base-schema-down.sql');
   fs.readFile(filePath, {encoding: 'utf-8'}, function(err,data){
     if (err) return console.log(err);
-      console.log('received data: ' + data);
 
     db.runSql(data, function(err) {
       if (err) return console.log(err);
