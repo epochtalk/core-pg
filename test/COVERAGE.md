@@ -76,3 +76,21 @@ data type have been stored and can be recalled with the db's find utilities.
     * parent_board_id (or lack thereof)
 
     * category_id (or lack thereof)
+
+# Threads
+
+* Expectations
+
+    * Existence of thread
+
+    * board_id
+
+* threads.find(id)
+
+    * Expectations
+
+* threads.byBoard(board_id)
+
+    * Existence of response array (or lack thereof)
+
+    * Length of response array (if array exists)
