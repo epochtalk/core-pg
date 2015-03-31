@@ -1,5 +1,8 @@
 # Coverage
 
+The Expectations sections are used to check that the correct values for each
+data type have been stored and can be recalled with the db's find utilities.
+
 ## Users
 
 * Expectations
