@@ -9,11 +9,11 @@
     "db-create": "createdb $(cat database.json | ./node_modules/.bin/json $NODE_ENV.database)",
     "test-migrate": "./node_modules/.bin/db-migrate up -e test",
     "test-report": "NODE_ENV=test npm run db-drop && NODE_ENV=test npm run db-create && npm run test-migrate && NODE_ENV=test node_modules/.bin/lab --flat -r html -o test/coverage.html",
-    "test-fixtures": "NODE_ENV=test npm run db-drop && NODE_ENV=test npm run db-create && npm run test-migrate && NODE_ENV=test node_modules/.bin/lab test/seed/test-fixtures.js --flat -r console",
-    "test-categories": "NODE_ENV=test npm run db-drop && NODE_ENV=test npm run db-create && npm run test-migrate && NODE_ENV=test node_modules/.bin/lab test/categories.js --flat -r console",
-    "test-users": "NODE_ENV=test npm run db-drop && NODE_ENV=test npm run db-create && npm run test-migrate && NODE_ENV=test node_modules/.bin/lab test/users.js --flat -r console",
-    "test-boards": "NODE_ENV=test npm run db-drop && NODE_ENV=test npm run db-create && npm run test-migrate && NODE_ENV=test node_modules/.bin/lab test/boards.js --flat -r console",
-    "test-threads": "NODE_ENV=test npm run db-drop && NODE_ENV=test npm run db-create && npm run test-migrate && NODE_ENV=test node_modules/.bin/lab test/threads.js --flat -r html -o coverage.html",
+    "test-fixtures": "NODE_ENV=test npm run db-drop && NODE_ENV=test npm run db-create && npm run test-migrate && NODE_ENV=test node_modules/.bin/lab test/seed/test-fixtures.js --flat -v",
+    "test-categories": "NODE_ENV=test npm run db-drop && NODE_ENV=test npm run db-create && npm run test-migrate && NODE_ENV=test node_modules/.bin/lab test/categories.js --flat -v",
+    "test-users": "NODE_ENV=test npm run db-drop && NODE_ENV=test npm run db-create && npm run test-migrate && NODE_ENV=test node_modules/.bin/lab test/users.js --flat -v",
+    "test-boards": "NODE_ENV=test npm run db-drop && NODE_ENV=test npm run db-create && npm run test-migrate && NODE_ENV=test node_modules/.bin/lab test/boards.js --flat -v",
+    "test-threads": "NODE_ENV=test npm run db-drop && NODE_ENV=test npm run db-create && npm run test-migrate && NODE_ENV=test node_modules/.bin/lab test/threads.js --flat -v",
     "test": "npm run test-categories && npm run test-users && npm run test-boards && npm run test-threads"
   },
   "repository": {
