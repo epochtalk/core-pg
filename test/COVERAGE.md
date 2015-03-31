@@ -48,3 +48,31 @@ data type have been stored and can be recalled with the db's find utilities.
 * categories.find(id)
 
     * Expectations
+
+# Boards
+
+* Expectations
+
+    * Existence of board
+
+    * name
+
+    * description
+
+    * id
+
+* boards.all()
+
+    * Existence of results array
+
+    * Length of results array
+
+* boards.find(id)
+
+    * Expectations
+
+    * children_ids (or lack thereof)
+
+    * parent_board_id (or lack thereof)
+
+    * category_id (or lack thereof)
