@@ -30,3 +30,21 @@ data type have been stored and can be recalled with the db's find utilities.
 * users.find(id)
 
     * Expectations
+
+## Categories
+
+* Expectations
+
+    * Existence of category
+
+    * id
+
+    * name
+
+* categories.all()
+
+    * Length of response array
+
+* categories.find(id)
+
+    * Expectations
