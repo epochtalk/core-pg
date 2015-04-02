@@ -1,3 +1,0 @@
-test:
-  pre:
-    - cp example.database.json database.json
