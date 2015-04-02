@@ -7,7 +7,7 @@
     "db-migrate": "node_modules/.bin/db-migrate up",
     "db-drop": "dropdb epoch_test --if-exists",
     "db-create": "createdb epoch_test",
-    "test-migrate": "./node_modules/.bin/db-migrate up -e test",
+    "test-migrate": "./node_modules/.bin/db-migrate up -e test --config ./test/database.json",
     "test-report": "NODE_ENV=test npm run db-drop && NODE_ENV=test npm run db-create && npm run test-migrate && NODE_ENV=test node_modules/.bin/lab --flat -r html -o test/coverage.html",
     "test-fixtures": "NODE_ENV=test npm run db-drop && NODE_ENV=test npm run db-create && npm run test-migrate && NODE_ENV=test node_modules/.bin/lab test/seed/test-fixtures.js --flat -v",
     "test-categories": "NODE_ENV=test npm run db-drop && NODE_ENV=test npm run db-create && npm run test-migrate && NODE_ENV=test node_modules/.bin/lab test/categories.js --flat -v",
