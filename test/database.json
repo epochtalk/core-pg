@@ -1,0 +1,9 @@
+{
+  "test": {
+    "host": "localhost",
+    "database": "epoch_test",
+    "driver": "pg",
+    "su": "username"
+  },
+  "sql-file": true
+}
