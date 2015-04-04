@@ -63,13 +63,18 @@ lab.experiment('Boards', function() {
       runtime.boards[3],
       runtime.boards[4]
     ];
-    seededBoards.forEach(function(seededBoard) {
-      core.boards.find(seededBoard.id)
+    Promise.map(seededBoards, function(seededBoard) {
+      return core.boards.find(seededBoard.id)
       .then(function(board) {
         expect(board.children_ids).to.not.exist;
+      })
+      .catch(function(err) {
+        throw(err);
       });
+    })
+    .then(function() {
+      done();
     });
-    done();
   });
   lab.test('should have a parent', function(done) {
     var seededParentBoard = runtime.boards[0];
@@ -78,26 +83,36 @@ lab.experiment('Boards', function() {
       runtime.boards[2],
       runtime.boards[3]
     ];
-    seededChildBoards.forEach(function(seededChildBoard) {
-      core.boards.find(seededChildBoard.id)
+    Promise.map(seededChildBoards, function(seededChildBoard) {
+      return core.boards.find(seededChildBoard.id)
       .then(function(board) {
         expect(board.parent_board_id).to.equal(seededParentBoard.id);
+      })
+      .catch(function(err) {
+        throw(err);
       });
+    })
+    .then(function() {
+      done();
     });
-    done();
   });
   lab.test('should not have a parent', function(done) {
     var seededNonChildBoards = [
       runtime.boards[0],
       runtime.boards[4]
     ];
-    seededNonChildBoards.forEach(function(seededNonChildBoard) {
-      core.boards.find(seededNonChildBoard.id)
+    Promise.map(seededNonChildBoards, function(seededNonChildBoard) {
+      return core.boards.find(seededNonChildBoard.id)
       .then(function(board) {
         expect(board.parent_board_id).to.not.exist;
+      })
+      .catch(function(err) {
+        throw(err);
       });
+    })
+    .then(function() {
+      done();
     });
-    done();
   });
   lab.test('should belong to a category', function(done) {
     var seededBoards = [
@@ -105,26 +120,36 @@ lab.experiment('Boards', function() {
       runtime.boards[1],
       runtime.boards[2]
     ];
-    seededBoards.forEach(function(seededBoard) {
-      core.boards.find(seededBoard.id)
+    Promise.map(seededBoards, function(seededBoard) {
+      return core.boards.find(seededBoard.id)
       .then(function(board) {
         expect(board.category_id).to.exist;
         expect(board.category_id).to.equal(seededBoard.category_id);
+      })
+      .catch(function(err) {
+        throw(err);
       });
+    })
+    .then(function() {
+      done();
     });
-    done();
   });
   lab.test('should not belong to a category', function(done) {
     var seededBoards = [
       runtime.boards[3],
       runtime.boards[4]
     ];
-    seededBoards.forEach(function(seededBoard) {
-      core.boards.find(seededBoard.id)
+    Promise.map(seededBoards, function(seededBoard) {
+      return core.boards.find(seededBoard.id)
       .then(function(board) {
         expect(board.category_id).to.not.exist;
+      })
+      .catch(function(err) {
+        throw(err);
       });
+    })
+    .then(function() {
+      done();
     });
-    done();
   });
 });
