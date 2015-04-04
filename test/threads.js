@@ -18,6 +18,8 @@ lab.experiment('Threads', function() {
     return seed(fixture)
     .then(function(results) {
       runtime = results;
+    })
+    .then(function() {
       done();
     });
   });

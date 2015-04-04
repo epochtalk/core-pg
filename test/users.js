@@ -18,6 +18,8 @@ lab.experiment('Users', function() {
   lab.before(function(done) {
     return seed(fixture).then(function(results) {
       runtime = results;
+    })
+    .then(function() {
       done();
     });
   });

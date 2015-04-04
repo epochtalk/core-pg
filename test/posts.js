@@ -19,6 +19,8 @@ lab.experiment('Posts', function() {
     return seed(fixture)
     .then(function(results) {
       runtime = results;
+    })
+    .then(function() {
       done();
     });
   });
