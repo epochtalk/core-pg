@@ -24,6 +24,9 @@ lab.experiment('Threads', function() {
     runtime.threads.forEach(function(seededThread) {
       core.threads.find(seededThread.id).then(function(thread) {
         expectations(seededThread, thread);
+      })
+      .catch(function(err) {
+        throw(err);
       });
     });
     done();
