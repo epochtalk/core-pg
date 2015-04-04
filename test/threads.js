@@ -60,15 +60,17 @@ lab.experiment('Threads', function() {
       runtime.boards[3],
       runtime.boards[4]
     ];
-    parentBoards.forEach(function(parentBoard) {
-      core.threads.byBoard(parentBoard.id)
+    Promise.map(parentBoards, function(parentBoard) {
+      return core.threads.byBoard(parentBoard.id)
       .then(function(threads) {
         expect(threads).to.not.exist;
       })
       .catch(function(err) {
         throw(err);
       });
+    })
+    .then(function() {
+      done();
     });
-    done();
   });
 });
