@@ -41,8 +41,8 @@ lab.experiment('Threads', function() {
       runtime.boards[1],
       runtime.boards[2]
     ];
-    parentBoards.forEach(function(parentBoard) {
-      core.threads.byBoard(parentBoard.id)
+    Promise.map(parentBoards, function(parentBoard) {
+      return core.threads.byBoard(parentBoard.id)
       .then(function(threads) {
         expect(threads).to.exist;
         expect(threads.length).to.equal(3);
@@ -50,8 +50,10 @@ lab.experiment('Threads', function() {
       .catch(function(err) {
         throw(err);
       });
+    })
+    .then(function() {
+      done();
     });
-    done();
   });
   lab.test('should not return threads for a board', function(done) {
     var parentBoards = [
