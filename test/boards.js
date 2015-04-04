@@ -31,13 +31,18 @@ lab.experiment('Boards', function() {
     });
   });
   lab.test('should find a board by id', function(done) {
-    runtime.boards.forEach(function(seededBoard) {
-      core.boards.find(seededBoard.id)
+    Promise.map(runtime.boards, function(seededBoard) {
+      return core.boards.find(seededBoard.id)
       .then(function(board) {
         expectations(seededBoard, board);
+      })
+      .catch(function(err) {
+        throw(err);
       });
+    })
+    .then(function() {
+      done();
     });
-    done();
   });
   lab.test('should have children', function(done) {
     var seededBoard = runtime.boards[0];
