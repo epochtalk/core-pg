@@ -22,16 +22,18 @@ lab.experiment('Threads', function() {
     });
   });
   lab.test('should find a thread by id', function(done) {
-    runtime.threads.forEach(function(seededThread) {
-      core.threads.find(seededThread.id)
+    Promise.map(runtime.threads, function(seededThread) {
+      return core.threads.find(seededThread.id)
       .then(function(thread) {
         expectations(seededThread, thread);
       })
       .catch(function(err) {
         throw(err);
       });
+    })
+    .then(function() {
+      done();
     });
-    done();
   });
   lab.test('should return threads for a board', function(done) {
     var parentBoards = [
