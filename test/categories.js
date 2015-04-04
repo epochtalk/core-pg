@@ -25,15 +25,22 @@ lab.experiment('Categories', function() {
   lab.test('should return all categories', function(done) {
     core.categories.all(function(categories) {
       expect(categories.length).to.equal(runtime.categories.length);
+    })
+    .then(function() {
+      done();
     });
-    done();
   });
   lab.test('should find a category by id', function(done) {
-    runtime.categories.forEach(function(seededCategory) {
-      core.categories.find(seededCategory.id).then(function(category) {
+    Promise.map(runtime.categories, function(seededCategory) {
+      return core.categories.find(seededCategory.id).then(function(category) {
         expectations(seededCategory, category);
+      })
+      .catch(function(err) {
+        throw(err);
       });
+    })
+    .then(function() {
+      done();
     });
-    done();
   });
 });
