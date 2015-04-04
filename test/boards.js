@@ -27,6 +27,8 @@ lab.experiment('Boards', function() {
     .then(function(boards) {
       expect(boards).to.exist;
       expect(boards.length).to.equal(runtime.boards.length);
+    })
+    .then(function() {
       done();
     });
   });
