@@ -44,6 +44,9 @@ lab.experiment('Threads', function() {
       .then(function(threads) {
         expect(threads).to.exist;
         expect(threads.length).to.equal(3);
+      })
+      .catch(function(err) {
+        throw(err);
       });
     });
     done();
@@ -57,6 +60,9 @@ lab.experiment('Threads', function() {
       core.threads.byBoard(parentBoard.id)
       .then(function(threads) {
         expect(threads).to.not.exist;
+      })
+      .catch(function(err) {
+        throw(err);
       });
     });
     done();
