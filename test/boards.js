@@ -49,8 +49,10 @@ lab.experiment('Boards', function() {
     core.boards.find(seededBoard.id)
     .then(function(board) {
       expect(board.children_ids.length).to.equal(3);
+    })
+    .then(function() {
+      done();
     });
-    done();
   });
   lab.test('should not have children', function(done) {
     var seededBoards = [
