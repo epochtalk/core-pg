@@ -15,14 +15,16 @@ lab.experiment('Threads', function() {
     expect(thread.board_id).to.equal(seededThread.board_id);
   };
   lab.before(function(done) {
-    return seed(fixture).then(function(results) {
+    return seed(fixture)
+    .then(function(results) {
       runtime = results;
       done();
     });
   });
   lab.test('should find a thread by id', function(done) {
     runtime.threads.forEach(function(seededThread) {
-      core.threads.find(seededThread.id).then(function(thread) {
+      core.threads.find(seededThread.id)
+      .then(function(thread) {
         expectations(seededThread, thread);
       })
       .catch(function(err) {
@@ -38,7 +40,8 @@ lab.experiment('Threads', function() {
       runtime.boards[2]
     ];
     parentBoards.forEach(function(parentBoard) {
-      core.threads.byBoard(parentBoard.id).then(function(threads) {
+      core.threads.byBoard(parentBoard.id)
+      .then(function(threads) {
         expect(threads).to.exist;
         expect(threads.length).to.equal(3);
       });
@@ -51,7 +54,8 @@ lab.experiment('Threads', function() {
       runtime.boards[4]
     ];
     parentBoards.forEach(function(parentBoard) {
-      core.threads.byBoard(parentBoard.id).then(function(threads) {
+      core.threads.byBoard(parentBoard.id)
+      .then(function(threads) {
         expect(threads).to.not.exist;
       });
     });
