@@ -16,13 +16,15 @@ lab.experiment('Boards', function() {
     expect(board.id).to.equal(seededBoard.id);
   };
   lab.before(function(done) {
-    return seed(fixture).then(function(results) {
+    return seed(fixture)
+    .then(function(results) {
       runtime = results;
       done();
     });
   });
   lab.test('should return all boards', function(done) {
-    core.boards.all().then(function(boards) {
+    core.boards.all()
+    .then(function(boards) {
       expect(boards).to.exist;
       expect(boards.length).to.equal(runtime.boards.length);
       done();
@@ -30,7 +32,8 @@ lab.experiment('Boards', function() {
   });
   lab.test('should find a board by id', function(done) {
     runtime.boards.forEach(function(seededBoard) {
-      core.boards.find(seededBoard.id).then(function(board) {
+      core.boards.find(seededBoard.id)
+      .then(function(board) {
         expectations(seededBoard, board);
       });
     });
@@ -38,7 +41,8 @@ lab.experiment('Boards', function() {
   });
   lab.test('should have children', function(done) {
     var seededBoard = runtime.boards[0];
-    core.boards.find(seededBoard.id).then(function(board) {
+    core.boards.find(seededBoard.id)
+    .then(function(board) {
       expect(board.children_ids.length).to.equal(3);
     });
     done();
@@ -51,7 +55,8 @@ lab.experiment('Boards', function() {
       runtime.boards[4]
     ];
     seededBoards.forEach(function(seededBoard) {
-      core.boards.find(seededBoard.id).then(function(board) {
+      core.boards.find(seededBoard.id)
+      .then(function(board) {
         expect(board.children_ids).to.not.exist;
       });
     });
@@ -65,7 +70,8 @@ lab.experiment('Boards', function() {
       runtime.boards[3]
     ];
     seededChildBoards.forEach(function(seededChildBoard) {
-      core.boards.find(seededChildBoard.id).then(function(board) {
+      core.boards.find(seededChildBoard.id)
+      .then(function(board) {
         expect(board.parent_board_id).to.equal(seededParentBoard.id);
       });
     });
@@ -77,7 +83,8 @@ lab.experiment('Boards', function() {
       runtime.boards[4]
     ];
     seededNonChildBoards.forEach(function(seededNonChildBoard) {
-      core.boards.find(seededNonChildBoard.id).then(function(board) {
+      core.boards.find(seededNonChildBoard.id)
+      .then(function(board) {
         expect(board.parent_board_id).to.not.exist;
       });
     });
@@ -90,7 +97,8 @@ lab.experiment('Boards', function() {
       runtime.boards[2]
     ];
     seededBoards.forEach(function(seededBoard) {
-      core.boards.find(seededBoard.id).then(function(board) {
+      core.boards.find(seededBoard.id)
+      .then(function(board) {
         expect(board.category_id).to.exist;
         expect(board.category_id).to.equal(seededBoard.category_id);
       });
@@ -103,7 +111,8 @@ lab.experiment('Boards', function() {
       runtime.boards[4]
     ];
     seededBoards.forEach(function(seededBoard) {
-      core.boards.find(seededBoard.id).then(function(board) {
+      core.boards.find(seededBoard.id)
+      .then(function(board) {
         expect(board.category_id).to.not.exist;
       });
     });
