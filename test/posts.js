@@ -31,7 +31,7 @@ lab.experiment('Posts', function() {
         expectations(seededPost, post);
       })
       .catch(function(err) {
-        throw(err);
+        throw err;
       });
     })
     .then(function() {

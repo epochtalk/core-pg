@@ -30,7 +30,7 @@ lab.experiment('Threads', function() {
         expectations(seededThread, thread);
       })
       .catch(function(err) {
-        throw(err);
+        throw err;
       });
     })
     .then(function() {
@@ -50,7 +50,7 @@ lab.experiment('Threads', function() {
         expect(threads.length).to.equal(3);
       })
       .catch(function(err) {
-        throw(err);
+        throw err;
       });
     })
     .then(function() {
@@ -68,7 +68,7 @@ lab.experiment('Threads', function() {
         expect(threads).to.not.exist;
       })
       .catch(function(err) {
-        throw(err);
+        throw err;
       });
     })
     .then(function() {

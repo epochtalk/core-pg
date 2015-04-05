@@ -41,7 +41,7 @@ lab.experiment('Boards', function() {
         expectations(seededBoard, board);
       })
       .catch(function(err) {
-        throw(err);
+        throw err;
       });
     })
     .then(function() {
@@ -71,7 +71,7 @@ lab.experiment('Boards', function() {
         expect(board.children_ids).to.not.exist;
       })
       .catch(function(err) {
-        throw(err);
+        throw err;
       });
     })
     .then(function() {
@@ -91,7 +91,7 @@ lab.experiment('Boards', function() {
         expect(board.parent_board_id).to.equal(seededParentBoard.id);
       })
       .catch(function(err) {
-        throw(err);
+        throw err;
       });
     })
     .then(function() {
@@ -109,7 +109,7 @@ lab.experiment('Boards', function() {
         expect(board.parent_board_id).to.not.exist;
       })
       .catch(function(err) {
-        throw(err);
+        throw err;
       });
     })
     .then(function() {
@@ -129,7 +129,7 @@ lab.experiment('Boards', function() {
         expect(board.category_id).to.equal(seededBoard.category_id);
       })
       .catch(function(err) {
-        throw(err);
+        throw err;
       });
     })
     .then(function() {
@@ -147,7 +147,7 @@ lab.experiment('Boards', function() {
         expect(board.category_id).to.not.exist;
       })
       .catch(function(err) {
-        throw(err);
+        throw err;
       });
     })
     .then(function() {
