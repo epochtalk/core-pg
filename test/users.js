@@ -26,31 +26,48 @@ lab.experiment('Users', function() {
   lab.test('should return all users', function(done) {
     core.users.all().then(function(users) {
       expect(users.length).to.equal(runtime.users.length);
+    })
+    .then(function() {
       done();
     });
   });
   lab.test('should return a user by username', function(done) {
-    runtime.users.forEach(function(seededUser) {
-      core.users.userByUsername(seededUser.username).then(function(user) {
+    Promise.map(runtime.users, function(seededUser) {
+      return core.users.userByUsername(seededUser.username).then(function(user) {
         expectations(seededUser, user);
+      })
+      .catch(function(err) {
+        throw err;
       });
+    })
+    .then(function() {
+      done();
     });
-    done();
   });
   lab.test('should return a user by email', function(done) {
-    runtime.users.forEach(function(seededUser) {
-      core.users.userByEmail(seededUser.email).then(function(user) {
+    Promise.map(runtime.users, function(seededUser) {
+      return core.users.userByEmail(seededUser.email).then(function(user) {
         expectations(seededUser, user);
+      })
+      .catch(function(err) {
+        throw err;
       });
+    })
+    .then(function() {
+      done();
     });
-    done();
   });
   lab.test('should find a user by id', function(done) {
-    runtime.users.forEach(function(seededUser) {
-      core.users.find(seededUser.id).then(function(user) {
+    Promise.map(runtime.users, function(seededUser) {
+      return core.users.find(seededUser.id).then(function(user) {
         expectations(seededUser, user);
+      })
+      .catch(function(err) {
+        throw err;
       });
+    })
+    .then(function() {
+      done();
     });
-    done();
   });
 });
