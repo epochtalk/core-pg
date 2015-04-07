@@ -5,16 +5,17 @@
   "main": "index.js",
   "scripts": {
     "db-migrate": "node_modules/.bin/db-migrate up",
-    "db-drop": "dropdb $(cat database.json | ./node_modules/.bin/json $NODE_ENV.database) --if-exists",
-    "db-create": "createdb $(cat database.json | ./node_modules/.bin/json $NODE_ENV.database)",
-    "test-migrate": "./node_modules/.bin/db-migrate up -e test",
+    "db-drop": "dropdb epoch_test --if-exists",
+    "db-create": "createdb epoch_test",
+    "test-migrate": "./node_modules/.bin/db-migrate up -e test --config ./test/database.json",
     "test-report": "NODE_ENV=test npm run db-drop && NODE_ENV=test npm run db-create && npm run test-migrate && NODE_ENV=test node_modules/.bin/lab --flat -r html -o test/coverage.html",
     "test-fixtures": "NODE_ENV=test npm run db-drop && NODE_ENV=test npm run db-create && npm run test-migrate && NODE_ENV=test node_modules/.bin/lab test/seed/test-fixtures.js --flat -v",
     "test-categories": "NODE_ENV=test npm run db-drop && NODE_ENV=test npm run db-create && npm run test-migrate && NODE_ENV=test node_modules/.bin/lab test/categories.js --flat -v",
     "test-users": "NODE_ENV=test npm run db-drop && NODE_ENV=test npm run db-create && npm run test-migrate && NODE_ENV=test node_modules/.bin/lab test/users.js --flat -v",
     "test-boards": "NODE_ENV=test npm run db-drop && NODE_ENV=test npm run db-create && npm run test-migrate && NODE_ENV=test node_modules/.bin/lab test/boards.js --flat -v",
     "test-threads": "NODE_ENV=test npm run db-drop && NODE_ENV=test npm run db-create && npm run test-migrate && NODE_ENV=test node_modules/.bin/lab test/threads.js --flat -v",
-    "test": "npm run test-categories && npm run test-users && npm run test-boards && npm run test-threads"
+    "test-posts": "NODE_ENV=test npm run db-drop && NODE_ENV=test npm run db-create && npm run test-migrate && NODE_ENV=test node_modules/.bin/lab test/posts.js --flat -v",
+    "test": "npm run test-categories && npm run test-users && npm run test-boards && npm run test-threads && npm run test-posts"
   },
   "repository": {
     "type": "git",
