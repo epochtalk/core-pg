@@ -52,8 +52,6 @@ module.exports = {
     ],
     posts: [
       { thread_id: 'threads.0.id', user_id: 'users.0.id' },
-      { thread_id: 'threads.0.id', user_id: 'users.1.id' },
-      { thread_id: 'threads.0.id', user_id: 'users.2.id' },
       { thread_id: 'threads.1.id', user_id: 'users.0.id' },
       { thread_id: 'threads.2.id', user_id: 'users.1.id' },
       { thread_id: 'threads.3.id', user_id: 'users.2.id' },
