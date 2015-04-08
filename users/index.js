@@ -9,11 +9,13 @@ var config = require(path.normalize(__dirname + '/../config'));
 var db = require(path.normalize(__dirname + '/../db'));
 var helper = require(path.normalize(__dirname + '/../helper'));
 
+/* returns all values */
 users.all = function() {
   // TODO: scrub passhash
   return db.sqlQuery('SELECT * FROM users');
 };
 
+/* returns all values */
 users.userByEmail = function(email) {
   // TODO: scrub passhash
   var q = 'SELECT * FROM users WHERE email = $1';
@@ -24,6 +26,7 @@ users.userByEmail = function(email) {
   });
 };
 
+/* returns all values */
 users.userByUsername = function(username) {
   var user;
   // TODO: optimize calls using promise.join
@@ -32,20 +35,22 @@ users.userByUsername = function(username) {
   return db.sqlQuery(q, params)
   .then(function(rows) {
     if (rows.length > 0) { user = formatUser(rows[0]); }
-    else { Promise.reject(); }
   })
   .then(function() {
-    var q = 'SELECT roles.* FROM roles_users, roles WHERE roles_users.user_id = $1 AND roles.id = roles_users.role_id';
-    var params = [user.id];
-    return db.sqlQuery(q, params)
-    .then(function(rows) {  // Append users roles
-      if (rows.length > 0) { user.roles = rows; }
-      else { user.roles = []; } // user has no roles
-      return user;
-   });
-  });
+    if (user) {
+      var q = 'SELECT roles.* FROM roles_users, roles WHERE roles_users.user_id = $1 AND roles.id = roles_users.role_id';
+      var params = [user.id];
+      return db.sqlQuery(q, params)
+      .then(function(rows) {  // Append users roles
+        if (rows.length > 0) { user.roles = rows; }
+        else { user.roles = []; } // user has no roles
+      });
+    }
+  })
+  .then(function() { return user; });
 };
 
+/* returns only imported user id */
 users.import = function(user) {
   var q = 'INSERT INTO users(id, email, username, created_at, imported_at) VALUES($1, $2, $3, $4, now()) RETURNING id';
   var userUUID = helper.intToUUID(user.smf.ID_MEMBER);
@@ -60,13 +65,20 @@ users.import = function(user) {
     profile.avatar = user.avatar || null;
     profile.position = user.position || null;
     profile.signature = user.signature || null;
-    // TODO: build fields object from user
-    profile.fields = user.fields || null;
+    profile.fields = {};
+    profile.fields.name = user.name || null;
+    profile.fields.website = user.website || null;
+    profile.fields.btcAddress = user.btcAddress || null;
+    profile.fields.gender = user.gender || null;
+    profile.fields.dob = user.dob || null;
+    profile.fields.language = user.lanugage || null;
+    profile.fields.location = user.location || null;
     insertUserProfile(profile);
     return returnObject;
   });
 };
 
+/* returns values including email, confirm token, and roles */
 users.create = function(user) {
   var firstUser, passhash;
   if (user.password) { passhash = bcrypt.hashSync(user.password, 12); }
@@ -85,7 +97,7 @@ users.create = function(user) {
   })
   .then(function(rows) { // get user id
     if (rows.length > 0) { user.id = rows[0].id; }
-    else { Promise.reject(); }
+    else { return Promise.reject(); }
   })
   .then(function() { // add user roles
     var q = 'INSERT INTO roles_users(role_id, user_id) VALUES($1, $2)';
@@ -103,11 +115,12 @@ users.create = function(user) {
   })
   .then(function(rows) {  // Append users roles
     if (rows.length > 0) { user.roles = rows; }
-    else { Promise.reject(); }
+    else { return Promise.reject(); }
   })
   .then(function() { return user; });
 };
 
+/* returns values including email, confirm and reset tokens */
 users.update = function(user) {
   var oldUser, oldFields, _user = {}, _fields = {};
   var q = 'SELECT u.id, u.username, u.email, u.passhash, u.confirmation_token, u.reset_token, u.reset_expiration, u.created_at, u.updated_at, u.imported_at, p.avatar, p.position, p.signature, p.fields FROM users u LEFT JOIN users.profiles p ON u.id = p.user_id WHERE u.id = $1';
@@ -115,7 +128,7 @@ users.update = function(user) {
   return db.sqlQuery(q, params)
   .then(function(rows) {
     if (rows.length > 0) { oldUser = rows[0]; }
-    else { Promise.reject(); }
+    else { return Promise.reject(); }
   })
   .then(function() {
     _user.id = oldUser.id;
@@ -135,7 +148,7 @@ users.update = function(user) {
   })
   .then(function() { return userProfileExists(user.id); })
   .then(function(exists) { // Update or Insert profile fields
-    oldFields = oldUser.fields;
+    oldFields = oldUser.fields || {};
 
     // Special Profile Fields
     updateAssign(_user, oldUser, user, 'avatar');
@@ -213,6 +226,7 @@ var updateUserProfile = function(user) {
   return db.sqlQuery(q, params);
 };
 
+/* return all values */
 users.find = function(id) {
   // TODO: fix indentation
   var q = 'SELECT * FROM users WHERE id = $1';
