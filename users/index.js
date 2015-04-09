@@ -30,7 +30,7 @@ users.userByEmail = function(email) {
 users.userByUsername = function(username) {
   var user;
   // TODO: optimize calls using promise.join
-  var q = 'SELECT u.id, u.username, u.email, u.passhash, u.confirmation_token, u.reset_token, u.reset_expiration, u.created_at, u.updated_at, u.imported_at, p.avatar, p.position, p.signature, p.fields, p.post_count FROM users u LEFT JOIN users.profiles p ON u.id = p.user_id WHERE u.username = $1';
+  var q = 'SELECT u.id, u.username, u.email, u.passhash, u.confirmation_token, u.reset_token, u.reset_expiration, u.created_at, u.updated_at, u.imported_at, p.avatar, p.position, p.signature, p.raw_signature, p.fields, p.post_count FROM users u LEFT JOIN users.profiles p ON u.id = p.user_id WHERE u.username = $1';
   var params = [username];
   return db.sqlQuery(q, params)
   .then(function(rows) {
@@ -65,6 +65,7 @@ users.import = function(user) {
     profile.avatar = user.avatar || null;
     profile.position = user.position || null;
     profile.signature = user.signature || null;
+    profile.raw_signature = user.raw_signature || null;
     profile.fields = {};
     profile.fields.name = user.name || null;
     profile.fields.website = user.website || null;
@@ -123,7 +124,7 @@ users.create = function(user) {
 /* returns values including email, confirm and reset tokens */
 users.update = function(user) {
   var oldUser, oldFields, _user = {}, _fields = {};
-  var q = 'SELECT u.id, u.username, u.email, u.passhash, u.confirmation_token, u.reset_token, u.reset_expiration, u.created_at, u.updated_at, u.imported_at, p.avatar, p.position, p.signature, p.fields FROM users u LEFT JOIN users.profiles p ON u.id = p.user_id WHERE u.id = $1';
+  var q = 'SELECT u.id, u.username, u.email, u.passhash, u.confirmation_token, u.reset_token, u.reset_expiration, u.created_at, u.updated_at, u.imported_at, p.avatar, p.position, p.signature, p.raw_signature, p.fields FROM users u LEFT JOIN users.profiles p ON u.id = p.user_id WHERE u.id = $1';
   var params = [user.id];
   return db.sqlQuery(q, params)
   .then(function(rows) {
@@ -154,6 +155,7 @@ users.update = function(user) {
     updateAssign(_user, oldUser, user, 'avatar');
     updateAssign(_user, oldUser, user, 'position');
     updateAssign(_user, oldUser, user, 'signature');
+    updateAssign(_user, oldUser, user, 'raw_signature');
 
     // Generic Profile Fields
     updateAssign(_fields, oldFields, user, 'name');
@@ -215,14 +217,14 @@ var userProfileExists = function(userId) {
 };
 
 var insertUserProfile = function(user) {
-  var q = 'INSERT INTO users.profiles (user_id, avatar, position, signature, fields) VALUES ($1, $2, $3, $4, $5)';
-  var params = [user.id, user.avatar, user.position, user.signature, user.fields];
+  var q = 'INSERT INTO users.profiles (user_id, avatar, position, signature, raw_signature, fields) VALUES ($1, $2, $3, $4, $5, $6)';
+  var params = [user.id, user.avatar, user.position, user.signature, user.raw_signature, user.fields];
   return db.sqlQuery(q, params);
 };
 
 var updateUserProfile = function(user) {
-  var q = 'UPDATE users.profiles SET user_id = $1, avatar = $2, position = $3, signature = $4, fields = $5 WHERE user_id = $1';
-  var params = [user.id, user.avatar, user.position, user.signature, user.fields];
+  var q = 'UPDATE users.profiles SET user_id = $1, avatar = $2, position = $3, signature = $4, raw_signature = $5, fields = $6 WHERE user_id = $1';
+  var params = [user.id, user.avatar, user.position, user.signature, user.raw_signature, user.fields];
   return db.sqlQuery(q, params);
 };
 
