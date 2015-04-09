@@ -91,7 +91,6 @@ lab.experiment('Threads', function() {
       return Promise.map(parentBoards, function(parentBoard) {
         return core.threads.byBoard(parentBoard.id)
         .map(function(thread) {
-          console.log(thread);
           expect(thread.view_count).to.equal(1);
         })
         .catch(function(err) {
