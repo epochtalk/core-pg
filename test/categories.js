@@ -24,7 +24,8 @@ lab.experiment('Categories', function() {
   });
   lab.test('should return all categories', function(done) {
     core.categories.all(function(categories) {
-      expect(categories.length).to.equal(runtime.categories.length);
+      expect(categories).to.be.an.array();
+      expect(categories).to.have.length(runtime.categories.length);
     })
     .then(function() {
       done();
