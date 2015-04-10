@@ -35,7 +35,8 @@ lab.experiment('Users', function() {
   });
   lab.test('should return all users', function(done) {
     core.users.all().then(function(users) {
-      expect(users.length).to.equal(runtime.users.length);
+      expect(users).to.be.an.array();
+      expect(users).to.have.length(runtime.users.length);
     })
     .then(function() {
       done();
