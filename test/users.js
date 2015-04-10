@@ -80,7 +80,7 @@ lab.experiment('Users', function() {
   });
   lab.test('should not return a user by invalid email', function(done) {
     return core.users.userByEmail().then(function(user) {
-      expect(user).to.not.exist();
+      expect(user).to.be.undefined();
     })
     .then(function() {
       done();
