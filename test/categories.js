@@ -43,4 +43,17 @@ lab.experiment('Categories', function() {
       done();
     });
   });
+  lab.test('should not find a category by invalid id', function(done) {
+    Promise.map(runtime.categories, function(seededCategory) {
+      return core.categories.find().then(function(category) {
+        expect(category).to.not.exist();
+      })
+      .catch(function(err) {
+        throw err;
+      });
+    })
+    .then(function() {
+      done();
+    });
+  });
 });
