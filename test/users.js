@@ -23,6 +23,16 @@ lab.experiment('Users', function() {
       done();
     });
   });
+  lab.test('should not create a user with invalid parameters', function(done) {
+    return core.users.create({})
+    .then(function(user) {
+      expect(user).to.not.exist();
+      throw new Error('User creation should have failed');
+    })
+    .catch(function(err) {
+      done();
+    });
+  });
   lab.test('should return all users', function(done) {
     core.users.all().then(function(users) {
       expect(users.length).to.equal(runtime.users.length);
