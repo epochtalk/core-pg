@@ -154,4 +154,19 @@ lab.experiment('Boards', function() {
       done();
     });
   });
+  lab.test('should return all cateogries', function(done) {
+    return core.boards.allCategories()
+    .then(function(categories) {
+      expect(categories).to.be.an.array();
+      expect(categories[0].boards).to.have.length(3);
+      expect(categories[1].boards).to.have.length(0);
+      expect(categories[2].boards).to.have.length(0);
+    })
+    .then(function() {
+      done();
+    })
+    .catch(function(err) {
+      throw err;
+    });
+  });
 });
