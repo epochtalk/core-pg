@@ -54,6 +54,17 @@ lab.experiment('Users', function() {
       done();
     });
   });
+  lab.test('should not return a user by invalid username', function(done) {
+    return core.users.userByUsername().then(function(user) {
+      expect(user).to.not.exist();
+    })
+    .then(function() {
+      done();
+    })
+    .catch(function(err) {
+      throw err;
+    });
+  });
   lab.test('should return a user by email', function(done) {
     Promise.map(runtime.users, function(seededUser) {
       return core.users.userByEmail(seededUser.email).then(function(user) {
@@ -67,6 +78,17 @@ lab.experiment('Users', function() {
       done();
     });
   });
+  lab.test('should not return a user by invalid email', function(done) {
+    return core.users.userByEmail().then(function(user) {
+      expect(user).to.not.exist();
+    })
+    .then(function() {
+      done();
+    })
+    .catch(function(err) {
+      throw err;
+    });
+  });
   lab.test('should find a user by id', function(done) {
     Promise.map(runtime.users, function(seededUser) {
       return core.users.find(seededUser.id).then(function(user) {
@@ -78,6 +100,17 @@ lab.experiment('Users', function() {
     })
     .then(function() {
       done();
+    });
+  });
+  lab.test('should not find a user by invalid id', function(done) {
+    return core.users.find().then(function(user) {
+      expect(user).to.not.exist();
+    })
+    .then(function() {
+      done();
+    })
+    .catch(function(err) {
+      throw err;
     });
   });
 });
