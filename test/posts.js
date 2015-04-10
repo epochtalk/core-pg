@@ -38,4 +38,33 @@ lab.experiment('Posts', function() {
       done();
     });
   });
+  lab.test('should find posts by thread', function(done) {
+    return Promise.map(runtime.posts, function(seededPost) {
+      return core.posts.byThread(seededPost.thread_id)
+      .then(function(posts) {
+        expect(posts.length).to.equal(1);
+        expectations(seededPost, posts[0]);
+      })
+      .catch(function(err) {
+        throw err;
+      });
+    })
+    .then(function() {
+      done();
+    });
+  });
+  lab.test('should increment thread\'s post count', function(done) {
+    return Promise.map(runtime.threads, function(seededThread) {
+      return core.threads.find(seededThread.id)
+      .then(function(thread) {
+        expect(thread.post_count).to.equal(1);
+      })
+      .catch(function(err) {
+        throw err;
+      });
+    })
+    .then(function() {
+      done();
+    });
+  });
 });

@@ -75,4 +75,50 @@ lab.experiment('Threads', function() {
       done();
     });
   });
+  lab.test('should increment board\'s thread count', function(done) {
+    var parentBoards = [
+      runtime.boards[0],
+      runtime.boards[1],
+      runtime.boards[2]
+    ];
+    return Promise.map(parentBoards, function(seededBoard) {
+      return core.boards.find(seededBoard.id)
+      .then(function(board) {
+        expect(board.thread_count).to.equal(3);
+      })
+      .catch(function(err) {
+        throw err;
+      });
+    })
+    .then(function() {
+      done();
+    });
+  });
+  lab.test('should increment its view count', function(done) {
+    var parentBoards = [
+      runtime.boards[0],
+      runtime.boards[1],
+      runtime.boards[2]
+    ];
+    Promise.map(runtime.threads, function(seededThread) {
+      return core.threads.incViewCount(seededThread.id)
+      .catch(function(err) {
+        throw err;
+      });
+    })
+    .then(function() {
+      return Promise.map(parentBoards, function(parentBoard) {
+        return core.threads.byBoard(parentBoard.id)
+        .map(function(thread) {
+          expect(thread.view_count).to.equal(1);
+        })
+        .catch(function(err) {
+          throw err;
+        });
+      });
+    })
+    .then(function() {
+      done();
+    });
+  });
 });

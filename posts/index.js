@@ -196,8 +196,10 @@ posts.byThread = function(threadId, opts) {
           'LEFT JOIN users u on p.user_id = u.id ' +
           'LEFT JOIN users.profiles up on u.id = up.user_id ' +
           'WHERE p.thread_id = $1 ORDER BY p.created_at LIMIT $2 OFFSET $3';
-  var limit = opts.limit || 10;
-  var page = opts.page || 1;
+  var limit = 10;
+  var page = 1;
+  if (opts && opts.limit) limit = opts.limit;
+  if (opts && opts.page) page = opts.page;
   var offset = (page * limit) - limit;
   var params = [threadId, limit, offset];
   return db.sqlQuery(q, params)
