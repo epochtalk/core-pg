@@ -37,6 +37,18 @@ lab.experiment('Threads', function() {
       done();
     });
   });
+  lab.test('should not find a thread by invalid id', function(done) {
+    return core.threads.find()
+    .then(function(thread) {
+      expect(thread).to.not.exist();
+    })
+    .then(function() {
+      done();
+    })
+    .catch(function(err) {
+      throw err;
+    });
+  });
   lab.test('should return threads for a board', function(done) {
     var parentBoards = [
       runtime.boards[0],
