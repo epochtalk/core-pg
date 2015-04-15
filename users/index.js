@@ -8,6 +8,7 @@ var Promise = require('bluebird');
 var config = require(path.normalize(__dirname + '/../config'));
 var db = require(path.normalize(__dirname + '/../db'));
 var helper = require(path.normalize(__dirname + '/../helper'));
+var NotFoundError = Promise.OperationalError;
 
 /* returns all values */
 users.all = function() {
@@ -252,7 +253,7 @@ users.find = function(id) {
         }
       });
     }
-    else { return undefined; }
+    else { throw new NotFoundError('User not found'); }
   });
 };
 
