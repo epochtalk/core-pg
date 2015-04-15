@@ -6,6 +6,7 @@ var Promise = require('bluebird');
 var core = require(path.join(__dirname, '..'))({host: 'localhost', database: 'epoch_test'});
 var seed = require(path.join(__dirname, 'seed', 'populate'));
 var fixture = require(path.join(__dirname, 'fixtures', 'users'));
+var NotFoundError = Promise.OperationalError;
 
 lab.experiment('Users', function() {
   var runtime;
@@ -104,14 +105,14 @@ lab.experiment('Users', function() {
     });
   });
   lab.test('should not find a user by invalid id', function(done) {
-    return core.users.find().then(function(user) {
-      expect(user).to.not.exist();
-    })
-    .then(function() {
-      done();
+    return core.users.find()
+    .then(function(user) {
+      throw new Error('Should not have found a user');
     })
     .catch(function(err) {
-      throw err;
+      expect(err).to.be.an.instanceof(NotFoundError);
+      expect(err.cause).to.be.a.string().and.to.equal('User not found');
+      done();
     });
   });
 });
