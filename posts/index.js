@@ -8,6 +8,7 @@ var Promise = require('bluebird');
 var config = require(path.join(__dirname, '..', 'config'));
 var db = require(path.join(__dirname, '..', 'db'));
 var helper = require(path.join(__dirname, '..', 'helper'));
+var NotFoundError = Promise.OperationalError;
 
 posts.import = function(post) {
   var timestamp = new Date();
@@ -187,6 +188,7 @@ posts.find = function(id) {
   return db.sqlQuery(q, params)
   .then(function(rows) {
     if (rows.length > 0) { return rows[0]; }
+    else { throw new NotFoundError('Post not found'); }
   });
 };
 

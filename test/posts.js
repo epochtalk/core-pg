@@ -7,6 +7,7 @@ var core = require(path.join(__dirname, '..'))({host: 'localhost', database: 'ep
 var core = require(path.join(__dirname, '..'))();
 var seed = require(path.join(__dirname, 'seed', 'populate'));
 var fixture = require(path.join(__dirname, 'fixtures', 'posts'));
+var NotFoundError = Promise.OperationalError;
 
 lab.experiment('Posts', function() {
   var runtime;
@@ -35,6 +36,17 @@ lab.experiment('Posts', function() {
       });
     })
     .then(function() {
+      done();
+    });
+  });
+  lab.test('should not find a post by invalid id', function(done) {
+    return core.posts.find()
+    .then(function(post) {
+      throw new Error('Should not have found a post');
+    })
+    .catch(function(err) {
+      expect(err).to.be.an.instanceof(NotFoundError);
+      expect(err.cause).to.be.a.string().and.to.equal('Post not found');
       done();
     });
   });

@@ -6,6 +6,7 @@ var Promise = require('bluebird');
 var core = require(path.join(__dirname, '..'))({host: 'localhost', database: 'epoch_test'});
 var seed = require(path.join(__dirname, 'seed', 'populate'));
 var fixture = require(path.join(__dirname, 'fixtures', 'boards'));
+var NotFoundError = Promise.OperationalError;
 
 lab.experiment('Boards', function() {
   var runtime;
@@ -27,8 +28,8 @@ lab.experiment('Boards', function() {
   lab.test('should return all boards', function(done) {
     core.boards.all()
     .then(function(boards) {
-      expect(boards).to.exist;
-      expect(boards.length).to.equal(runtime.boards.length);
+      expect(boards).to.be.an.array();
+      expect(boards).to.have.length(runtime.boards.length);
     })
     .then(function() {
       done();
@@ -45,6 +46,17 @@ lab.experiment('Boards', function() {
       });
     })
     .then(function() {
+      done();
+    });
+  });
+  lab.test('should not find a board by invalid id', function(done) {
+    return core.boards.find()
+    .then(function(board) {
+      throw new Error('Should not have found a board');
+    })
+    .catch(function(err) {
+      expect(err).to.be.an.instanceof(NotFoundError);
+      expect(err.cause).to.be.a.string().and.to.equal('Board not found');
       done();
     });
   });
@@ -152,6 +164,21 @@ lab.experiment('Boards', function() {
     })
     .then(function() {
       done();
+    });
+  });
+  lab.test('should return all cateogries', function(done) {
+    return core.boards.allCategories()
+    .then(function(categories) {
+      expect(categories).to.be.an.array();
+      expect(categories[0].boards).to.have.length(3);
+      expect(categories[1].boards).to.have.length(0);
+      expect(categories[2].boards).to.have.length(0);
+    })
+    .then(function() {
+      done();
+    })
+    .catch(function(err) {
+      throw err;
     });
   });
 });

@@ -8,6 +8,7 @@ var Promise = require('bluebird');
 var config = require(path.join(__dirname, '..', 'config'));
 var db = require(path.join(__dirname, '..', 'db'));
 var helper = require(path.join(__dirname, '..', 'helper'));
+var NotFoundError = Promise.OperationalError;
 
 threads.import = function(thread) {
   var timestamp = new Date();
@@ -111,8 +112,8 @@ threads.find = function(id) {
   var thread;
   return db.sqlQuery(q, params)
   .then(function(rows) {
-    if (rows.length > 0) return rows[0];
-    else Promise.resolve();
+    if (rows.length > 0) { return rows[0]; }
+    else { throw new NotFoundError('Thread not found'); }
   })
   .then(function(dbThread) {
     dbThread.user = { id: dbThread.user_id, username: dbThread.username };

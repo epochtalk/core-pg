@@ -9,6 +9,7 @@ var config = require(path.join(__dirname, '..', 'config'));
 var db = require(path.join(__dirname, '..', 'db'));
 var helper = require(path.join(__dirname, '..', 'helper'));
 var _ = require('lodash');
+var NotFoundError = Promise.OperationalError;
 
 boards.all = function() {
   return db.sqlQuery('SELECT * from boards');
@@ -135,8 +136,8 @@ boards.find = function(id) {
   var board;
   return db.sqlQuery(q, params)
   .then(function(rows) {
-    if (rows.length > 0) return rows[0];
-    else Promise.resolve();
+    if (rows.length > 0) { return rows[0]; }
+    else { throw new NotFoundError('Board not found'); }
   })
   .then(function(dbBoard) {
     board = dbBoard;
