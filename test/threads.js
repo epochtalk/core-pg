@@ -7,6 +7,7 @@ var core = require(path.join(__dirname, '..'))({host: 'localhost', database: 'ep
 var core = require(path.join(__dirname, '..'))();
 var seed = require(path.join(__dirname, 'seed', 'populate'));
 var fixture = require(path.join(__dirname, 'fixtures', 'threads'));
+var NotFoundError = Promise.OperationalError;
 
 lab.experiment('Threads', function() {
   var runtime;
@@ -40,13 +41,12 @@ lab.experiment('Threads', function() {
   lab.test('should not find a thread by invalid id', function(done) {
     return core.threads.find()
     .then(function(thread) {
-      expect(thread).to.not.exist();
-    })
-    .then(function() {
-      done();
+      throw new Error('Should not have found a thread');
     })
     .catch(function(err) {
-      throw err;
+      expect(err).to.be.an.instanceof(NotFoundError);
+      expect(err.cause).to.be.a.string().and.to.equal('Thread not found');
+      done();
     });
   });
   lab.test('should return threads for a board', function(done) {
