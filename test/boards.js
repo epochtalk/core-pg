@@ -6,6 +6,7 @@ var Promise = require('bluebird');
 var core = require(path.join(__dirname, '..'))({host: 'localhost', database: 'epoch_test'});
 var seed = require(path.join(__dirname, 'seed', 'populate'));
 var fixture = require(path.join(__dirname, 'fixtures', 'boards'));
+var NotFoundError = Promise.OperationalError;
 
 lab.experiment('Boards', function() {
   var runtime;
@@ -45,6 +46,17 @@ lab.experiment('Boards', function() {
       });
     })
     .then(function() {
+      done();
+    });
+  });
+  lab.test('should not find a board by invalid id', function(done) {
+    return core.boards.find()
+    .then(function(board) {
+      throw new Error('Should not have found a board');
+    })
+    .catch(function(err) {
+      expect(err).to.be.an.instanceof(NotFoundError);
+      expect(err.cause).to.be.a.string().and.to.equal('Board not found');
       done();
     });
   });
