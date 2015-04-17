@@ -77,11 +77,25 @@ lab.experiment('Threads', function() {
     Promise.map(parentBoards, function(parentBoard) {
       return core.threads.byBoard(parentBoard.id)
       .then(function(threads) {
-        expect(threads).to.not.exist;
+        expect(threads).to.be.an.array;
+        expect(threads).to.have.length(0);
       })
       .catch(function(err) {
         throw err;
       });
+    })
+    .then(function() {
+      done();
+    });
+  });
+  lab.test('should return no threads for an invalid board', function(done) {
+    return core.threads.byBoard()
+    .then(function(threads) {
+      expect(threads).to.be.an.array();
+      expect(threads).to.have.length(0);
+    })
+    .catch(function(err) {
+      throw err;
     })
     .then(function() {
       done();
