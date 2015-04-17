@@ -206,12 +206,15 @@ posts.byThread = function(threadId, opts) {
   var params = [threadId, limit, offset];
   return db.sqlQuery(q, params)
   .then(function(posts) {
-    return Promise.map(posts, function(post) {
-      post.user = { id: post.user_id, username: post.username, signature: post.signature };
-      delete post.user_id;
-      delete post.username;
-      delete post.signature;
-      return post;
-    });
+    if (posts.length > 0) {
+      return Promise.map(posts, function(post) {
+        post.user = { id: post.user_id, username: post.username, signature: post.signature };
+        delete post.user_id;
+        delete post.username;
+        delete post.signature;
+        return post;
+      });
+    }
+    else { return []; }
   });
 };
