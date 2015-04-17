@@ -65,6 +65,19 @@ lab.experiment('Posts', function() {
       done();
     });
   });
+  lab.test('should return no posts for an invalid thread', function(done) {
+    return core.posts.byThread()
+    .then(function(posts) {
+      expect(posts).to.be.an.array();
+      expect(posts).to.have.length(0);
+    })
+    .catch(function(err) {
+      throw err;
+    })
+    .then(function() {
+      done();
+    });
+  });
   lab.test('should increment thread\'s post count', function(done) {
     return Promise.map(runtime.threads, function(seededThread) {
       return core.threads.find(seededThread.id)
