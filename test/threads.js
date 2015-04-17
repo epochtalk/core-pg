@@ -38,7 +38,7 @@ lab.experiment('Threads', function() {
       done();
     });
   });
-  lab.test('should not find a thread by invalid id', function(done) {
+  lab.test('should fail to find a thread by invalid id', function(done) {
     return core.threads.find()
     .then(function(thread) {
       throw new Error('Should not have found a thread');

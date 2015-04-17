@@ -49,7 +49,7 @@ lab.experiment('Boards', function() {
       done();
     });
   });
-  lab.test('should not find a board by invalid id', function(done) {
+  lab.test('should fail to find a board by invalid id', function(done) {
     return core.boards.find()
     .then(function(board) {
       throw new Error('Should not have found a board');

@@ -24,7 +24,7 @@ lab.experiment('Users', function() {
       done();
     });
   });
-  lab.test('should not create a user with invalid parameters', function(done) {
+  lab.test('should fail to create a user with invalid parameters', function(done) {
     return core.users.create({})
     .then(function(user) {
       expect(user).to.not.exist();
@@ -104,7 +104,7 @@ lab.experiment('Users', function() {
       done();
     });
   });
-  lab.test('should not find a user by invalid id', function(done) {
+  lab.test('should fail to find a user by invalid id', function(done) {
     return core.users.find()
     .then(function(user) {
       throw new Error('Should not have found a user');
