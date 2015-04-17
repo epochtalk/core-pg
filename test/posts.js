@@ -79,7 +79,7 @@ lab.experiment('Posts', function() {
     });
   });
   lab.test('should increment thread\'s post count', function(done) {
-    return Promise.map(runtime.threads, function(seededThread) {
+    return Promise.map(runtime.threads.slice(0, 10), function(seededThread) {
       return core.threads.find(seededThread.id)
       .then(function(thread) {
         expect(thread.post_count).to.equal(1);
