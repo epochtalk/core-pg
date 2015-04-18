@@ -106,6 +106,32 @@ lab.experiment('Threads', function() {
       done();
     });
   });
+  lab.test('should increment board\'s total thread count', function(done) {
+    return core.boards.allCategories()
+    .then(function(categories) {
+      expect(categories).to.be.an.array();
+      expect(categories[0].boards).to.have.length(3);
+      return categories[0].boards;
+    })
+    .map(function(board) {
+      expect(board.total_thread_count).to.be.a.number();
+      if (board.id === runtime.boards[0].id) {
+        expect(board.total_thread_count).to.equal(9);
+      }
+      else if (board.id === runtime.boards[1].id) {
+        expect(board.total_thread_count).to.equal(6);
+      }
+      else {
+        expect(board.total_thread_count).to.equal(3);
+      }
+    })
+    .then(function() {
+      done();
+    })
+    .catch(function(err) {
+      throw err;
+    });
+  });
   lab.test('should increment its view count', function(done) {
     Promise.map(runtime.threads, function(seededThread) {
       return core.threads.incViewCount(seededThread.id)
