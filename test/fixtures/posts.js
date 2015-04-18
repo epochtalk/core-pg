@@ -60,8 +60,7 @@ module.exports = {
       { thread_id: 'threads.5.id', user_id: 'users.1.id' },
       { thread_id: 'threads.6.id', user_id: 'users.2.id' },
       { thread_id: 'threads.7.id', user_id: 'users.0.id' },
-      { thread_id: 'threads.8.id', user_id: 'users.1.id' },
-      { thread_id: 'threads.9.id', user_id: 'users.2.id' }
+      { thread_id: 'threads.8.id', user_id: 'users.1.id' }
     ]
   }
 };

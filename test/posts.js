@@ -92,7 +92,7 @@ lab.experiment('Posts', function() {
     });
   });
   lab.test('should increment thread\'s post count', function(done) {
-    return Promise.map(runtime.threads.slice(0, 10), function(seededThread) {
+    return Promise.map(runtime.threads.slice(0, 9), function(seededThread) {
       return core.threads.find(seededThread.id)
       .then(function(thread) {
         expect(thread.post_count).to.equal(1);
@@ -103,6 +103,24 @@ lab.experiment('Posts', function() {
     })
     .then(function() {
       done();
+    });
+  });
+  lab.test('should update boards\' posts counts', function(done) {
+    return core.boards.allCategories()
+    .then(function(categories) {
+      expect(categories).to.be.an.array();
+      expect(categories[0].boards).to.have.length(3);
+      return categories[0].boards;
+    })
+    .map(function(board) {
+      expect(board.post_count).to.be.a.number();
+      expect(board.post_count).to.equal(3);
+    })
+    .then(function() {
+      done();
+    })
+    .catch(function(err) {
+      throw err;
     });
   });
 });

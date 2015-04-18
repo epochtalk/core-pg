@@ -34,7 +34,7 @@ module.exports = {
     boards: [
       { category_id: 'categories.0.id' }, // has children boards.1,2,3
       { category_id: 'categories.0.id', parent_board_id: 'boards.0.id' },
-      { category_id: 'categories.0.id', parent_board_id: 'boards.0.id' },
+      { category_id: 'categories.0.id', parent_board_id: 'boards.1.id' },
       { parent_board_id: 'boards.0.id' },
       {}
     ],
