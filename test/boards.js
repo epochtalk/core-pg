@@ -71,13 +71,7 @@ lab.experiment('Boards', function() {
     });
   });
   lab.test('should not have children', function(done) {
-    var seededBoards = [
-      runtime.boards[1],
-      runtime.boards[2],
-      runtime.boards[3],
-      runtime.boards[4]
-    ];
-    Promise.map(seededBoards, function(seededBoard) {
+    Promise.map(runtime.boards.slice(1, 5), function(seededBoard) {
       return core.boards.find(seededBoard.id)
       .then(function(board) {
         expect(board.children_ids).to.not.exist;
@@ -92,12 +86,7 @@ lab.experiment('Boards', function() {
   });
   lab.test('should have a parent', function(done) {
     var seededParentBoard = runtime.boards[0];
-    var seededChildBoards = [
-      runtime.boards[1],
-      runtime.boards[2],
-      runtime.boards[3]
-    ];
-    Promise.map(seededChildBoards, function(seededChildBoard) {
+    Promise.map(runtime.boards.slice(1, 4), function(seededChildBoard) {
       return core.boards.find(seededChildBoard.id)
       .then(function(board) {
         expect(board.parent_board_id).to.equal(seededParentBoard.id);
@@ -129,12 +118,7 @@ lab.experiment('Boards', function() {
     });
   });
   lab.test('should belong to a category', function(done) {
-    var seededBoards = [
-      runtime.boards[0],
-      runtime.boards[1],
-      runtime.boards[2]
-    ];
-    Promise.map(seededBoards, function(seededBoard) {
+    Promise.map(runtime.boards.slice(0, 3), function(seededBoard) {
       return core.boards.find(seededBoard.id)
       .then(function(board) {
         expect(board.category_id).to.exist;
@@ -149,11 +133,7 @@ lab.experiment('Boards', function() {
     });
   });
   lab.test('should not belong to a category', function(done) {
-    var seededBoards = [
-      runtime.boards[3],
-      runtime.boards[4]
-    ];
-    Promise.map(seededBoards, function(seededBoard) {
+    Promise.map(runtime.boards.slice(3, 5), function(seededBoard) {
       return core.boards.find(seededBoard.id)
       .then(function(board) {
         expect(board.category_id).to.not.exist;
