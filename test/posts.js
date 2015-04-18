@@ -39,7 +39,7 @@ lab.experiment('Posts', function() {
       done();
     });
   });
-  lab.test('should not find a post by invalid id', function(done) {
+  lab.test('should fail to find a post by invalid id', function(done) {
     return core.posts.find()
     .then(function(post) {
       throw new Error('Should not have found a post');
@@ -65,8 +65,34 @@ lab.experiment('Posts', function() {
       done();
     });
   });
+  lab.test('should not find posts by thread', function(done) {
+    return core.posts.byThread(runtime.threads[10].id)
+    .then(function(posts) {
+      expect(posts).to.be.an.array();
+      expect(posts).to.have.length(0);
+    })
+    .catch(function() {
+      throw err;
+    })
+    .then(function() {
+      done();
+    });
+  });
+  lab.test('should return no posts for an invalid thread', function(done) {
+    return core.posts.byThread()
+    .then(function(posts) {
+      expect(posts).to.be.an.array();
+      expect(posts).to.have.length(0);
+    })
+    .catch(function(err) {
+      throw err;
+    })
+    .then(function() {
+      done();
+    });
+  });
   lab.test('should increment thread\'s post count', function(done) {
-    return Promise.map(runtime.threads, function(seededThread) {
+    return Promise.map(runtime.threads.slice(0, 10), function(seededThread) {
       return core.threads.find(seededThread.id)
       .then(function(thread) {
         expect(thread.post_count).to.equal(1);

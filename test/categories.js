@@ -45,7 +45,7 @@ lab.experiment('Categories', function() {
       done();
     });
   });
-  lab.test('should not find a category by invalid id', function(done) {
+  lab.test('should fail to find a category by invalid id', function(done) {
     return core.categories.find()
     .then(function(user) {
       throw new Error('Should not have found a category');

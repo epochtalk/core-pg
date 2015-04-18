@@ -48,6 +48,7 @@ module.exports = {
       { board_id: 'boards.2.id' },
       { board_id: 'boards.2.id' },
       { board_id: 'boards.2.id' },
+      { board_id: 'boards.2.id' },
       { board_id: 'boards.2.id' }
     ],
     posts: [
