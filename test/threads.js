@@ -50,12 +50,7 @@ lab.experiment('Threads', function() {
     });
   });
   lab.test('should return threads for a board', function(done) {
-    var parentBoards = [
-      runtime.boards[0],
-      runtime.boards[1],
-      runtime.boards[2]
-    ];
-    Promise.map(parentBoards, function(parentBoard) {
+    Promise.map(runtime.boards.slice(0, 3), function(parentBoard) {
       return core.threads.byBoard(parentBoard.id)
       .then(function(threads) {
         expect(threads).to.exist;
@@ -70,11 +65,7 @@ lab.experiment('Threads', function() {
     });
   });
   lab.test('should not return threads for a board', function(done) {
-    var parentBoards = [
-      runtime.boards[3],
-      runtime.boards[4]
-    ];
-    Promise.map(parentBoards, function(parentBoard) {
+    Promise.map(runtime.boards.slice(3, 5), function(parentBoard) {
       return core.threads.byBoard(parentBoard.id)
       .then(function(threads) {
         expect(threads).to.be.an.array;
@@ -102,12 +93,7 @@ lab.experiment('Threads', function() {
     });
   });
   lab.test('should increment board\'s thread count', function(done) {
-    var parentBoards = [
-      runtime.boards[0],
-      runtime.boards[1],
-      runtime.boards[2]
-    ];
-    return Promise.map(parentBoards, function(seededBoard) {
+    return Promise.map(runtime.boards.slice(0, 3), function(seededBoard) {
       return core.boards.find(seededBoard.id)
       .then(function(board) {
         expect(board.thread_count).to.equal(3);
@@ -121,11 +107,6 @@ lab.experiment('Threads', function() {
     });
   });
   lab.test('should increment its view count', function(done) {
-    var parentBoards = [
-      runtime.boards[0],
-      runtime.boards[1],
-      runtime.boards[2]
-    ];
     Promise.map(runtime.threads, function(seededThread) {
       return core.threads.incViewCount(seededThread.id)
       .catch(function(err) {
@@ -133,7 +114,7 @@ lab.experiment('Threads', function() {
       });
     })
     .then(function() {
-      return Promise.map(parentBoards, function(parentBoard) {
+      return Promise.map(runtime.boards.slice(0, 3), function(parentBoard) {
         return core.threads.byBoard(parentBoard.id)
         .map(function(thread) {
           expect(thread.view_count).to.equal(1);
