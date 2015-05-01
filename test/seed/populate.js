@@ -8,11 +8,14 @@ module.exports = function(fixture) {
   });
   return Promise.each(fixture.run, function(dataType) {
     return Promise.each(fixture.data[dataType], function(options) {
-      Object.keys(options).forEach(function(field) {
-        options[field] = Bro(runtime).iCanHaz(options[field]);
-      });
-      return fixture.methods[dataType](options).then(function(result) {
-        runtime[dataType].push(result);
+      return Promise.reduce(Object.keys(options), function(current, field) {
+        current[field] = Bro(runtime).iCanHaz(options[field]);
+        return current;
+      }, {})
+      .then(function(options) {
+        return fixture.methods[dataType](options).then(function(result) {
+          runtime[dataType].push(result);
+        });
       });
     });
   })

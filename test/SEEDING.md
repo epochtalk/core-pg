@@ -6,6 +6,11 @@ For seeding the test database.
 Seeding is designed to be readable and somewhat easily configurable.
 The current fixture style is as follows...
 
+```
+Note:  If there are timeouts on large seeds, increase the timeout value in the
+before clause.
+```
+
 fixture.js
 ```javascript
 module.exports = {
