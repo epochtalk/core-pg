@@ -2,10 +2,8 @@ var users = {};
 module.exports = users;
 
 var path = require('path');
-var pg = require('pg');
 var bcrypt = require('bcrypt');
 var Promise = require('bluebird');
-var config = require(path.normalize(__dirname + '/../config'));
 var db = require(path.normalize(__dirname + '/../db'));
 var helper = require(path.normalize(__dirname + '/../helper'));
 var NotFoundError = Promise.OperationalError;
@@ -14,6 +12,31 @@ var NotFoundError = Promise.OperationalError;
 users.all = function() {
   // TODO: scrub passhash
   return db.sqlQuery('SELECT * FROM users');
+};
+
+users.page = function(opts) {
+  var q = 'SELECT u.id, u.username, u.email, u.created_at, u.updated_at, u.imported_at, p.avatar, p.position, p.signature, p.raw_signature, p.fields, p.post_count FROM USERS u LEFT JOIN users.profiles p ON u.id = p.user_id ORDER BY';
+  var limit = 10;
+  var page = 1;
+  var sortField = 'username';
+  var order = 'ASC';
+  if (opts && opts.limit) { limit = opts.limit; }
+  if (opts && opts.page) { page = opts.page; }
+  if (opts && opts.sortField) { sortField = opts.sortField; }
+  if (opts && opts.sortDesc) { order = 'DESC'; }
+  q = [q, sortField, order, 'LIMIT $1 OFFSET $2'].join(' ');
+  var offset = (page * limit) - limit;
+  var params = [limit, offset];
+  return db.sqlQuery(q, params)
+  .map(function(user) {
+    var q = 'SELECT roles.* FROM roles_users, roles WHERE roles_users.user_id = $1 AND roles.id = roles_users.role_id';
+    var params = [user.id];
+    return db.sqlQuery(q, params)
+    .then(function(roles) {
+      user.roles = roles;
+      return user;
+    });
+  });
 };
 
 /* returns all values */
