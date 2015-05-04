@@ -39,6 +39,15 @@ users.page = function(opts) {
   });
 };
 
+users.count = function() {
+ var q = 'SELECT COUNT(*) FROM users';
+ return db.sqlQuery(q)
+ .then(function(rows) {
+  if (rows.length) { return { count: Number(rows[0].count) }; }
+  else { return Promise.reject(); }
+ });
+};
+
 /* returns all values */
 users.userByEmail = function(email) {
   // TODO: scrub passhash
