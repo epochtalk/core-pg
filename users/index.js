@@ -38,8 +38,13 @@ users.pageAdmins = function(opts) {
   var order = 'ASC';
   if (opts && opts.limit) { limit = opts.limit; }
   if (opts && opts.page) { page = opts.page; }
-  if (opts && opts.sortField) { sortField = opts.sortField; }
+  if (opts && opts.sortField) {
+    sortField = opts.sortField;
+    // Invert order if sorting by role, so super admin is sorted to the top
+    if (sortField === 'role') { opts.sortDesc = !opts.sortDesc; }
+  }
   if (opts && opts.sortDesc) { order = 'DESC'; }
+
   q = [q, sortField, order, 'LIMIT $1 OFFSET $2'].join(' ');
   var offset = (page * limit) - limit;
   var params = [limit, offset];
