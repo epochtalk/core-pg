@@ -72,7 +72,7 @@ users.count = function() {
 };
 
 users.countAdmins = function() {
- var q = 'SELECT COUNT(ru.user_id) as role from roles_users ru JOIN roles r ON ((r.name = \'Administrator\' OR r.name = \'Super Administrator\') AND r.id = ru.role_id)';
+ var q = 'SELECT COUNT(ru.user_id) as count from roles_users ru JOIN roles r ON ((r.name = \'Administrator\' OR r.name = \'Super Administrator\') AND r.id = ru.role_id)';
  return db.sqlQuery(q)
  .then(function(rows) {
   if (rows.length) { return { count: Number(rows[0].count) }; }
@@ -81,7 +81,7 @@ users.countAdmins = function() {
 };
 
 users.countModerators = function() {
- var q = 'SELECT COUNT(ru.user_id) as role from roles_users ru JOIN roles r ON ((r.name = \'Global Moderator\' OR r.name = \'Moderator\') AND r.id = ru.role_id)';
+ var q = 'SELECT COUNT(ru.user_id) as count from roles_users ru JOIN roles r ON ((r.name = \'Global Moderator\' OR r.name = \'Moderator\') AND r.id = ru.role_id)';
  return db.sqlQuery(q)
  .then(function(rows) {
   if (rows.length) { return { count: Number(rows[0].count) }; }
