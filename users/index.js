@@ -14,6 +14,13 @@ users.all = function() {
   return db.sqlQuery('SELECT * FROM users');
 };
 
+users.search = function(searchStr) {
+  var q = 'Select username from users where username LIKE $1 ORDER BY username LIMIT 10';
+  var params = [searchStr + '%'];
+  return db.sqlQuery(q, params)
+  .map(function(user) { return user.username; });
+};
+
 users.page = function(opts) {
   var q = 'SELECT u.id, u.username, u.email, u.created_at, u.updated_at, u.imported_at, p.avatar, p.position, p.signature, p.raw_signature, p.fields, p.post_count FROM users u LEFT JOIN users.profiles p ON u.id = p.user_id ORDER BY';
   var limit = 10;
