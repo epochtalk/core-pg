@@ -14,9 +14,9 @@ users.all = function() {
   return db.sqlQuery('SELECT * FROM users');
 };
 
-users.search = function(searchStr) {
-  var q = 'Select username from users where username LIKE $1 ORDER BY username LIMIT 10';
-  var params = [searchStr + '%'];
+users.searchUsernames = function(searchStr, limit) {
+  var q = 'Select username from users where username LIKE $1 ORDER BY username LIMIT $2';
+  var params = [searchStr + '%', limit || 15];
   return db.sqlQuery(q, params)
   .map(function(user) { return user.username; });
 };
