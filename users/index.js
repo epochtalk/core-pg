@@ -21,6 +21,24 @@ users.searchUsernames = function(searchStr, limit) {
   .map(function(user) { return user.username; });
 };
 
+users.addModerator = function(userId, globalMod) {
+  // Global Moderator: fb0f70b7-3652-4f7d-a166-05ee68e7428d
+  // Moderator: c0d39771-1541-4b71-9122-af0736cad23d
+  var roleId = globalMod ? 'b0f70b7-3652-4f7d-a166-05ee68e7428d' : 'c0d39771-1541-4b71-9122-af0736cad23d';
+  var q = 'UPDATE roles_users SET role_id = $1 WHERE user_id = $2';
+  var params = [roleId, userId];
+  return db.sqlQuery(q, params);
+};
+
+users.addAdministrator = function (userId, superAdmin) {
+  // Super Administrator: 8ab5ef49-c2ce-4421-9524-bb45f289d42c
+  // Administrator: 06860e6f-9ac0-4c2a-8d9c-417343062fb8
+  var roleId = superAdmin ? '8ab5ef49-c2ce-4421-9524-bb45f289d42c' : '06860e6f-9ac0-4c2a-8d9c-417343062fb8';
+  var q = 'UPDATE roles_users SET role_id = $1 WHERE user_id = $2';
+  var params = [roleId, userId];
+  return db.sqlQuery(q, params);
+};
+
 users.page = function(opts) {
   var q = 'SELECT u.id, u.username, u.email, u.created_at, u.updated_at, u.imported_at, p.avatar, p.position, p.signature, p.raw_signature, p.fields, p.post_count FROM users u LEFT JOIN users.profiles p ON u.id = p.user_id ORDER BY';
   var limit = 10;
