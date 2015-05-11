@@ -126,30 +126,31 @@ threads.find = function(id) {
 };
 
 threads.byBoard = function(boardId, opts) {
-  var threadsQuery = 'SELECT t.id, t.created_at, t.updated_at FROM threads t WHERE t.board_id = $1 ORDER BY t.updated_at DESC LIMIT $2 OFFSET $3;';
+  var columns = 't.id, t.created_at, t.updated_at, p.title, p.user_id, p.username';
+  var q = 'SELECT id, created_at, updated_at FROM threads ' +
+    'WHERE board_id = $1 ORDER BY updated_at DESC LIMIT $2 OFFSET $3';
+  var q2 = 'SELECT p1.title, p1.user_id, u.username FROM posts p1 LEFT JOIN users u ON p1.user_id = u.id WHERE p1.thread_id = t.id ORDER BY p1.created_at LIMIT 1';
+  var query = 'SELECT ' + columns + ' FROM ( ' + q + ' ) t LEFT JOIN LATERAL ( ' + q2 + ' ) p ON true';
+
   var limit = 10;
   var page = 1;
   if (opts && opts.limit) limit = opts.limit;
   if (opts && opts.page) page = opts.page;
   var offset = (page * limit) - limit;
   var params = [boardId, limit, offset];
-  return db.sqlQuery(threadsQuery, params)
+  return db.sqlQuery(query, params)
   .then(function(threads) {
-    if (threads.length > 0) {
-      return Promise.map(threads, function(thread) {
-        var postsQuery = 'SELECT DISTINCT ON (p.thread_id) p.thread_id, p.title, p.user_id, u.username FROM posts p LEFT JOIN users u ON p.user_id = u.id WHERE p.thread_id = $1 ORDER BY p.thread_id, p.created_at LIMIT 1';
-        var postsQueryParams = [thread.id];
-        return db.scalar(postsQuery, postsQueryParams)
-        .then(function(post) {
-          thread.user = { id: post.user_id, username: post.username };
-          thread.title = post.title;
-          return threadCountPosts(thread)
-          .then(threadLastPost)
-          .then(threadViews);
-        });
+    return Promise.map(threads, function(thread) {
+      return threadCountPosts(thread)
+      .then(threadLastPost)
+      .then(threadViews)
+      .then(function(thread) {
+        thread.user = { id: thread.user_id, username: thread.username };
+        delete thread.user_id;
+        delete thread.username;
+        return thread;
       });
-    }
-    else { return []; }
+    });
   });
 };
 
