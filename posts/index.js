@@ -193,25 +193,37 @@ posts.find = function(id) {
 };
 
 posts.byThread = function(threadId, opts) {
-  var q = 'SELECT p.id, p.thread_id, p.user_id, p.title, p.body, p.raw_body, p.created_at, p.updated_at, p.imported_at, u.username, up.signature, up.avatar ' +
-          'FROM posts p ' +
-          'LEFT JOIN users u on p.user_id = u.id ' +
-          'LEFT JOIN users.profiles up on u.id = up.user_id ' +
-          'WHERE p.thread_id = $1 ORDER BY p.created_at LIMIT $2 OFFSET $3';
+  var columns = 'post.id, post.thread_id, post.user_id, post.title, post.body, post.raw_body, post.created_at, post.updated_at, post.imported_at, post.username, post.signature, post.avatar, p2.role';
+
+  var q = 'SELECT p.id, p.thread_id, p.user_id, p.title, p.body, p.raw_body, p.created_at, p.updated_at, p.imported_at, u.username, up.signature, up.avatar FROM posts p ' +
+    'LEFT JOIN users u on p.user_id = u.id ' +
+    'LEFT JOIN users.profiles up on u.id = up.user_id ' +
+    'WHERE p.thread_id = $1 ORDER BY p.created_at LIMIT $2 OFFSET $3';
+
+  var q2 = 'SELECT r.name AS role FROM roles_users ru ' +
+    'LEFT JOIN roles r ON ru.role_id = r.id ' +
+    'WHERE post.user_id = ru.user_id ' +
+    'ORDER BY CASE WHEN r.name = \'Administrator\' THEN \'1\' ' +
+    'WHEN r.name = \'Global Moderator\' THEN \'2\' ' +
+    'WHEN r.name = \'Moderator\' THEN \'3\' ' +
+    'ELSE r.name END ASC LIMIT 1';
+
+  var query = 'SELECT ' + columns + ' FROM ( ' + q + ' ) post LEFT JOIN LATERAL ( ' + q2 + ' ) p2 ON true';
   var limit = 10;
   var page = 1;
   if (opts && opts.limit) limit = opts.limit;
   if (opts && opts.page) page = opts.page;
   var offset = (page * limit) - limit;
   var params = [threadId, limit, offset];
-  return db.sqlQuery(q, params)
+  return db.sqlQuery(query, params)
   .then(function(posts) {
     if (posts.length > 0) {
       return Promise.map(posts, function(post) {
-        post.user = { id: post.user_id, username: post.username, signature: post.signature };
+        post.user = { id: post.user_id, username: post.username, signature: post.signature, role: post.role };
         delete post.user_id;
         delete post.username;
         delete post.signature;
+        delete post.role;
         return post;
       });
     }
