@@ -14,6 +14,7 @@ users.all = function() {
   return db.sqlQuery('SELECT * FROM users');
 };
 
+/* returns array of usernames matching searchStr */
 users.searchUsernames = function(searchStr, limit) {
   var q = 'Select username from users where username LIKE $1 ORDER BY username LIMIT $2';
   var params = [searchStr + '%', limit || 15];
@@ -21,24 +22,57 @@ users.searchUsernames = function(searchStr, limit) {
   .map(function(user) { return user.username; });
 };
 
-users.addModerator = function(userId, globalMod) {
-  // Global Moderator: fb0f70b7-3652-4f7d-a166-05ee68e7428d
-  // Moderator: c0d39771-1541-4b71-9122-af0736cad23d
-  var roleId = globalMod ? 'b0f70b7-3652-4f7d-a166-05ee68e7428d' : 'c0d39771-1541-4b71-9122-af0736cad23d';
-  var q = 'UPDATE roles_users SET role_id = $1 WHERE user_id = $2';
-  var params = [roleId, userId];
-  return db.sqlQuery(q, params);
+/* returns user with roles */
+users.addRole = function(userId, role) {
+  var userQuery = 'SELECT id, username, email, created_at, updated_at FROM users WHERE id = $1';
+  var userParams = [userId];
+  var updatedUser, roleId;
+  return db.sqlQuery(userQuery, userParams)
+  .then(function(rows) { // fetch user and ensure user exists
+    if (rows.length) {
+      updatedUser = rows[0];
+      return;
+    }
+    else { return Promise.reject(); } // user doesnt exist
+  })
+  .then(function() { // lookup role id by name
+    var queryRoleId = 'SELECT id FROM roles WHERE name = $1';
+    var roleParams = [role];
+    return db.sqlQuery(queryRoleId, roleParams);
+  })
+  .then(function(rows) { // return role id
+    if (rows.length) {
+      roleId = rows[0].id;
+      return;
+    }
+    else { return Promise.reject(); } // role id doesnt exist
+  })
+  .then(function() { // check if user already has role
+    var roleCheckQuery = 'SELECT user_id FROM roles_users WHERE user_id = $1 AND role_id = $2';
+    var roleCheckParams = [userId, roleId];
+    return db.sqlQuery(roleCheckQuery, roleCheckParams);
+  })
+  .then(function(rows) {
+    if (rows.length) { return; } // user already has role do nothing
+    else { // add role to user
+      var addRoleQuery = 'INSERT INTO roles_users (role_id, user_id) VALUES ($1, $2);';
+      var addRoleParams = [roleId, userId];
+      return db.sqlQuery(addRoleQuery, addRoleParams);
+    }
+  })
+  .then(function() { // append roles to updated user and return
+    var rolesQuery = 'SELECT roles.* FROM roles_users, roles WHERE roles_users.user_id = $1 AND roles.id = roles_users.role_id';
+    var rolesParams = [userId];
+    return db.sqlQuery(rolesQuery, rolesParams);
+  })
+  .then(function(rows) {  // Append users roles
+    if (rows.length) { updatedUser.roles = rows; }
+    else { updatedUser.roles = []; } // user has no roles
+    return updatedUser;
+  });
 };
 
-users.addAdministrator = function (userId, superAdmin) {
-  // Super Administrator: 8ab5ef49-c2ce-4421-9524-bb45f289d42c
-  // Administrator: 06860e6f-9ac0-4c2a-8d9c-417343062fb8
-  var roleId = superAdmin ? '8ab5ef49-c2ce-4421-9524-bb45f289d42c' : '06860e6f-9ac0-4c2a-8d9c-417343062fb8';
-  var q = 'UPDATE roles_users SET role_id = $1 WHERE user_id = $2';
-  var params = [roleId, userId];
-  return db.sqlQuery(q, params);
-};
-
+/* returns a limited set of users depending on limit and page */
 users.page = function(opts) {
   var q = 'SELECT u.id, u.username, u.email, u.created_at, u.updated_at, u.imported_at, p.avatar, p.position, p.signature, p.raw_signature, p.fields, p.post_count FROM users u LEFT JOIN users.profiles p ON u.id = p.user_id ORDER BY';
   var limit = 10;
@@ -55,12 +89,9 @@ users.page = function(opts) {
   return db.sqlQuery(q, params);
 };
 
+/* returns a limited set of admins depending on limit and page */
 users.pageAdmins = function(opts) {
-  var filter;
-  if (opts && opts.filter === 'admin') { filter = 'r.name = \'Administrator\''; }
-  else if (opts && opts.filter === 'super') { filter = 'r.name = \'Super Administrator\''; }
-  else { filter = '(r.name = \'Administrator\' OR r.name = \'Super Administrator\')'; }
-  var q = 'SELECT u.username, u.email, u.created_at, u.id, r.name as role from roles_users ru JOIN roles r ON (' + filter + ' AND r.id = ru.role_id) LEFT JOIN users u ON (ru.user_id = u.id) GROUP BY u.id, u.username, u.email, u.created_at, r.name ORDER BY';
+  var q = 'SELECT u.username, u.email, u.created_at, ru.user_id, array_agg(r.name ORDER BY r.name) as roles from roles_users ru JOIN roles r ON ((r.name = \'Administrator\' OR r.name = \'Super Administrator\') AND r.id = ru.role_id) LEFT JOIN users u ON(ru.user_id = u.id) GROUP BY ru.user_id, u.username, u.email, u.created_at ORDER BY';
   var limit = 10;
   var page = 1;
   var sortField = 'username';
@@ -69,23 +100,19 @@ users.pageAdmins = function(opts) {
   if (opts && opts.page) { page = opts.page; }
   if (opts && opts.sortField) {
     sortField = opts.sortField;
-    // Invert order if sorting by role, so super admin is sorted to the top
-    if (sortField === 'role') { opts.sortDesc = !opts.sortDesc; }
+    // Invert order if sorting by roles, so super admin is sorted to the top
+    if (sortField === 'roles') { opts.sortDesc = !opts.sortDesc; }
   }
   if (opts && opts.sortDesc) { order = 'DESC'; }
-
   q = [q, sortField, order, 'LIMIT $1 OFFSET $2'].join(' ');
   var offset = (page * limit) - limit;
   var params = [limit, offset];
   return db.sqlQuery(q, params);
 };
 
+/* returns a limited set of moderators depending on limit and page */
 users.pageModerators = function(opts) {
-  var filter;
-  if (opts && opts.filter === 'moderator') { filter = 'r.name = \'Moderator\''; }
-  else if (opts && opts.filter === 'global') { filter = 'r.name = \'Global Moderator\''; }
-  else { filter = '(r.name = \'Global Moderator\' OR r.name = \'Moderator\')'; }
-  var q = 'SELECT u.username, u.email, u.created_at, u.id, r.name as role from roles_users ru JOIN roles r ON (' + filter + ' AND r.id = ru.role_id) LEFT JOIN users u ON (ru.user_id = u.id) GROUP BY u.id, u.username, u.email, u.created_at, r.name ORDER BY';
+  var q = 'SELECT u.username, u.email, u.created_at, ru.user_id, array_agg(r.name ORDER BY r.name) as roles from roles_users ru JOIN roles r ON ((r.name = \'Moderator\' OR r.name = \'Global Moderator\') AND r.id = ru.role_id) LEFT JOIN users u ON(ru.user_id = u.id) GROUP BY ru.user_id, u.username, u.email, u.created_at ORDER BY';
   var limit = 10;
   var page = 1;
   var sortField = 'username';
@@ -100,6 +127,7 @@ users.pageModerators = function(opts) {
   return db.sqlQuery(q, params);
 };
 
+/* returns total user count */
 users.count = function() {
   var q = 'SELECT COUNT(*) FROM users';
   return db.sqlQuery(q)
@@ -109,13 +137,9 @@ users.count = function() {
   });
 };
 
-users.countAdmins = function(opts) {
-  var filter;
-  if (opts && opts.filter === 'admin') { filter = 'r.name = \'Administrator\''; }
-  else if (opts && opts.filter === 'super') { filter = 'r.name = \'Super Administrator\''; }
-  else { filter = '(r.name = \'Administrator\' OR r.name = \'Super Administrator\')'; }
-
-  var q = 'SELECT COUNT(ru.user_id) as count from roles_users ru JOIN roles r ON (' + filter + ' AND r.id = ru.role_id)';
+/* returns total admins count */
+users.countAdmins = function() {
+  var q = 'SELECT COUNT(user_id) FROM (SELECT DISTINCT ru.user_id FROM roles_users ru JOIN roles r ON ((r.name = \'Administrator\' OR r.name = \'Super Administrator\') AND r.id = ru.role_id)) AS admins';
   return db.sqlQuery(q)
   .then(function(rows) {
     if (rows.length) { return { count: Number(rows[0].count) }; }
@@ -123,13 +147,9 @@ users.countAdmins = function(opts) {
   });
 };
 
-users.countModerators = function(opts) {
-  var filter;
-  if (opts && opts.filter === 'moderator') { filter = 'r.name = \'Moderator\''; }
-  else if (opts && opts.filter === 'global') { filter = 'r.name = \'Global Moderator\''; }
-  else { filter = '(r.name = \'Global Moderator\' OR r.name = \'Moderator\')'; }
-
-  var q = 'SELECT COUNT(ru.user_id) as count from roles_users ru JOIN roles r ON (' + filter + ' AND r.id = ru.role_id)';
+/* returns total mods count */
+users.countModerators = function() {
+  var q = 'SELECT COUNT(user_id) FROM (SELECT DISTINCT ru.user_id from roles_users ru JOIN roles r ON ((r.name = \'Moderator\' OR r.name = \'Global Moderator\') AND r.id = ru.role_id)) as mods';
   return db.sqlQuery(q)
   .then(function(rows) {
     if (rows.length) { return { count: Number(rows[0].count) }; }
