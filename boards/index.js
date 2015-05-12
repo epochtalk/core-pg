@@ -198,41 +198,25 @@ boards.updateCategories = function(categories) {
 };
 
 boards.allCategories = function() {
+  var columns = 'b.id, b.parent_board_id, b.children_ids, b.category_id, b.name, b.description, b.created_at, b.updated_at, b.imported_at, mb.post_count, mb.thread_count, mb.total_post_count, mb.total_thread_count, mb.last_post_username, mb.last_post_created_at, mb.last_thread_id, mb.last_thread_title';
+
   var q = 'SELECT * FROM categories';
   var categories;
   return db.sqlQuery(q)
   .then(function(dbCategories) { categories = dbCategories; })
   .then(function() {
     return Promise.map(categories, function(category) {
-      var q = 'SELECT * from boards WHERE category_id = $1';
+      var q = 'SELECT ' + columns + ' from boards b LEFT JOIN metadata.boards mb ON b.id = mb.board_id WHERE category_id = $1';
       var params = [category.id];
       return db.sqlQuery(q, params)
       .then(function(boards) {
         return Promise.map(boards, function(board) {
-          var b = 'SELECT * from metadata.boards WHERE board_id = $1';
-          var bParams = [board.id];
-          return db.sqlQuery(b, bParams)
+          var q = 'SELECT bm.user_id as id, u.username from board_moderators bm LEFT JOIN users u ON bm.user_id = u.id WHERE bm.board_id = $1';
+          var params = [board.id];
+          return db.sqlQuery(q, params)
           .then(function(rows) {
-            if (rows.length > 0){
-              var boardMeta = rows[0];
-              board.post_count = boardMeta.post_count;
-              board.thread_count = boardMeta.thread_count;
-              board.total_post_count = boardMeta.total_post_count;
-              board.total_thread_count = boardMeta.total_thread_count;
-              board.last_post_username = boardMeta.last_post_username;
-              board.last_thread_id = boardMeta.last_thread_id;
-              board.last_post_created_at = boardMeta.last_post_created_at;
-              board.last_thread_title = boardMeta.last_thread_title;
-            }
-          })
-          .then(function() { // add board moderators
-            var q = 'SELECT bm.user_id as id, u.username from board_moderators bm LEFT JOIN users u ON bm.user_id = u.id WHERE bm.board_id = $1';
-            var params = [board.id];
-            return db.sqlQuery(q, params)
-            .then(function(rows) {
-              board.moderators = rows;
-              return board;
-            });
+            board.moderators = rows;
+            return board;
           });
         });
       })
