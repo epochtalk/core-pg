@@ -77,10 +77,16 @@ var insertPostProcessing = function(timestamp, userId, threadId, insertQuery, in
   })
   .then(function() {
     if (!thread.updated_at || thread.updated_at < timestamp) {
-      q = 'UPDATE threads set updated_at = $1 WHERE id = $2';
+      q = 'UPDATE threads SET updated_at = $1 WHERE id = $2';
       params = [timestamp, threadId];
       db.sqlQuery(q, params);
     }
+  })
+  // update post count on metadata.threads
+  .then(function() {
+    q = 'UPDATE metadata.threads SET post_count = post_count + 1 WHERE thread_id = $1';
+    params = [threadId];
+    db.sqlQuery(q, params);
   })
   // update post count and last post by on metadata.board
   .then(function() {
