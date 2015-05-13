@@ -16,18 +16,12 @@ boards.all = function() {
 };
 
 boards.create = function(board) {
-  var timestamp = new Date();
-  if (!board.created) { board.created_at = timestamp; }
-  if (!board.updated_at) { board.updated_at = timestamp; }
-  var q = 'INSERT INTO boards(category_id, name, description, created_at, updated_at, parent_board_id, children_ids) VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING id';
-  var params = [board.category_id || null, board.name, board.description, board.created_at, board.updated_at, board.parent_board_id, board.children_ids];
+  var q = 'INSERT INTO boards(category_id, name, description, created_at, parent_board_id, children_ids) VALUES($1, $2, $3, now(), $4, $5) RETURNING id';
+  var params = [board.category_id || null, board.name, board.description, board.parent_board_id, board.children_ids];
   var createdBoard = board;
   return db.sqlQuery(q, params)
   .then(function(rows) {
-    if (rows.length > 0) {
-      createdBoard.id = rows[0].id;
-      return;
-    }
+    if (rows.length > 0) { createdBoard.id = rows[0].id; }
     else { return Promise.reject(); }
   })
   // set up board metadata
@@ -40,34 +34,28 @@ boards.create = function(board) {
     if (board.parent_board_id) {
       return addChildToBoard(board.id, board.parent_board_id);
     }
-    else { return; }
   })
-  .then(function() {
-    return createdBoard;
-  });
+  .then(function() { return createdBoard; });
 };
 
 var addChildToBoard = function(childId, parentId) {
   var parentBoard;
-  return new Promise(function(fulfill, reject) {
-    var q = 'SELECT * FROM boards WHERE id = $1';
-    var params = [parentId];
-    return db.sqlQuery(q, params)
-    .then(function(dbParentBoard) {
-      parentBoard = dbParentBoard[0];
-      parentBoard.children_ids = parentBoard.children_ids || [];
-      if (!_.contains(parentBoard.children_ids, childId)) {
-        parentBoard.children_ids.push(childId);
-        var q = 'UPDATE boards SET children_ids = $1 WHERE id = $2';
-        var params = [parentBoard.children_ids, parentId];
-        return db.sqlQuery(q, params);
-      }
-      // parent board already has child board id in children_ids
-      else { return; }
-    })
-    .then(function() { fulfill(parentBoard); })
-    .catch(function(err) { reject(err); });
-  });
+  var q = 'SELECT * FROM boards WHERE id = $1';
+  var params = [parentId];
+  return db.sqlQuery(q, params)
+  .then(function(dbParentBoard) {
+    parentBoard = dbParentBoard[0];
+    parentBoard.children_ids = parentBoard.children_ids || [];
+    if (!_.contains(parentBoard.children_ids, childId)) {
+      parentBoard.children_ids.push(childId);
+      var q = 'UPDATE boards SET children_ids = $1 WHERE id = $2';
+      var params = [parentBoard.children_ids, parentId];
+      return db.sqlQuery(q, params);
+    }
+    // parent board already has child board id in children_ids
+    else { return; }
+  })
+  .then(function() { return parentBoard; });
 };
 
 boards.update = function(board) {
@@ -93,9 +81,8 @@ boards.update = function(board) {
       else if (board.children_ids === null) { updatedBoard.children_ids = null; }
       else if (board.children_ids && board.children_ids.length === 0) { updatedBoard.children_ids = null; }
 
-      updatedBoard.updated_at = new Date();
-      var q = 'UPDATE boards SET name = $1, description = $2, category_id = $3, parent_board_id = $4, children_ids = $5, updated_at = $6 WHERE id = $7';
-      var params = [updatedBoard.name, updatedBoard.description, updatedBoard.category_id, updatedBoard.parent_board_id, updatedBoard.children_ids, updatedBoard.updated_at, updatedBoard.id];
+      var q = 'UPDATE boards SET name = $1, description = $2, category_id = $3, parent_board_id = $4, children_ids = $5, updated_at = now() WHERE id = $6';
+      var params = [updatedBoard.name, updatedBoard.description, updatedBoard.category_id, updatedBoard.parent_board_id, updatedBoard.children_ids, updatedBoard.id];
       return db.sqlQuery(q, params);
     }
     else { Promise.reject(); }
@@ -104,18 +91,18 @@ boards.update = function(board) {
     if (board.parent_board_id) {
       return addChildToBoard(board.id, board.parent_board_id);
     }
-    else { return; }
   })
   .then(function() { return updatedBoard; });
 };
 
 boards.import = function(board) {
-  var timestamp = new Date();
-  board.imported_at = timestamp;
-  var q = 'INSERT INTO boards(id, category_id, name, description, imported_at) VALUES($1, $2, $3, $4, $5) RETURNING id';
+  var timestamp = Date.now();
+  board.created_at = board.created_at || timestamp;
+  board.updated_at = board.updated_at || timestamp;
+  var q = 'INSERT INTO boards(id, category_id, name, description, created_at, updated_at, imported_at) VALUES($1, $2, $3, $4, $5, $6, now()) RETURNING id';
   var boardUUID = helper.intToUUID(board.smf.ID_BOARD);
   var catUUID = helper.intToUUID(board.smf.ID_CAT);
-  var params = [boardUUID, catUUID, board.name, board.description, board.imported_at];
+  var params = [boardUUID, catUUID, board.name, board.description, board.created_at, board.updated_at];
   return db.sqlQuery(q, params)
   .then(function(rows) {
     if (rows.length > 0) { return rows[0]; }
@@ -131,27 +118,16 @@ boards.import = function(board) {
 };
 
 boards.find = function(id) {
-  var q = 'SELECT * FROM boards WHERE id = $1';
+  var columns = 'b.id, b.parent_board_id, b.children_ids, b.category_id, b.name, b.description, b.created_at, b.updated_at, b.imported_at, mb.thread_count';
+  var q = 'SELECT ' + columns + ' FROM boards b ' +
+    'LEFT JOIN metadata.boards mb ON b.id = mb.board_id WHERE b.id = $1';
   var params = [id];
-  var board;
   return db.sqlQuery(q, params)
   .then(function(rows) {
     if (rows.length > 0) { return rows[0]; }
     else { throw new NotFoundError('Board not found'); }
   })
-  .then(function(dbBoard) {
-    board = dbBoard;
-    var q = 'SELECT count(id) FROM threads WHERE board_id = $1';
-    var params = [dbBoard.id];
-    return db.sqlQuery(q, params);
-  })
-  .then(function(rows) {
-    if (rows.length > 0) {
-      var threadCount = Number(rows[0].count);
-      board.thread_count = threadCount;
-    }
-  })
-  .then(function() { // add board moderators
+  .then(function(board) { // add board moderators
     var q = 'SELECT bm.user_id as id, u.username from board_moderators bm LEFT JOIN users u ON bm.user_id = u.id WHERE bm.board_id = $1';
     var params = [id];
     return db.sqlQuery(q, params)
