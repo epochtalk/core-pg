@@ -224,12 +224,14 @@ posts.byThread = function(threadId, opts) {
   var getThreadParams = [threadId];
   return db.scalar(getThreadSQL, getThreadParams)
   .then(function(result) {
-    // determine whether to start from the front or back
-    var postCount = result.post_count;
-    if (offset > Math.floor(postCount / 2)) {
-      reversed = 'DESC';
-      limit = postCount <= offset + limit ? postCount - offset : limit;
-      offset = postCount <= offset + limit ? 0 : postCount - offset - limit;
+    if (result) {
+      // determine whether to start from the front or back
+      var postCount = result.post_count;
+      if (offset > Math.floor(postCount / 2)) {
+        reversed = 'DESC';
+        limit = postCount <= offset + limit ? postCount - offset : limit;
+        offset = postCount <= offset + limit ? 0 : postCount - offset - limit;
+      }
     }
   })
   // get all related posts

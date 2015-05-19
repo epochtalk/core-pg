@@ -117,12 +117,14 @@ threads.byBoard = function(boardId, opts) {
   var getBoardParams = [boardId];
   return db.scalar(getBoardSQL, getBoardParams)
   .then(function(result) {
-    // determine whether to start from the front or back
-    var threadCount = result.thread_count;
-    if (offset > Math.floor(threadCount / 2)) {
-      reversed = '';
-      limit = threadCount <= offset + limit ? threadCount - offset : limit;
-      offset = threadCount <= offset + limit ? 0 : threadCount - offset - limit;
+    if (result) {
+      // determine whether to start from the front or back
+      var threadCount = result.thread_count;
+      if (offset > Math.floor(threadCount / 2)) {
+        reversed = '';
+        limit = threadCount <= offset + limit ? threadCount - offset : limit;
+        offset = threadCount <= offset + limit ? 0 : threadCount - offset - limit;
+      }
     }
   })
   // get all related threads
