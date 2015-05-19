@@ -136,6 +136,20 @@ reports.pageUserReports = function(opts) {
   return db.sqlQuery(q, params);
 };
 
+reports.userReportsCount = function(status) {
+  var q = 'SELECT count(ru.id) FROM administration.reports_users ru JOIN administration.reports_statuses rs ON(rs.id = ru.status_id)';
+  var params;
+  if (status) {
+    q += ' WHERE rs.status = $1';
+    params = [status];
+  }
+  return db.sqlQuery(q, params)
+  .then(function(rows) {
+    if (rows.length) { return rows[0]; }
+    else { return Promise.reject(); }
+  });
+};
+
 reports.pageUserReportsNotes = function(reportId, opts) {
   var q = 'SELECT id, report_id, user_id, note, created_at, updated_at FROM administration.reports_users_notes WHERE report_id = $1 ORDER BY created_at';
   var limit = 10;
@@ -148,6 +162,16 @@ reports.pageUserReportsNotes = function(reportId, opts) {
   var offset = (page * limit) - limit;
   var params = [reportId, limit, offset];
   return db.sqlQuery(q, params);
+};
+
+reports.userReportsNotesCount = function(reportId) {
+  var q = 'SELECT count(id) FROM administration.reports_users_notes WHERE report_id = $1';
+  var params = [reportId];
+  return db.sqlQuery(q, params)
+  .then(function(rows) {
+    if (rows.length) { return rows[0]; }
+    else { return Promise.reject(); }
+  });
 };
 
 
@@ -274,6 +298,20 @@ reports.pagePostReports = function(opts) {
   return db.sqlQuery(q, params);
 };
 
+reports.postReportsCount = function(status) {
+  var q = 'SELECT count(rp.id) FROM administration.reports_posts rp JOIN administration.reports_statuses rs ON(rs.id = rp.status_id)';
+  var params;
+  if (status) {
+    q += ' WHERE rs.status = $1';
+    params = [status];
+  }
+  return db.sqlQuery(q, params)
+  .then(function(rows) {
+    if (rows.length) { return rows[0]; }
+    else { return Promise.reject(); }
+  });
+};
+
 reports.pagePostReportsNotes = function(reportId, opts) {
   var q = 'SELECT id, report_id, user_id, note, created_at, updated_at FROM administration.reports_posts_notes WHERE report_id = $1 ORDER BY created_at';
   var limit = 10;
@@ -286,4 +324,14 @@ reports.pagePostReportsNotes = function(reportId, opts) {
   var offset = (page * limit) - limit;
   var params = [reportId, limit, offset];
   return db.sqlQuery(q, params);
+};
+
+reports.postReportsNotesCount = function(reportId) {
+  var q = 'SELECT count(id) FROM administration.reports_posts_notes WHERE report_id = $1';
+  var params = [reportId];
+  return db.sqlQuery(q, params)
+  .then(function(rows) {
+    if (rows.length) { return rows[0]; }
+    else { return Promise.reject(); }
+  });
 };
