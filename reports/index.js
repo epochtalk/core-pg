@@ -114,7 +114,7 @@ reports.updateUserReportNote = function(reportNote) {
 };
 
 reports.pageUserReports = function(opts) {
-  var q = 'SELECT ru.id, rs.status, ru.reporter_user_id, ru.reporter_reason, ru.reviewer_user_id, ru.offender_user_id, ru.created_at, ru.updated_at FROM administration.reports_users ru JOIN administration.reports_statuses rs ON(ru.status_id = rs.id)';
+  var q = 'SELECT ru.id, rs.status, ru.reporter_user_id, ru.reporter_reason, ru.reviewer_user_id, ru.offender_user_id, ru.created_at, ru.updated_at, r.username as reporter_username, o.username as offender_username, o.email as offender_email, o.created_at as offender_created_at FROM administration.reports_users ru JOIN administration.reports_statuses rs ON(ru.status_id = rs.id) JOIN users r ON(ru.reporter_user_id = r.id) JOIN users o ON(ru.offender_user_id = o.id)';
   var limit = 15;
   var page = 1;
   var sortField = 'created_at';
@@ -252,7 +252,7 @@ reports.updatePostReportNote = function(reportNote) {
 };
 
 reports.pagePostReports = function(opts) {
-  var q = 'SELECT rp.id, rs.status, rp.reporter_user_id, rp.reporter_reason, rp.reviewer_user_id, rp.offender_post_id, rp.created_at, rp.updated_at FROM administration.reports_posts rp JOIN administration.reports_statuses rs ON(rp.status_id = rs.id)';
+  var q = 'SELECT rp.id, rs.status, rp.reporter_user_id, rp.reporter_reason, rp.reviewer_user_id, rp.offender_post_id, rp.created_at, rp.updated_at, r.username as reporter_username, p.created_at as offender_created_at, p.title as offender_title, p.thread_id as offender_thread_id, o.username as offender_author_username FROM administration.reports_posts rp JOIN administration.reports_statuses rs ON(rp.status_id = rs.id) JOIN users r ON(rp.reporter_user_id = r.id) JOIN posts p ON(rp.offender_post_id = p.id) JOIN users o ON(p.user_id = o.id)';
   var limit = 15;
   var page = 1;
   var sortField = 'created_at';
