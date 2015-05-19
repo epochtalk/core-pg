@@ -173,6 +173,7 @@ boards.updateCategories = function(categories) {
   });
 };
 
+// TODO: Candidate for DB optimization
 boards.allCategories = function() {
   var columns = 'b.id, b.parent_board_id, b.children_ids, b.category_id, b.name, b.description, b.created_at, b.updated_at, b.imported_at, mb.post_count, mb.thread_count, mb.total_post_count, mb.total_thread_count, mb.last_post_username, mb.last_post_created_at, mb.last_thread_id, mb.last_thread_title';
 
