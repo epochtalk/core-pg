@@ -27,6 +27,10 @@ reports.createUserReport = function(userReport) {
     var q = 'SELECT ru.id, rs.status, ru.reporter_user_id, ru.reporter_reason, ru.reviewer_user_id, ru.offender_user_id, ru.created_at, ru.updated_at FROM administration.reports_users ru JOIN administration.reports_statuses rs ON(ru.status_id = rs.id) WHERE ru.id = $1';
     var params = [reportId];
     return db.sqlQuery(q, params);
+  })
+  .then(function(rows) { // return created row
+    if(rows.length) { return rows[0]; }
+    else { return Promise.reject(); }
   });
 };
 
@@ -161,6 +165,10 @@ reports.createPostReport = function(postReport) {
     var q = 'SELECT rp.id, rs.status, rp.reporter_user_id, rp.reporter_reason, rp.reviewer_user_id, rp.offender_post_id, rp.created_at, rp.updated_at FROM administration.reports_posts rp JOIN administration.reports_statuses rs ON(rp.status_id = rs.id) WHERE rp.id = $1';
     var params = [reportId];
     return db.sqlQuery(q, params);
+  })
+  .then(function(rows) { // return created row
+    if(rows.length) { return rows[0]; }
+    else { return Promise.reject(); }
   });
 };
 
