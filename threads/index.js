@@ -100,21 +100,43 @@ threads.find = function(id) {
 };
 
 threads.byBoard = function(boardId, opts) {
-  var columns = 't.id, t.created_at, t.updated_at, t.views as view_count, t.post_count, p.title, p.user_id, p.username';
-  var q = 'SELECT t1.id, t1.created_at, t1.updated_at, mt.views, mt.post_count FROM threads t1 ' +
-    'LEFT JOIN metadata.threads mt ON t1.id = mt.thread_id ' +
-    'WHERE t1.board_id = $1 ORDER BY t1.updated_at DESC LIMIT $2 OFFSET $3';
-  var q2 = 'SELECT p1.title, p1.user_id, u.username FROM posts p1 LEFT JOIN users u ON p1.user_id = u.id WHERE p1.thread_id = t.id ORDER BY p1.created_at LIMIT 1';
-  var query = 'SELECT ' + columns + ' FROM ( ' + q + ' ) t LEFT JOIN LATERAL ( ' + q2 + ' ) p ON true';
+  var columns = 'tlist.id, t.created_at, t.updated_at, t.views as view_count, t.post_count, p.title, p.user_id, p.username';
+  var q2 = 'SELECT t1.created_at, t1.updated_at, mt.views, mt.post_count FROM threads t1 ' +
+    'LEFT JOIN metadata.threads mt ON tlist.id = mt.thread_id WHERE t1.id = tlist.id';
+  var q3 = 'SELECT p1.title, p1.user_id, u.username FROM posts p1 LEFT JOIN users u ON p1.user_id = u.id WHERE p1.thread_id = tlist.id ORDER BY p1.created_at LIMIT 1';
 
   var limit = 10;
   var page = 1;
+  var reversed = 'DESC'; // default to DESC
   if (opts && opts.limit) limit = opts.limit;
   if (opts && opts.page) page = opts.page;
   var offset = (page * limit) - limit;
-  var params = [boardId, limit, offset];
-  return db.sqlQuery(query, params)
+
+  // get total thread count for this board
+  var getBoardSQL = 'SELECT thread_count FROM metadata.boards WHERE board_id = $1';
+  var getBoardParams = [boardId];
+  return db.scalar(getBoardSQL, getBoardParams)
+  .then(function(result) {
+    // determine whether to start from the front or back
+    var threadCount = result.thread_count;
+    if (offset > Math.floor(threadCount / 2)) {
+      reversed = '';
+      limit = threadCount <= offset + limit ? threadCount - offset : limit;
+      offset = threadCount <= offset + limit ? 0 : threadCount - offset - limit;
+    }
+  })
+  // get all related threads
+  .then(function() {
+    var q1 = 'SELECT id FROM threads WHERE board_id = $1 ORDER BY updated_at ' + reversed +
+    ' LIMIT $2 OFFSET $3';
+    var query = 'SELECT ' + columns + ' FROM ( ' + q1 + ' ) tlist LEFT JOIN LATERAL ( ' + q2 + ' ) t ON true LEFT JOIN LATERAL ( ' + q3 + ') p ON true';
+    var params = [boardId, limit, offset];
+    return db.sqlQuery(query, params);
+  })
   .then(function(threads) {
+    // reverse ordering if backward search
+    if (!reversed) { threads.reverse(); }
+    // rearrange last post and user properties
     return Promise.map(threads, function(thread) {
       return threadLastPost(thread)
       .then(function(thread) {
