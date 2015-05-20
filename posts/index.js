@@ -44,7 +44,7 @@ var insertPostProcessing = function(userId, threadId, insertQuery, insertParams)
   .then(function(rows) {
     if (rows.length > 0) {
       insertedPost.id = rows[0].id;
-      insertedPost.thread_id = rows[0].threadId;
+      insertedPost.thread_id = threadId;
       insertedPost.created_at = rows[0].created_at;
     }
     else { Promise.reject(); }
