@@ -2,62 +2,57 @@ var posts = {};
 module.exports = posts;
 
 var path = require('path');
-var pg = require('pg');
-var bcrypt = require('bcrypt');
 var Promise = require('bluebird');
-var config = require(path.join(__dirname, '..', 'config'));
 var db = require(path.join(__dirname, '..', 'db'));
 var helper = require(path.join(__dirname, '..', 'helper'));
 var NotFoundError = Promise.OperationalError;
 
 posts.import = function(post) {
-  var timestamp = new Date();
-  var q = 'INSERT INTO posts(id, thread_id, user_id, title, body, raw_body, created_at, updated_at, imported_at) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id';
-  var postUUID = helper.intToUUID(post.smf.ID_MSG);
-  var threadUUID = helper.intToUUID(post.smf.ID_TOPIC);
+  // check if poster exists
   var userUUID = helper.intToUUID(post.smf.ID_MEMBER);
-  var params = [postUUID, threadUUID, userUUID || null, post.title, post.body, post.raw_body, new Date(post.created_at), new Date(post.updated_at), timestamp];
-
   var queryUser = 'SELECT id FROM users WHERE id = $1';
   var queryUserParams = [userUUID];
   return db.scalar(queryUser, queryUserParams)
   .then(function(user) {
-    if (user) {
-      insertPostProcessing(new Date(post.created_at), userUUID, threadUUID, q, params);
+    // create user if it does not exists
+    if (!user) {
+      var userInsert = 'INSERT INTO users(id, username, email, imported_at) VALUES ($1, $2, $3, now())';
+      var userInsertParams = [userUUID, post.smf.posterName, post.smf.posterName + '@noemail.org.'];
+      return db.sqlQuery(userInsert, userInsertParams);
     }
-    else {
-      var userInsert = 'INSERT INTO users(id, username, email, imported_at) VALUES ($1, $2, $3, $4)';
-      var userInsertParams = [userUUID, post.smf.posterName, post.smf.posterName + '@noemail.org.', timestamp];
-      return db.sqlQuery(userInsert, userInsertParams)
-      .then(function() {
-        insertPostProcessing(new Date(post.created_at), userUUID, threadUUID, q, params);
-      });
-    }
+  })
+  .then(function() {
+    // insert post
+    var postUUID = helper.intToUUID(post.smf.ID_MSG);
+    var threadUUID = helper.intToUUID(post.smf.ID_TOPIC);
+    var q = 'INSERT INTO posts(id, thread_id, user_id, title, body, raw_body, created_at, updated_at, imported_at) VALUES($1, $2, $3, $4, $5, $6, $7, $8, now()) RETURNING id, created_at';
+    var params = [postUUID, threadUUID, userUUID || null, post.title, post.body, post.raw_body, new Date(post.created_at), new Date(post.updated_at)];
+    insertPostProcessing(userUUID, threadUUID, q, params);
   });
 };
 
 posts.create = function(post) {
-  var timestamp = new Date();
-  var q = 'INSERT INTO posts(thread_id, user_id, title, body, raw_body, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id';
-  var params = [post.thread_id, post.user_id, post.title, post.body, post.raw_body, timestamp, timestamp];
-  return insertPostProcessing(timestamp, post.user_id, post.thread_id, q, params);
+  var q = 'INSERT INTO posts(thread_id, user_id, title, body, raw_body, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, now(), now()) RETURNING id, created_at';
+  var params = [post.thread_id, post.user_id, post.title, post.body, post.raw_body];
+  return insertPostProcessing(post.user_id, post.thread_id, q, params);
 };
 
-var insertPostProcessing = function(timestamp, userId, threadId, insertQuery, insertParams) {
-  var q, params, insertedPost, thread = {};
+var insertPostProcessing = function(userId, threadId, insertQuery, insertParams) {
+  var insertedPost = {}, thread = {};
 
   return db.sqlQuery(insertQuery, insertParams)
   .then(function(rows) {
     if (rows.length > 0) {
-      insertedPost = rows[0];
-      insertedPost.thread_id = threadId;
+      insertedPost.id = rows[0].id;
+      insertedPost.thread_id = rows[0].threadId;
+      insertedPost.created_at = rows[0].created_at;
     }
     else { Promise.reject(); }
   })
   // increment post count on board
   .then(function() {
-    q = 'SELECT board_id, created_at, updated_at FROM threads WHERE id = $1';
-    params = [threadId];
+    var q = 'SELECT board_id, created_at, updated_at FROM threads WHERE id = $1';
+    var params = [threadId];
     return db.sqlQuery(q, params)
     .then(function(rows) {
       if (rows.length > 0) {
@@ -69,30 +64,30 @@ var insertPostProcessing = function(timestamp, userId, threadId, insertQuery, in
   })
   // update thread created_at if earlier post
   .then(function() {
-    if (!thread.created_at || timestamp < thread.created_at) {
-      q = 'UPDATE threads SET created_at = $1 WHERE id = $2';
-      params = [timestamp, threadId];
+    if (!thread.created_at || insertedPost.created_at < thread.created_at) {
+      var q = 'UPDATE threads SET created_at = $1 WHERE id = $2';
+      var params = [insertedPost.created_at, threadId];
       db.sqlQuery(q, params);
     }
   })
   .then(function() {
-    if (!thread.updated_at || thread.updated_at < timestamp) {
-      q = 'UPDATE threads SET updated_at = $1 WHERE id = $2';
-      params = [timestamp, threadId];
+    if (!thread.updated_at || thread.updated_at < insertedPost.created_at) {
+      var q = 'UPDATE threads SET updated_at = $1 WHERE id = $2';
+      var params = [insertedPost.created_at, threadId];
       db.sqlQuery(q, params);
     }
   })
   // update post count on metadata.threads
   .then(function() {
-    q = 'UPDATE metadata.threads SET post_count = post_count + 1 WHERE thread_id = $1';
-    params = [threadId];
+    var q = 'UPDATE metadata.threads SET post_count = post_count + 1 WHERE thread_id = $1';
+    var params = [threadId];
     db.sqlQuery(q, params);
   })
   // update post count and last post by on metadata.board
   .then(function() {
     if (thread.boardId) {
       incrementPostCount(thread.boardId, userId, true);
-      updateLastPostBy(thread.boardId, threadId, userId, timestamp);
+      updateLastPostBy(thread.boardId, threadId, userId, insertedPost.created_at);
     }
   })
   .then(function() { return insertedPost; });
@@ -172,17 +167,16 @@ var updateLastPostBy = function(boardId, threadId, userId, created_at) {
 };
 
 posts.update = function(post) {
-  var timestamp = new Date();
   var q = 'SELECT title, body, raw_body FROM posts WHERE id = $1';
   var params = [post.id];
   return db.sqlQuery(q, params)
   .then(function(oldPost) {
-    q = 'UPDATE posts SET title = $1, body = $2, raw_body = $3, thread_id = $4, updated_at = $5 WHERE id = $6 RETURNING id, title, body, raw_body, thread_id';
+    q = 'UPDATE posts SET title = $1, body = $2, raw_body = $3, thread_id = $4, updated_at = now() WHERE id = $5 RETURNING id, title, body, raw_body, thread_id';
     var title = post.title || oldPost.title;
     var body = post.body || oldPost.body;
     var raw_body = post.raw_body || oldPost.raw_body;
     var thread_id = post.thread_id || oldPost.thread_id;
-    params = [title, body, raw_body, thread_id, timestamp, post.id];
+    params = [title, body, raw_body, thread_id, post.id];
     return db.sqlQuery(q, params);
   })
   .then(function(newPost) { return newPost[0]; });
