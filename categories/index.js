@@ -21,7 +21,7 @@ categories.create = function(category) {
   return db.sqlQuery(q, params)
   .then(function(rows) {
     return {
-      id: row[0].id,
+      id: rows[0].id,
       name: category.name
     };
   })
@@ -35,9 +35,9 @@ categories.import = function(category) {
   return db.sqlQuery(q, params)
   .then(function(rows) {
     return {
-      id: row[0].id,
+      id: rows[0].id,
       name: category.name,
-      imported_at: row[0].imported_at
+      imported_at: rows[0].imported_at
     };
   })
   .then(helper.slugify);

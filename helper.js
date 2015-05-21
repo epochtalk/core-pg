@@ -7,7 +7,6 @@ var slugKeywords = [
   'user_id',
   'parent_board_id',
   'category_id',
-  'children_ids',
   'last_thread_id',
   'reporter_user_id',
   'reviewer_user_id',
@@ -17,6 +16,7 @@ var slugKeywords = [
   'report_id',
   'status_id'
 ];
+var slugArrayKeywords = ['children_ids'];
 
 module.exports = {
   intToUUID: function(id) {
@@ -35,6 +35,8 @@ module.exports = {
 
 
 function slugTransform(input, slugMethod) {
+  if (!input) { return input; }
+
   // concat everything into an array
   var isArray = false;
   if (_.isString(input)) {
@@ -53,6 +55,9 @@ function slugTransform(input, slugMethod) {
       if (_.contains(slugKeywords, key)) {
         // (de)slugify
         input[key] = slugMethod(input[key]);
+      }
+      else if (_.contains(slugArrayKeywords, key)) {
+        input[key] = input[key].map(function(item) { return slugMethod(item); });
       }
       else if (_.isPlainObject(input[key]) || _.isArray(input[key])) {
         input[key] = slugTransform(input[key], slugMethod);

@@ -11,37 +11,33 @@ var NotFoundError = Promise.OperationalError;
 
 threads.import = function(thread) {
   // no created_at or updated_at needed, will be set by first post
-  var threadUUID = helper.intToUUID(thread.smf.ID_TOPIC);
-  var boardUUID = helper.intToUUID(thread.smf.ID_BOARD);
+  thread.id = helper.intToUUID(thread.smf.ID_TOPIC);
+  thread.board_id = helper.intToUUID(thread.smf.ID_BOARD);
   var q = 'INSERT INTO threads(id, board_id, imported_at) VALUES($1, $2, now()) RETURNING id';
-  var params = [threadUUID, boardUUID];
-  return insertPostProcessing(boardUUID, thread.view_count, q, params);
+  var params = [thread.id, thread.board_id];
+  return insertPostProcessing(thread, thread.view_count, q, params);
 };
 
 threads.create = function(thread) {
-  thread = thread.helper.deslugify(thread);
-  var q = 'INSERT INTO threads(board_id, created_at, updated_at) VALUES ($1, now(), now()) RETURNING id';
+  thread = helper.deslugify(thread);
+  var q = 'INSERT INTO threads(board_id, created_at) VALUES ($1, now()) RETURNING id';
   var params = [thread.board_id];
-  return insertPostProcessing(thread.board_id, 0, q, params);
+  return insertPostProcessing(thread, 0, q, params);
 };
 
-var insertPostProcessing = function(boardId, views, insertQuery, insertParams) {
+var insertPostProcessing = function(thread, views, insertQuery, insertParams) {
   return db.sqlQuery(insertQuery, insertParams)
-  .then(function(rows) {
-    if (rows.length > 0) { return rows[0]; }
-    else { return Promise.reject(); }
-  })
-  // initialize thread metadata
-  .then(function(insertedThread) {
+  .then(function(rows) { thread.id = rows[0].id; })
+  .then(function() {
+    // initialize thread metadata
     var q = 'INSERT INTO metadata.threads (thread_id, views) VALUES($1, $2);';
-    var params = [insertedThread.id, views];
+    var params = [thread.id, views];
     db.sqlQuery(q, params);
-    return insertedThread;
   })
-  // increment thread count on board
-  .then(function(insertedThread) {
-    incrementThreadCount(boardId, true);
-    return insertedThread;
+  .then(function() {
+    // increment thread count on board
+    incrementThreadCount(thread.board_id, true);
+    return thread;
   })
   .then(helper.slugify);
 };
