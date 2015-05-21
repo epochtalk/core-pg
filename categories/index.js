@@ -14,7 +14,6 @@ categories.all = function() {
 };
 
 categories.create = function(category) {
-  var timestamp = new Date();
   var insertCategoryQuery = 'INSERT INTO categories(name) VALUES($1) RETURNING id';
   var params = [category.name];
   return db.sqlQuery(insertCategoryQuery, params)
@@ -26,11 +25,9 @@ categories.create = function(category) {
 };
 
 categories.import = function(category) {
-  var timestamp = new Date();
-  category.imported_at = timestamp;
   var catUUID = helper.intToUUID(category.smf.ID_CAT);
-  var insertCategoryQuery = 'INSERT INTO categories(id, name, imported_at) VALUES($1, $2, $3) RETURNING id';
-  var params = [catUUID, category.name, category.imported_at];
+  var insertCategoryQuery = 'INSERT INTO categories(id, name, imported_at) VALUES($1, $2, now()) RETURNING id';
+  var params = [catUUID, category.name];
   return db.sqlQuery(insertCategoryQuery, params)
   .then(function(rows) {
     if (rows.length > 0) {

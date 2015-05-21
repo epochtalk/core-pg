@@ -194,6 +194,7 @@ users.userByUsername = function(username) {
 
 /* returns only imported user id */
 users.import = function(user) {
+  user.created_at = new Date(user.created_at) || Date.now();
   var q = 'INSERT INTO users(id, email, username, created_at, imported_at) VALUES($1, $2, $3, $4, now()) RETURNING id';
   var userUUID = helper.intToUUID(user.smf.ID_MEMBER);
   var params = [userUUID, user.email, user.username, user.created_at];

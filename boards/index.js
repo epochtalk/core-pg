@@ -96,11 +96,11 @@ boards.update = function(board) {
 
 boards.import = function(board) {
   var timestamp = Date.now();
-  board.created_at = board.created_at || timestamp;
-  board.updated_at = board.updated_at || timestamp;
-  var q = 'INSERT INTO boards(id, category_id, name, description, created_at, updated_at, imported_at) VALUES($1, $2, $3, $4, $5, $6, now()) RETURNING id';
+  board.created_at = new Date(board.created_at) || timestamp;
+  board.updated_at = new Date(board.updated_at) || timestamp;
   var boardUUID = helper.intToUUID(board.smf.ID_BOARD);
   var catUUID = helper.intToUUID(board.smf.ID_CAT);
+  var q = 'INSERT INTO boards(id, category_id, name, description, created_at, updated_at, imported_at) VALUES($1, $2, $3, $4, $5, $6, now()) RETURNING id';
   var params = [boardUUID, catUUID, board.name, board.description, board.created_at, board.updated_at];
   return db.sqlQuery(q, params)
   .then(function(rows) {

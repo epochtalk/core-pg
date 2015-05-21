@@ -10,9 +10,10 @@ var helper = require(path.join(__dirname, '..', 'helper'));
 var NotFoundError = Promise.OperationalError;
 
 threads.import = function(thread) {
-  var q = 'INSERT INTO threads(id, board_id, imported_at) VALUES($1, $2, now()) RETURNING id';
+  // no created_at or updated_at needed, will be set by first post
   var threadUUID = helper.intToUUID(thread.smf.ID_TOPIC);
   var boardUUID = helper.intToUUID(thread.smf.ID_BOARD);
+  var q = 'INSERT INTO threads(id, board_id, imported_at) VALUES($1, $2, now()) RETURNING id';
   var params = [threadUUID, boardUUID];
   return insertPostProcessing(boardUUID, thread.view_count, q, params);
 };

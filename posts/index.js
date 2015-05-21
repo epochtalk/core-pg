@@ -9,6 +9,9 @@ var NotFoundError = Promise.OperationalError;
 
 posts.import = function(post) {
   // check if poster exists
+  var timestamp = Date.now();
+  post.created_at = new Date(post.created_at) || timestamp;
+  post.updated_at = new Date(post.updated_at) || timestamp;
   var userUUID = helper.intToUUID(post.smf.ID_MEMBER);
   var queryUser = 'SELECT id FROM users WHERE id = $1';
   var queryUserParams = [userUUID];
@@ -26,7 +29,7 @@ posts.import = function(post) {
     var postUUID = helper.intToUUID(post.smf.ID_MSG);
     var threadUUID = helper.intToUUID(post.smf.ID_TOPIC);
     var q = 'INSERT INTO posts(id, thread_id, user_id, title, body, raw_body, created_at, updated_at, imported_at) VALUES($1, $2, $3, $4, $5, $6, $7, $8, now()) RETURNING id, created_at';
-    var params = [postUUID, threadUUID, userUUID || null, post.title, post.body, post.raw_body, new Date(post.created_at), new Date(post.updated_at)];
+    var params = [postUUID, threadUUID, userUUID || null, post.title, post.body, post.raw_body, post.created_at, post.updated_at];
     insertPostProcessing(userUUID, threadUUID, q, params);
   });
 };
