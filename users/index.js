@@ -11,7 +11,8 @@ var NotFoundError = Promise.OperationalError;
 /* returns all values */
 users.all = function() {
   // TODO: scrub passhash
-  return db.sqlQuery('SELECT * FROM users');
+  return db.sqlQuery('SELECT * FROM users')
+  .then(helper.slugify);
 };
 
 /* returns array of usernames matching searchStr */
@@ -24,6 +25,7 @@ users.searchUsernames = function(searchStr, limit) {
 
 /* returns user with roles */
 users.addRole = function(userId, role) {
+  userId = helper.deslugify(userId);
   var userQuery = 'SELECT id, username, email, created_at, updated_at FROM users WHERE id = $1';
   var userParams = [userId];
   var updatedUser, roleId;
@@ -69,7 +71,8 @@ users.addRole = function(userId, role) {
     if (rows.length) { updatedUser.roles = rows; }
     else { updatedUser.roles = []; } // user has no roles
     return updatedUser;
-  });
+  })
+  .then(helper.slugify);
 };
 
 /* returns a limited set of users depending on limit and page */
@@ -86,7 +89,8 @@ users.page = function(opts) {
   q = [q, sortField, order, 'LIMIT $1 OFFSET $2'].join(' ');
   var offset = (page * limit) - limit;
   var params = [limit, offset];
-  return db.sqlQuery(q, params);
+  return db.sqlQuery(q, params)
+  .then(helper.slugify);
 };
 
 /* returns a limited set of admins depending on limit and page */
@@ -107,7 +111,8 @@ users.pageAdmins = function(opts) {
   q = [q, sortField, order, 'LIMIT $1 OFFSET $2'].join(' ');
   var offset = (page * limit) - limit;
   var params = [limit, offset];
-  return db.sqlQuery(q, params);
+  return db.sqlQuery(q, params)
+  .then(helper.slugify);
 };
 
 /* returns a limited set of moderators depending on limit and page */
@@ -124,7 +129,8 @@ users.pageModerators = function(opts) {
   q = [q, sortField, order, 'LIMIT $1 OFFSET $2'].join(' ');
   var offset = (page * limit) - limit;
   var params = [limit, offset];
-  return db.sqlQuery(q, params);
+  return db.sqlQuery(q, params)
+  .then(helper.slugify);
 };
 
 /* returns total user count */
@@ -165,7 +171,8 @@ users.userByEmail = function(email) {
   return db.sqlQuery(q, params).then(function(rows) {
     if (rows.length > 0) { return rows[0]; }
     else { return undefined; }
-  });
+  })
+  .then(helper.slugify);
 };
 
 /* returns all values */
@@ -189,7 +196,7 @@ users.userByUsername = function(username) {
       });
     }
   })
-  .then(function() { return user; });
+  .then(function() { return helper.slugify(user); });
 };
 
 /* returns only imported user id */
@@ -219,7 +226,8 @@ users.import = function(user) {
     profile.fields.location = user.location || null;
     insertUserProfile(profile);
     return returnObject;
-  });
+  })
+  .then(helper.slugify);
 };
 
 /* returns values including email, confirm token, and roles */
@@ -261,11 +269,12 @@ users.create = function(user) {
     if (rows.length > 0) { user.roles = rows; }
     else { return Promise.reject(); }
   })
-  .then(function() { return user; });
+  .then(function() { return helper.slugify(user); });
 };
 
 /* returns values including email, confirm and reset tokens */
 users.update = function(user) {
+  user = helper.deslugify(user);
   var oldUser, oldFields, _user = {}, _fields = {};
   var q = 'SELECT u.id, u.username, u.email, u.passhash, u.confirmation_token, u.reset_token, u.reset_expiration, u.created_at, u.updated_at, u.imported_at, p.avatar, p.position, p.signature, p.raw_signature, p.fields FROM users u LEFT JOIN users.profiles p ON u.id = p.user_id WHERE u.id = $1';
   var params = [user.id];
@@ -313,7 +322,8 @@ users.update = function(user) {
     if (exists) { return updateUserProfile(_user); }
     else { return insertUserProfile(_user); }
   })
-  .then(function() { return formatUser(_user); });
+  .then(function() { return formatUser(_user); })
+  .then(helper.slugify);
 };
 
 /**
@@ -374,6 +384,7 @@ var updateUserProfile = function(user) {
 /* return all values */
 users.find = function(id) {
   // TODO: fix indentation
+  id = helper.deslugify(id);
   var q = 'SELECT * FROM users WHERE id = $1';
   var params = [id];
   var user;
@@ -396,10 +407,12 @@ users.find = function(id) {
       });
     }
     else { throw new NotFoundError('User not found'); }
-  });
+  })
+  .then(helper.slugify);
 };
 
 users.getUserThreadViews = function(userId) {
+  userId = helper.deslugify(userId);
   // build userView key
   var q = 'SELECT thread_id, time FROM users.thread_views WHERE user_id = $1';
   var params = [userId];
@@ -414,10 +427,13 @@ users.getUserThreadViews = function(userId) {
       userviews[row.thread_id] = row.time.getTime();
     });
     return userviews;
-  });
+  })
+  .then(helper.slugify);
 };
 
 users.putUserThreadViews = function(userId, userViewsArray) {
+  userId = helper.deslugify(userId);
+  userViewsArray = helper.deslugify(userViewsArray);
   return Promise.each(userViewsArray, function(view) {
     userThreadViewExists(userId, view.threadId) // check if userview exists
     .then(function(exists) {

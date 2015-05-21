@@ -35,6 +35,7 @@ posts.import = function(post) {
 };
 
 posts.create = function(post) {
+  post = helper.deslugify(post);
   var q = 'INSERT INTO posts(thread_id, user_id, title, body, raw_body, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, now(), now()) RETURNING id, created_at';
   var params = [post.thread_id, post.user_id, post.title, post.body, post.raw_body];
   return insertPostProcessing(post.user_id, post.thread_id, q, params);
@@ -93,7 +94,7 @@ var insertPostProcessing = function(userId, threadId, insertQuery, insertParams)
       updateLastPostBy(thread.boardId, threadId, userId, insertedPost.created_at);
     }
   })
-  .then(function() { return insertedPost; });
+  .then(function() { return helper.slugify(insertedPost); });
 };
 
 var incrementPostCount = function increment(boardId, userId, initial) {
@@ -170,6 +171,7 @@ var updateLastPostBy = function(boardId, threadId, userId, created_at) {
 };
 
 posts.update = function(post) {
+  post = helper.deslugify(post);
   var q = 'SELECT title, body, raw_body FROM posts WHERE id = $1';
   var params = [post.id];
   return db.sqlQuery(q, params)
@@ -182,20 +184,23 @@ posts.update = function(post) {
     params = [title, body, raw_body, thread_id, post.id];
     return db.sqlQuery(q, params);
   })
-  .then(function(newPost) { return newPost[0]; });
+  .then(function(newPost) { return helper.slugify(newPost[0]); });
 };
 
 posts.find = function(id) {
+  id = helper.deslugify(id);
   var q = 'SELECT * FROM posts WHERE id = $1';
   var params = [id];
   return db.sqlQuery(q, params)
   .then(function(rows) {
     if (rows.length > 0) { return rows[0]; }
     else { throw new NotFoundError('Post not found'); }
-  });
+  })
+  .then(helper.slugify);
 };
 
 posts.byThread = function(threadId, opts) {
+  threadId = helper.deslugify(threadId);
   var columns = 'plist.id, post.thread_id, post.user_id, post.title, post.body, post.raw_body, post.created_at, post.updated_at, post.imported_at, post.username, post.signature, post.avatar, p2.role';
   var q2 = 'SELECT p.thread_id, p.user_id, p.title, p.body, p.raw_body, p.created_at, p.updated_at, p.imported_at, u.username, up.signature, up.avatar FROM posts p ' +
     'LEFT JOIN users u on p.user_id = u.id ' +
@@ -258,6 +263,7 @@ posts.byThread = function(threadId, opts) {
       delete post.signature;
       delete post.role;
       return post;
-    });
+    })
+    .then(helper.slugify);
   });
 };

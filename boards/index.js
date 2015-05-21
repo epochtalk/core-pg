@@ -1,32 +1,30 @@
 var boards = {};
 module.exports = boards;
 
-var path = require('path');
 var pg = require('pg');
-var Promise = require('bluebird');
-var config = require(path.join(__dirname, '..', 'config'));
-var db = require(path.join(__dirname, '..', 'db'));
-var helper = require(path.join(__dirname, '..', 'helper'));
 var _ = require('lodash');
+var path = require('path');
+var Promise = require('bluebird');
+var db = require(path.join(__dirname, '..', 'db'));
+var config = require(path.join(__dirname, '..', 'config'));
+var helper = require(path.join(__dirname, '..', 'helper'));
 var NotFoundError = Promise.OperationalError;
 
 boards.all = function() {
-  return db.sqlQuery('SELECT * from boards');
+  return db.sqlQuery('SELECT id, parent_board_id, children_ids, category_id, name, description, created_at, updated_at, imported_at from boards')
+  .then(helper.slugify);
 };
 
 boards.create = function(board) {
+  board = helper.deslugify(board);
   var q = 'INSERT INTO boards(category_id, name, description, created_at, parent_board_id, children_ids) VALUES($1, $2, $3, now(), $4, $5) RETURNING id';
-  var params = [board.category_id || null, board.name, board.description, board.parent_board_id, board.children_ids];
-  var createdBoard = board;
+  var params = [board.category_id, board.name, board.description, board.parent_board_id, board.children_ids];
   return db.sqlQuery(q, params)
-  .then(function(rows) {
-    if (rows.length > 0) { createdBoard.id = rows[0].id; }
-    else { return Promise.reject(); }
-  })
+  .then(function(rows) { board.id = rows[0].id; })
   // set up board metadata
   .then(function() {
     var setup = 'INSERT INTO metadata.boards (board_id) VALUES ($1)';
-    params = [createdBoard.id];
+    params = [board.id];
     return db.sqlQuery(setup, params);
   })
   .then(function() {
@@ -34,7 +32,7 @@ boards.create = function(board) {
       return addChildToBoard(board.id, board.parent_board_id);
     }
   })
-  .then(function() { return createdBoard; });
+  .then(function() { return helper.slugify(board); });
 };
 
 var addChildToBoard = function(childId, parentId) {
@@ -58,6 +56,7 @@ var addChildToBoard = function(childId, parentId) {
 };
 
 boards.update = function(board) {
+  board = helper.deslugify(board);
   var q = 'SELECT * FROM boards WHERE id = $1';
   var params = [board.id];
   var updatedBoard;
@@ -91,7 +90,7 @@ boards.update = function(board) {
       return addChildToBoard(board.id, board.parent_board_id);
     }
   })
-  .then(function() { return updatedBoard; });
+  .then(function() { return helper.slugify(updatedBoard); });
 };
 
 boards.import = function(board) {
@@ -113,10 +112,12 @@ boards.import = function(board) {
     params = [importBoard.id];
     db.sqlQuery(setup, params);
     return importBoard;
-  });
+  })
+  .then(helper.slugify);
 };
 
 boards.find = function(id) {
+  id = helper.deslugify(id);
   var columns = 'b.id, b.parent_board_id, b.children_ids, b.category_id, b.name, b.description, b.created_at, b.updated_at, b.imported_at, mb.thread_count';
   var q = 'SELECT ' + columns + ' FROM boards b ' +
     'LEFT JOIN metadata.boards mb ON b.id = mb.board_id WHERE b.id = $1';
@@ -134,10 +135,12 @@ boards.find = function(id) {
       board.moderators = rows;
       return board;
     });
-  });
+  })
+  .then(helper.slugify);
 };
 
 boards.updateCategories = function(categories) {
+  categories = helper.deslugify(categories);
   var q = 'UPDATE boards SET category_id = $1';
   var params = [null];
   return db.sqlQuery(q, params) // Clear boards of categories
@@ -199,5 +202,5 @@ boards.allCategories = function() {
       .then(function(boards) { category.boards = boards; });
     });
   })
-  .then(function() { return categories; });
+  .then(function() { return helper.slugify(categories); });
 };

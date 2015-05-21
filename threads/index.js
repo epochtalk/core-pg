@@ -1,11 +1,11 @@
 var threads = {};
 module.exports = threads;
 
-var path = require('path');
 var pg = require('pg');
+var path = require('path');
 var Promise = require('bluebird');
-var config = require(path.join(__dirname, '..', 'config'));
 var db = require(path.join(__dirname, '..', 'db'));
+var config = require(path.join(__dirname, '..', 'config'));
 var helper = require(path.join(__dirname, '..', 'helper'));
 var NotFoundError = Promise.OperationalError;
 
@@ -19,6 +19,7 @@ threads.import = function(thread) {
 };
 
 threads.create = function(thread) {
+  thread = thread.helper.deslugify(thread);
   var q = 'INSERT INTO threads(board_id, created_at, updated_at) VALUES ($1, now(), now()) RETURNING id';
   var params = [thread.board_id];
   return insertPostProcessing(thread.board_id, 0, q, params);
@@ -41,7 +42,8 @@ var insertPostProcessing = function(boardId, views, insertQuery, insertParams) {
   .then(function(insertedThread) {
     incrementThreadCount(boardId, true);
     return insertedThread;
-  });
+  })
+  .then(helper.slugify);
 };
 
 var incrementThreadCount = function increment(boardId, initial) {
@@ -80,6 +82,7 @@ var threadLastPost = function(thread) {
 };
 
 threads.find = function(id) {
+  id = helper.deslugify(id);
   var columns = 't.id, t.board_id, t.created_at, t.updated_at, t.post_count, p.user_id, p.title, p.username';
   var q1 = 'SELECT t1.id, t1.board_id, t1.created_at, t1.updated_at, mt.post_count FROM threads t1 LEFT JOIN metadata.threads mt ON t1.id = mt.thread_id WHERE t1.id = $1';
   var q2 = 'SELECT p1.user_id, p1.title, u.username FROM posts p1 LEFT JOIN users u on p1.user_id = u.id WHERE p1.thread_id = t.id ORDER BY p1.created_at limit 1';
@@ -96,10 +99,12 @@ threads.find = function(id) {
     delete dbThread.user_id;
     delete dbThread.username;
     return dbThread;
-  });
+  })
+  .then(helper.slugify);
 };
 
 threads.byBoard = function(boardId, opts) {
+  boardId = helper.deslugify(boardId);
   var columns = 'tlist.id, t.created_at, t.updated_at, t.views as view_count, t.post_count, p.title, p.user_id, p.username';
   var q2 = 'SELECT t1.created_at, t1.updated_at, mt.views, mt.post_count FROM threads t1 ' +
     'LEFT JOIN metadata.threads mt ON tlist.id = mt.thread_id WHERE t1.id = tlist.id';
@@ -148,11 +153,12 @@ threads.byBoard = function(boardId, opts) {
         return thread;
       });
     });
-  });
+  })
+  .then(helper.slugify);
 };
 
 threads.incViewCount = function(threadId) {
+  threadId = helper.deslugify(threadId);
   var increment = 'UPDATE metadata.threads SET views = views + 1 WHERE thread_id = $1;';
-  var params = [threadId];
-  return db.sqlQuery(increment, params);
+  return db.sqlQuery(increment, [threadId]);
 };

@@ -4,6 +4,7 @@ module.exports = reports;
 var path = require('path');
 var Promise = require('bluebird');
 var db = require(path.join(__dirname, '..', 'db'));
+var helper = require(path.join(__dirname, '..', 'helper'));
 
 //  Report Statuses
 //  id | priority |   status
@@ -15,6 +16,7 @@ var db = require(path.join(__dirname, '..', 'db'));
 
 // User Report Operations
 reports.createUserReport = function(userReport) {
+  userReport = helper.deslugify(userReport);
   var q = 'INSERT INTO administration.reports_users(status_id, reporter_user_id, reporter_reason, offender_user_id, created_at, updated_at) VALUES($1, $2, $3, $4, now(), now()) RETURNING id';
   var statusId = 1; // New reports are always pending
   var params = [statusId, userReport.reporter_user_id, userReport.reporter_reason, userReport.offender_user_id];
@@ -31,10 +33,12 @@ reports.createUserReport = function(userReport) {
   .then(function(rows) { // return created row
     if(rows.length) { return rows[0]; }
     else { return Promise.reject(); }
-  });
+  })
+  .then(helper.slugify);
 };
 
 reports.updateUserReport = function(userReport) {
+  userReport = helper.deslugify(userReport);
   var q = 'SELECT ru.id, rs.status, ru.status_id, ru.reporter_user_id, ru.reporter_reason, ru.reviewer_user_id, ru.offender_user_id, ru.created_at, ru.updated_at FROM administration.reports_users ru JOIN administration.reports_statuses rs ON(ru.status_id = rs.id) WHERE ru.id = $1';
   var params = [userReport.id];
   var existingReport;
@@ -70,10 +74,12 @@ reports.updateUserReport = function(userReport) {
     existingReport.reviewer_user_id = userReport.reviewer_user_id || existingReport.reviewer_user_id;
     delete existingReport.status_id; // only return status string
     return existingReport;
-  });
+  })
+  .then(helper.slugify);
 };
 
 reports.createUserReportNote = function(reportNote) {
+  reportNote = helper.deslugify(reportNote);
   var q = 'INSERT INTO administration.reports_users_notes(report_id, user_id, note, created_at, updated_at) VALUES($1, $2, $3, now(), now()) RETURNING id';
   var params = [reportNote.report_id, reportNote.user_id, reportNote.note];
   return db.sqlQuery(q, params)
@@ -84,10 +90,12 @@ reports.createUserReportNote = function(reportNote) {
   .then(function(id) { // append id and return created note
     reportNote.id = id;
     return reportNote;
-  });
+  })
+  .then(helper.slugify);
 };
 
 reports.updateUserReportNote = function(reportNote) {
+  reportNote = helper.deslugify(reportNote);
   var q = 'SELECT id, report_id, user_id, note, created_at, updated_at FROM administration.reports_users_notes WHERE id = $1';
   var params = [reportNote.id];
   var existingReportNote;
@@ -110,7 +118,8 @@ reports.updateUserReportNote = function(reportNote) {
   .then(function(updatedAt) { // return updated report note
     existingReportNote.updated_at = updatedAt;
     return existingReportNote;
-  });
+  })
+  .then(helper.slugify);
 };
 
 reports.pageUserReports = function(opts) {
@@ -133,7 +142,8 @@ reports.pageUserReports = function(opts) {
     q = [q, 'ORDER BY', sortField, order, 'LIMIT $1 OFFSET $2'].join(' ');
     params = [limit, offset];
   }
-  return db.sqlQuery(q, params);
+  return db.sqlQuery(q, params)
+  .then(helper.slugify);
 };
 
 reports.userReportsCount = function(status) {
@@ -151,6 +161,7 @@ reports.userReportsCount = function(status) {
 };
 
 reports.pageUserReportsNotes = function(reportId, opts) {
+  reportId = helper.deslugify(reportId);
   var q = 'SELECT id, report_id, user_id, note, created_at, updated_at FROM administration.reports_users_notes WHERE report_id = $1 ORDER BY created_at';
   var limit = 10;
   var page = 1;
@@ -161,10 +172,12 @@ reports.pageUserReportsNotes = function(reportId, opts) {
   q = [q, order, 'LIMIT $2 OFFSET $3'].join(' ');
   var offset = (page * limit) - limit;
   var params = [reportId, limit, offset];
-  return db.sqlQuery(q, params);
+  return db.sqlQuery(q, params)
+  .then(helper.slugify);
 };
 
 reports.userReportsNotesCount = function(reportId) {
+  reportId = helper.deslugify(reportId);
   var q = 'SELECT count(id) FROM administration.reports_users_notes WHERE report_id = $1';
   var params = [reportId];
   return db.sqlQuery(q, params)
@@ -177,6 +190,7 @@ reports.userReportsNotesCount = function(reportId) {
 
 // Post Report Operations
 reports.createPostReport = function(postReport) {
+  postReport = helper.deslugify(postReport);
   var q = 'INSERT INTO administration.reports_posts(status_id, reporter_user_id, reporter_reason, offender_post_id, created_at, updated_at) VALUES($1, $2, $3, $4, now(), now()) RETURNING id';
   var statusId = 1; // New reports are always pending
   var params = [statusId, postReport.reporter_user_id, postReport.reporter_reason, postReport.offender_post_id];
@@ -193,10 +207,12 @@ reports.createPostReport = function(postReport) {
   .then(function(rows) { // return created row
     if(rows.length) { return rows[0]; }
     else { return Promise.reject(); }
-  });
+  })
+  .then(helper.slugify);
 };
 
 reports.updatePostReport = function(postReport) {
+  postReport = helper.deslugify(postReport);
   var q = 'SELECT rp.id, rs.status, rp.status_id, rp.reporter_user_id, rp.reporter_reason, rp.reviewer_user_id, rp.offender_post_id, rp.created_at, rp.updated_at FROM administration.reports_posts rp JOIN administration.reports_statuses rs ON(rp.status_id = rs.id) WHERE rp.id = $1';
   var params = [postReport.id];
   var existingReport;
@@ -232,10 +248,13 @@ reports.updatePostReport = function(postReport) {
     existingReport.reviewer_user_id = postReport.reviewer_user_id || existingReport.reviewer_user_id;
     delete existingReport.status_id; // only return status string
     return existingReport;
-  });
+  })
+  .then(helper.slugify);
 };
 
 reports.createPostReportNote = function(reportNote) {
+  reportNote = helper.deslugify(reportNote);
+  console.log(reportNote);
   var q = 'INSERT INTO administration.reports_posts_notes(report_id, user_id, note, created_at, updated_at) VALUES($1, $2, $3, now(), now()) RETURNING id';
   var params = [reportNote.report_id, reportNote.user_id, reportNote.note];
   return db.sqlQuery(q, params)
@@ -246,10 +265,12 @@ reports.createPostReportNote = function(reportNote) {
   .then(function(id) { // append id and return created note
     reportNote.id = id;
     return reportNote;
-  });
+  })
+  .then(helper.slugify);
 };
 
 reports.updatePostReportNote = function(reportNote) {
+  reportNote = helper.deslugify(reportNote);
   var q = 'SELECT id, report_id, user_id, note, created_at, updated_at FROM administration.reports_posts_notes WHERE id = $1';
   var params = [reportNote.id];
   var existingReportNote;
@@ -272,7 +293,8 @@ reports.updatePostReportNote = function(reportNote) {
   .then(function(updatedAt) { // return updated report note
     existingReportNote.updated_at = updatedAt;
     return existingReportNote;
-  });
+  })
+  .then(helper.slugify);
 };
 
 reports.pagePostReports = function(opts) {
@@ -295,7 +317,8 @@ reports.pagePostReports = function(opts) {
     q = [q, 'ORDER BY', sortField, order, 'LIMIT $1 OFFSET $2'].join(' ');
     params = [limit, offset];
   }
-  return db.sqlQuery(q, params);
+  return db.sqlQuery(q, params)
+  .then(helper.slugify);
 };
 
 reports.postReportsCount = function(status) {
@@ -313,6 +336,7 @@ reports.postReportsCount = function(status) {
 };
 
 reports.pagePostReportsNotes = function(reportId, opts) {
+  reportId = helper.deslugify(reportId);
   var q = 'SELECT id, report_id, user_id, note, created_at, updated_at FROM administration.reports_posts_notes WHERE report_id = $1 ORDER BY created_at';
   var limit = 10;
   var page = 1;
@@ -323,10 +347,12 @@ reports.pagePostReportsNotes = function(reportId, opts) {
   q = [q, order, 'LIMIT $2 OFFSET $3'].join(' ');
   var offset = (page * limit) - limit;
   var params = [reportId, limit, offset];
-  return db.sqlQuery(q, params);
+  return db.sqlQuery(q, params)
+  .then(helper.slugify);
 };
 
 reports.postReportsNotesCount = function(reportId) {
+  reportId = helper.deslugify(reportId);
   var q = 'SELECT count(id) FROM administration.reports_posts_notes WHERE report_id = $1';
   var params = [reportId];
   return db.sqlQuery(q, params)
