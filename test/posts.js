@@ -16,7 +16,7 @@ lab.experiment('Posts', function() {
     expect(post.thread_id).to.equal(seededPost.thread_id);
     expect(post.id).to.equal(seededPost.id);
   };
-  lab.before(function(done) {
+  lab.before({timeout: 5000}, function(done) {
     return seed(fixture)
     .then(function(results) {
       runtime = results;

@@ -15,7 +15,7 @@ lab.experiment('Threads', function() {
     expect(thread).to.exist;
     expect(thread.board_id).to.equal(seededThread.board_id);
   };
-  lab.before(function(done) {
+  lab.before({timeout: 5000}, function(done) {
     return seed(fixture)
     .then(function(results) {
       runtime = results;

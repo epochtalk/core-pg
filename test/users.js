@@ -16,7 +16,7 @@ lab.experiment('Users', function() {
     expect(user.email).to.equal(seededUser.email);
     expect(user.id).to.equal(seededUser.id);
   };
-  lab.before(function(done) {
+  lab.before({timeout: 5000}, function(done) {
     return seed(fixture).then(function(results) {
       runtime = results;
     })

@@ -16,7 +16,7 @@ lab.experiment('Boards', function() {
     expect(board.description).to.equal(seededBoard.description);
     expect(board.id).to.equal(seededBoard.id);
   };
-  lab.before(function(done) {
+  lab.before({timeout: 5000}, function(done) {
     return seed(fixture)
     .then(function(results) {
       runtime = results;
