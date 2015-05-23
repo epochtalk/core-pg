@@ -267,3 +267,48 @@ posts.byThread = function(threadId, opts) {
     .then(helper.slugify);
   });
 };
+
+posts.pageByUserCount = function(userId) {
+  userId = helper.deslugify(userId);
+  var q = 'SELECT count(id) FROM posts WHERE user_id = $1';
+  var params = [userId];
+  return db.sqlQuery(q, params)
+  .then(function(rows) {
+    if (rows.length) { return rows[0]; }
+    else { return Promise.reject(); }
+  });
+};
+
+posts.pageByUser = function(userId, opts) {
+  userId = helper.deslugify(userId);
+  var q = 'SELECT p.id, p.thread_id, p.user_id, p.title, p.raw_body, p.body, p.created_at, p.updated_at, p.imported_at FROM posts p WHERE p.user_id = $1 ORDER BY';
+  var limit = 10;
+  var page = 1;
+  var sortField = 'created_at';
+  var order = 'ASC';
+  if (opts && opts.limit) { limit = opts.limit; }
+  if (opts && opts.page) { page = opts.page; }
+  if (opts && opts.sortField) { sortField = opts.sortField; }
+  if (opts && opts.sortDesc) { order = 'DESC'; }
+  var offset = (page * limit) - limit;
+  q = [q, sortField, order, 'LIMIT $2 OFFSET $3'].join(' ');
+  var params = [userId, limit, offset];
+  return db.sqlQuery(q, params)
+  .then(function(rows) {
+    if (rows.length) { return rows;}
+    else { Promise.reject(); }
+  })
+  .map(function(post) { // TODO: Append thread titles in main query to allow sorting by thread title
+    q = 'SELECT p.title FROM threads t LEFT JOIN posts p ON t.id = p.thread_id WHERE t.id = $1 ORDER BY p.created_at LIMIT 1';
+    params = [post.thread_id];
+    return db.sqlQuery(q, params)
+    .then(function(rows) {
+      if (rows.length) { return rows[0].title; }
+      else { Promise.reject(); }
+    })
+    .then(function(threadTitle) {
+      post.thread_title = threadTitle;
+      return post;
+    });
+  });
+};
