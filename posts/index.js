@@ -268,20 +268,18 @@ posts.byThread = function(threadId, opts) {
   });
 };
 
-posts.pageByUserCount = function(userId) {
-  userId = helper.deslugify(userId);
-  var q = 'SELECT count(id) FROM posts WHERE user_id = $1';
-  var params = [userId];
+posts.pageByUserCount = function(username) {
+  var q = 'SELECT p.post_count as count FROM users.profiles p JOIN users u ON(p.user_id = u.id) WHERE u.username = $1';
+  var params = [username];
   return db.sqlQuery(q, params)
   .then(function(rows) {
     if (rows.length) { return rows[0]; }
-    else { return Promise.reject(); }
+    else { return { count: 0 }; }
   });
 };
 
-posts.pageByUser = function(userId, opts) {
-  userId = helper.deslugify(userId);
-  var q = 'SELECT p.id, p.thread_id, p.user_id, p.title, p.raw_body, p.body, p.created_at, p.updated_at, p.imported_at FROM posts p WHERE p.user_id = $1 ORDER BY';
+posts.pageByUser = function(username, opts) {
+  var q = 'SELECT p.id, p.thread_id, p.user_id, p.title, p.raw_body, p.body, p.created_at, p.updated_at, p.imported_at FROM posts p JOIN users u ON(p.user_id = u.id) WHERE u.username = $1 ORDER BY';
   var limit = 10;
   var page = 1;
   var sortField = 'created_at';
@@ -292,12 +290,9 @@ posts.pageByUser = function(userId, opts) {
   if (opts && opts.sortDesc) { order = 'DESC'; }
   var offset = (page * limit) - limit;
   q = [q, sortField, order, 'LIMIT $2 OFFSET $3'].join(' ');
-  var params = [userId, limit, offset];
+  var params = [username, limit, offset];
   return db.sqlQuery(q, params)
-  .then(function(rows) {
-    if (rows.length) { return rows;}
-    else { Promise.reject(); }
-  })
+  .then(function(rows) { return rows || []; })
   .map(function(post) { // TODO: Append thread titles in main query to allow sorting by thread title
     q = 'SELECT p.title FROM threads t LEFT JOIN posts p ON t.id = p.thread_id WHERE t.id = $1 ORDER BY p.created_at LIMIT 1';
     params = [post.thread_id];
@@ -310,5 +305,6 @@ posts.pageByUser = function(userId, opts) {
       post.thread_title = threadTitle;
       return post;
     });
-  });
+  })
+  .map(helper.slugify);
 };
