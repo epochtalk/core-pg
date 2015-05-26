@@ -435,6 +435,7 @@ users.putUserThreadViews = function(userId, userViewsArray) {
   userId = helper.deslugify(userId);
   userViewsArray = helper.deslugify(userViewsArray);
   return Promise.each(userViewsArray, function(view) {
+    view.threadId = helper.deslugify(view.threadId);
     userThreadViewExists(userId, view.threadId) // check if userview exists
     .then(function(exists) {
       if (exists) { updateUserThreadview(userId, view.threadId, view.timestamp); }
