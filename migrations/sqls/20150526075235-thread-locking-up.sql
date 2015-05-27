@@ -1,0 +1,1 @@
+ALTER TABLE threads ADD COLUMN locked boolean DEFAULT FALSE;

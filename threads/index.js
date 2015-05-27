@@ -13,15 +13,16 @@ threads.import = function(thread) {
   // no created_at or updated_at needed, will be set by first post
   thread.id = helper.intToUUID(thread.smf.ID_TOPIC);
   thread.board_id = helper.intToUUID(thread.smf.ID_BOARD);
-  var q = 'INSERT INTO threads(id, board_id, imported_at) VALUES($1, $2, now()) RETURNING id';
-  var params = [thread.id, thread.board_id];
+  thread.locked = thread.locked || false;
+  var q = 'INSERT INTO threads(id, board_id, locked, imported_at) VALUES($1, $2, $3, now()) RETURNING id';
+  var params = [thread.id, thread.board_id, thread.locked];
   return insertPostProcessing(thread, thread.view_count, q, params);
 };
 
 threads.create = function(thread) {
   thread = helper.deslugify(thread);
-  var q = 'INSERT INTO threads(board_id, created_at) VALUES ($1, now()) RETURNING id';
-  var params = [thread.board_id];
+  var q = 'INSERT INTO threads(board_id, locked, created_at) VALUES ($1, $2, now()) RETURNING id';
+  var params = [thread.board_id, thread.locked];
   return insertPostProcessing(thread, 0, q, params);
 };
 
@@ -47,7 +48,6 @@ var incrementThreadCount = function increment(boardId, initial) {
   if (initial) {
     inc = 'UPDATE metadata.boards SET thread_count = thread_count + 1, total_thread_count = total_thread_count + 1 WHERE board_id = $1';
     db.sqlQuery(inc, params);
-
   }
   else {
     inc = 'UPDATE metadata.boards SET total_thread_count = total_thread_count + 1 WHERE board_id = $1';
@@ -79,8 +79,8 @@ var threadLastPost = function(thread) {
 
 threads.find = function(id) {
   id = helper.deslugify(id);
-  var columns = 't.id, t.board_id, t.created_at, t.updated_at, t.post_count, p.user_id, p.title, p.username';
-  var q1 = 'SELECT t1.id, t1.board_id, t1.created_at, t1.updated_at, mt.post_count FROM threads t1 LEFT JOIN metadata.threads mt ON t1.id = mt.thread_id WHERE t1.id = $1';
+  var columns = 't.id, t.board_id, t.locked, t.created_at, t.updated_at, t.post_count, p.user_id, p.title, p.username';
+  var q1 = 'SELECT t1.id, t1.board_id, t1.locked, t1.created_at, t1.updated_at, mt.post_count FROM threads t1 LEFT JOIN metadata.threads mt ON t1.id = mt.thread_id WHERE t1.id = $1';
   var q2 = 'SELECT p1.user_id, p1.title, u.username FROM posts p1 LEFT JOIN users u on p1.user_id = u.id WHERE p1.thread_id = t.id ORDER BY p1.created_at limit 1';
   var query = 'SELECT ' + columns + ' FROM ( ' + q1 + ') t LEFT JOIN LATERAL ( ' + q2 + ' ) p ON true';
 
@@ -101,8 +101,8 @@ threads.find = function(id) {
 
 threads.byBoard = function(boardId, opts) {
   boardId = helper.deslugify(boardId);
-  var columns = 'tlist.id, t.created_at, t.updated_at, t.views as view_count, t.post_count, p.title, p.user_id, p.username';
-  var q2 = 'SELECT t1.created_at, t1.updated_at, mt.views, mt.post_count FROM threads t1 ' +
+  var columns = 'tlist.id, t.locked, t.created_at, t.updated_at, t.views as view_count, t.post_count, p.title, p.user_id, p.username';
+  var q2 = 'SELECT t1.locked, t1.created_at, t1.updated_at, mt.views, mt.post_count FROM threads t1 ' +
     'LEFT JOIN metadata.threads mt ON tlist.id = mt.thread_id WHERE t1.id = tlist.id';
   var q3 = 'SELECT p1.title, p1.user_id, u.username FROM posts p1 LEFT JOIN users u ON p1.user_id = u.id WHERE p1.thread_id = tlist.id ORDER BY p1.created_at LIMIT 1';
 
@@ -157,4 +157,10 @@ threads.incViewCount = function(threadId) {
   threadId = helper.deslugify(threadId);
   var increment = 'UPDATE metadata.threads SET views = views + 1 WHERE thread_id = $1;';
   return db.sqlQuery(increment, [threadId]);
+};
+
+threads.lock = function(threadId, locked) {
+  threadId = helper.deslugify(threadId);
+  var lock = 'UPDATE threads SET locked = $1 WHERE id = $2;';
+  return db.sqlQuery(lock, [locked, threadId]);
 };
