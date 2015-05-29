@@ -80,15 +80,31 @@ reports.updateUserReport = function(userReport) {
 
 reports.createUserReportNote = function(reportNote) {
   reportNote = helper.deslugify(reportNote);
-  var q = 'INSERT INTO administration.reports_users_notes(report_id, user_id, note, created_at, updated_at) VALUES($1, $2, $3, now(), now()) RETURNING id';
+  var q = 'INSERT INTO administration.reports_users_notes(report_id, user_id, note, created_at, updated_at) VALUES($1, $2, $3, now(), now()) RETURNING id, created_at, updated_at';
   var params = [reportNote.report_id, reportNote.user_id, reportNote.note];
   return db.sqlQuery(q, params)
-  .then(function(rows) { // return created report note id
-    if (rows.length) { return rows[0].id; }
+  .then(function(rows) { // return created report note details
+    if (rows.length) { return rows[0]; }
     else { return Promise.reject(); }
   })
-  .then(function(id) { // append id and return created note
-    reportNote.id = id;
+  .then(function(reportDetails) { // append id, created_at, updated_at and return created note
+    reportNote.id = reportDetails.id;
+    reportNote.created_at = reportDetails.created_at;
+    reportNote.updated_at = reportDetails.updated_at;
+    return reportNote;
+  })
+  .then(function() {
+    var q = 'SELECT u.username, p.avatar FROM users u JOIN users.profiles p ON (p.user_id = u.id) WHERE u.id = $1';
+    var params = [reportNote.user_id];
+    return db.sqlQuery(q, params);
+  })
+  .then(function(rows) { // return userInfo
+    if (rows.length) { return rows[0]; }
+    else { return Promise.reject(); }
+  })
+  .then(function(userInfo) {
+    reportNote.username = userInfo.username;
+    reportNote.avatar = userInfo.avatar;
     return reportNote;
   })
   .then(helper.slugify);
@@ -96,7 +112,7 @@ reports.createUserReportNote = function(reportNote) {
 
 reports.updateUserReportNote = function(reportNote) {
   reportNote = helper.deslugify(reportNote);
-  var q = 'SELECT id, report_id, user_id, note, created_at, updated_at FROM administration.reports_users_notes WHERE id = $1';
+  var q = 'SELECT n.id, n.report_id, n.user_id, n.note, n.created_at, n.updated_at, u.username, p.avatar FROM administration.reports_users_notes n JOIN users u ON(u.id = user_id) JOIN users.profiles p ON (p.user_id = n.user_id) WHERE n.id = $1';
   var params = [reportNote.id];
   var existingReportNote;
   return db.sqlQuery(q, params)
@@ -162,7 +178,7 @@ reports.userReportsCount = function(status) {
 
 reports.pageUserReportsNotes = function(reportId, opts) {
   reportId = helper.deslugify(reportId);
-  var q = 'SELECT id, report_id, user_id, note, created_at, updated_at FROM administration.reports_users_notes WHERE report_id = $1 ORDER BY created_at';
+  var q = 'SELECT n.id, n.report_id, n.user_id, n.note, n.created_at, n.updated_at, u.username, p.avatar FROM administration.reports_users_notes n JOIN users u ON(u.id = user_id) JOIN users.profiles p ON (p.user_id = n.user_id) WHERE n.report_id = $1 ORDER BY n.created_at';
   var limit = 10;
   var page = 1;
   var order = 'ASC';
@@ -254,16 +270,31 @@ reports.updatePostReport = function(postReport) {
 
 reports.createPostReportNote = function(reportNote) {
   reportNote = helper.deslugify(reportNote);
-  console.log(reportNote);
-  var q = 'INSERT INTO administration.reports_posts_notes(report_id, user_id, note, created_at, updated_at) VALUES($1, $2, $3, now(), now()) RETURNING id';
+  var q = 'INSERT INTO administration.reports_posts_notes(report_id, user_id, note, created_at, updated_at) VALUES($1, $2, $3, now(), now()) RETURNING id, created_at, updated_at';
   var params = [reportNote.report_id, reportNote.user_id, reportNote.note];
   return db.sqlQuery(q, params)
-  .then(function(rows) { // return created report note id
-    if (rows.length) { return rows[0].id; }
+  .then(function(rows) { // return created report note details
+    if (rows.length) { return rows[0]; }
     else { return Promise.reject(); }
   })
-  .then(function(id) { // append id and return created note
-    reportNote.id = id;
+  .then(function(reportDetails) { // append id and return created note
+    reportNote.id = reportDetails.id;
+    reportNote.created_at = reportDetails.created_at;
+    reportNote.updated_at = reportDetails.updated_at;
+    return reportNote;
+  })
+  .then(function() {
+    var q = 'SELECT u.username, p.avatar FROM users u JOIN users.profiles p ON (p.user_id = u.id) WHERE u.id = $1';
+    var params = [reportNote.user_id];
+    return db.sqlQuery(q, params);
+  })
+  .then(function(rows) { // return userInfo
+    if (rows.length) { return rows[0]; }
+    else { return Promise.reject(); }
+  })
+  .then(function(userInfo) {
+    reportNote.username = userInfo.username;
+    reportNote.avatar = userInfo.avatar;
     return reportNote;
   })
   .then(helper.slugify);
@@ -271,7 +302,7 @@ reports.createPostReportNote = function(reportNote) {
 
 reports.updatePostReportNote = function(reportNote) {
   reportNote = helper.deslugify(reportNote);
-  var q = 'SELECT id, report_id, user_id, note, created_at, updated_at FROM administration.reports_posts_notes WHERE id = $1';
+  var q = 'SELECT n.id, n.report_id, n.user_id, n.note, n.created_at, n.updated_at, u.username, p.avatar FROM administration.reports_posts_notes n JOIN users u ON(u.id = user_id) JOIN users.profiles p ON (p.user_id = n.user_id) WHERE n.id = $1';
   var params = [reportNote.id];
   var existingReportNote;
   return db.sqlQuery(q, params)
@@ -337,7 +368,7 @@ reports.postReportsCount = function(status) {
 
 reports.pagePostReportsNotes = function(reportId, opts) {
   reportId = helper.deslugify(reportId);
-  var q = 'SELECT id, report_id, user_id, note, created_at, updated_at FROM administration.reports_posts_notes WHERE report_id = $1 ORDER BY created_at';
+  var q = 'SELECT n.id, n.report_id, n.user_id, n.note, n.created_at, n.updated_at, u.username, p.avatar FROM administration.reports_posts_notes n JOIN users u ON(u.id = user_id) JOIN users.profiles p ON (p.user_id = n.user_id) WHERE n.report_id = $1 ORDER BY n.created_at';
   var limit = 10;
   var page = 1;
   var order = 'ASC';
