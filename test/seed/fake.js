@@ -40,7 +40,7 @@ fake.boards = function(options) {
 };
 
 fake.threads = function(options) {
-  var thread = {};
+  var thread = { sticky: false };
   if (options) {
     if (options.board_id) thread.board_id = options.board_id;
   }

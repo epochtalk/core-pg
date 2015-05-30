@@ -54,7 +54,7 @@ lab.experiment('Threads', function() {
       return core.threads.byBoard(parentBoard.id)
       .then(function(threads) {
         expect(threads).to.exist;
-        expect(threads.length).to.equal(3);
+        expect(threads.normal.length).to.equal(3);
       })
       .catch(function(err) {
         throw err;
@@ -68,8 +68,9 @@ lab.experiment('Threads', function() {
     Promise.map(runtime.boards.slice(3, 5), function(parentBoard) {
       return core.threads.byBoard(parentBoard.id)
       .then(function(threads) {
-        expect(threads).to.be.an.array;
-        expect(threads).to.have.length(0);
+        expect(threads).to.exist;
+        expect(threads.normal).to.have.length(0);
+        expect(threads.sticky).to.have.length(0);
       })
       .catch(function(err) {
         throw err;
@@ -82,8 +83,9 @@ lab.experiment('Threads', function() {
   lab.test('should return no threads for an invalid board', function(done) {
     return core.threads.byBoard()
     .then(function(threads) {
-      expect(threads).to.be.an.array();
-      expect(threads).to.have.length(0);
+      expect(threads).to.exist;
+      expect(threads.normal).to.have.length(0);
+      expect(threads.sticky).to.have.length(0);
     })
     .catch(function(err) {
       throw err;
@@ -142,8 +144,10 @@ lab.experiment('Threads', function() {
     .then(function() {
       return Promise.map(runtime.boards.slice(0, 3), function(parentBoard) {
         return core.threads.byBoard(parentBoard.id)
-        .map(function(thread) {
-          expect(thread.view_count).to.equal(1);
+        .then(function(threads) {
+          threads.normal.map(function(thread) {
+            expect(thread.view_count).to.equal(1);
+          });
         })
         .catch(function(err) {
           throw err;
