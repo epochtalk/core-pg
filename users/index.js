@@ -424,7 +424,7 @@ users.getUserThreadViews = function(userId) {
   .then(function(rows) {
     var userviews = {};
     rows.forEach(function(row) {
-      userviews[row.thread_id] = row.time.getTime();
+      userviews[helper.slugify(row.thread_id)] = row.time.getTime();
     });
     return userviews;
   })
