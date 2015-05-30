@@ -14,15 +14,16 @@ threads.import = function(thread) {
   thread.id = helper.intToUUID(thread.smf.ID_TOPIC);
   thread.board_id = helper.intToUUID(thread.smf.ID_BOARD);
   thread.locked = thread.locked || false;
-  var q = 'INSERT INTO threads(id, board_id, locked, imported_at) VALUES($1, $2, $3, now()) RETURNING id';
-  var params = [thread.id, thread.board_id, thread.locked];
+  thread.sticky = thread.sticky || false;
+  var q = 'INSERT INTO threads(id, board_id, locked, sticky, imported_at) VALUES($1, $2, $3, $4, now()) RETURNING id';
+  var params = [thread.id, thread.board_id, thread.locked, thread.sticky];
   return insertPostProcessing(thread, thread.view_count, q, params);
 };
 
 threads.create = function(thread) {
   thread = helper.deslugify(thread);
-  var q = 'INSERT INTO threads(board_id, locked, created_at) VALUES ($1, $2, now()) RETURNING id';
-  var params = [thread.board_id, thread.locked];
+  var q = 'INSERT INTO threads(board_id, locked, sticky, created_at) VALUES ($1, $2, $3, now()) RETURNING id';
+  var params = [thread.board_id, thread.locked, thread.sticky];
   return insertPostProcessing(thread, 0, q, params);
 };
 
@@ -79,8 +80,8 @@ var threadLastPost = function(thread) {
 
 threads.find = function(id) {
   id = helper.deslugify(id);
-  var columns = 't.id, t.board_id, t.locked, t.created_at, t.updated_at, t.post_count, p.user_id, p.title, p.username';
-  var q1 = 'SELECT t1.id, t1.board_id, t1.locked, t1.created_at, t1.updated_at, mt.post_count FROM threads t1 LEFT JOIN metadata.threads mt ON t1.id = mt.thread_id WHERE t1.id = $1';
+  var columns = 't.id, t.board_id, t.locked, t.sticky, t.created_at, t.updated_at, t.post_count, p.user_id, p.title, p.username';
+  var q1 = 'SELECT t1.id, t1.board_id, t1.locked, t1.sticky, t1.created_at, t1.updated_at, mt.post_count FROM threads t1 LEFT JOIN metadata.threads mt ON t1.id = mt.thread_id WHERE t1.id = $1';
   var q2 = 'SELECT p1.user_id, p1.title, u.username FROM posts p1 LEFT JOIN users u on p1.user_id = u.id WHERE p1.thread_id = t.id ORDER BY p1.created_at limit 1';
   var query = 'SELECT ' + columns + ' FROM ( ' + q1 + ') t LEFT JOIN LATERAL ( ' + q2 + ' ) p ON true';
 
@@ -101,8 +102,8 @@ threads.find = function(id) {
 
 threads.byBoard = function(boardId, opts) {
   boardId = helper.deslugify(boardId);
-  var columns = 'tlist.id, t.locked, t.created_at, t.updated_at, t.views as view_count, t.post_count, p.title, p.user_id, p.username';
-  var q2 = 'SELECT t1.locked, t1.created_at, t1.updated_at, mt.views, mt.post_count FROM threads t1 ' +
+  var columns = 'tlist.id, t.locked, t.sticky, t.created_at, t.updated_at, t.views as view_count, t.post_count, p.title, p.user_id, p.username';
+  var q2 = 'SELECT t1.locked, t1.sticky, t1.created_at, t1.updated_at, mt.views, mt.post_count FROM threads t1 ' +
     'LEFT JOIN metadata.threads mt ON tlist.id = mt.thread_id WHERE t1.id = tlist.id';
   var q3 = 'SELECT p1.title, p1.user_id, u.username FROM posts p1 LEFT JOIN users u ON p1.user_id = u.id WHERE p1.thread_id = tlist.id ORDER BY p1.created_at LIMIT 1';
 
@@ -130,7 +131,7 @@ threads.byBoard = function(boardId, opts) {
   })
   // get all related threads
   .then(function() {
-    var q1 = 'SELECT id FROM threads WHERE board_id = $1 ORDER BY updated_at ' + reversed +
+    var q1 = 'SELECT id FROM threads WHERE board_id = $1 AND sticky = False ORDER BY updated_at ' + reversed +
     ' LIMIT $2 OFFSET $3';
     var query = 'SELECT ' + columns + ' FROM ( ' + q1 + ' ) tlist LEFT JOIN LATERAL ( ' + q2 + ' ) t ON true LEFT JOIN LATERAL ( ' + q3 + ') p ON true';
     var params = [boardId, limit, offset];
@@ -150,6 +151,30 @@ threads.byBoard = function(boardId, opts) {
       });
     });
   })
+  // handle sticky threads
+  .then(function(threads) {
+    if (page !== 1) { return {sticky: [], normal: threads}; }
+    var retVal = { normal: threads };
+    var stickyQ = 'SELECT id FROM threads WHERE board_id = $1 AND sticky = True ORDER BY created_at';
+    var query = 'SELECT ' + columns + ' FROM ( ' + stickyQ + ' ) tlist LEFT JOIN LATERAL ( ' + q2 + ' ) t ON true LEFT JOIN LATERAL ( ' + q3 + ') p ON true';
+    var params = [boardId];
+    return db.sqlQuery(query, params)
+    .then(function(stickyThreads) {
+      return Promise.map(stickyThreads, function(thread) {
+        return threadLastPost(thread)
+        .then(function(thread) {
+          thread.user = { id: thread.user_id, username: thread.username };
+          delete thread.user_id;
+          delete thread.username;
+          return thread;
+        });
+      });
+    })
+    .then(function(stickyThreads) {
+      retVal.sticky = stickyThreads;
+      return retVal;
+    });
+  })
   .then(helper.slugify);
 };
 
@@ -163,4 +188,10 @@ threads.lock = function(threadId, locked) {
   threadId = helper.deslugify(threadId);
   var lock = 'UPDATE threads SET locked = $1 WHERE id = $2;';
   return db.sqlQuery(lock, [locked, threadId]);
+};
+
+threads.sticky = function(threadId, sticky) {
+  threadId = helper.deslugify(threadId);
+  var stick = 'UPDATE threads SET sticky = $1 WHERE id = $2;';
+  return db.sqlQuery(stick, [sticky, threadId]);
 };
