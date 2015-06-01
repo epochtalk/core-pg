@@ -75,6 +75,47 @@ users.addRole = function(userId, role) {
   .then(helper.slugify);
 };
 
+/* returns user with removed role */
+users.removeRole = function(userId, role) {
+  userId = helper.deslugify(userId);
+  var userQuery = 'SELECT id, username, email, created_at, updated_at FROM users WHERE id = $1';
+  var userParams = [userId];
+  var updatedUser;
+  return db.sqlQuery(userQuery, userParams)
+  .then(function(rows) { // fetch user and ensure user exists
+    if (rows.length) {
+      updatedUser = rows[0];
+      return;
+    }
+    else { return Promise.reject(); } // user doesnt exist
+  })
+  .then(function() {
+    var queryRoleId = 'SELECT id FROM roles WHERE name = $1';
+    var roleParams = [role];
+    return db.sqlQuery(queryRoleId, roleParams);
+  })
+  .then(function(rows) {
+    if (rows.length) { return rows[0].id; } // return role id
+    else { return Promise.reject(); } // role doesnt exist
+  })
+  .then(function(roleId) {
+    var query = 'DELETE FROM roles_users WHERE user_id = $1 AND role_id = $2';
+    var params = [userId, roleId];
+    return db.sqlQuery(query, params); // delete
+  })
+  .then(function() { // append roles to updated user and return
+    var rolesQuery = 'SELECT roles.* FROM roles_users, roles WHERE roles_users.user_id = $1 AND roles.id = roles_users.role_id';
+    var rolesParams = [userId];
+    return db.sqlQuery(rolesQuery, rolesParams);
+  })
+  .then(function(rows) {  // Append users roles
+    if (rows.length) { updatedUser.roles = rows; }
+    else { updatedUser.roles = []; } // user has no roles
+    return updatedUser;
+  })
+  .then(helper.slugify);
+};
+
 /* returns a limited set of users depending on limit and page */
 users.page = function(opts) {
   var q = 'SELECT u.id, u.username, u.email, u.created_at, u.updated_at, u.imported_at, p.avatar, p.position, p.signature, p.raw_signature, p.fields, p.post_count FROM users u LEFT JOIN users.profiles p ON u.id = p.user_id ORDER BY';
