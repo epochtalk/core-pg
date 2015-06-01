@@ -231,32 +231,22 @@ users.import = function(user) {
 };
 
 /* returns values including email, confirm token, and roles */
-users.create = function(user) {
+users.create = function(user, isAdmin) {
   var firstUser, passhash;
   if (user.password) { passhash = bcrypt.hashSync(user.password, 12); }
   delete user.password;
+  var q = 'INSERT INTO users(email, username, passhash, confirmation_token, created_at, updated_at) VALUES($1, $2, $3, $4, now(), now()) RETURNING id';
+  var params = [user.email, user.username, passhash, user.confirmation_token];
 
-  var q = 'SELECT COUNT(id) FROM users';
-  return db.sqlQuery(q)
-  .then(function(rows) { // count number of total users
-    var count = Number(rows[0].count);
-    firstUser = (count === 0);
-  })
-  .then(function() { // insert user
-    var q = 'INSERT INTO users(email, username, passhash, confirmation_token, created_at, updated_at) VALUES($1, $2, $3, $4, now(), now()) RETURNING id';
-    var params = [user.email, user.username, passhash, user.confirmation_token];
-    return db.sqlQuery(q, params);
-  })
+  return db.sqlQuery(q, params)
   .then(function(rows) { // get user id
     if (rows.length > 0) { user.id = rows[0].id; }
     else { return Promise.reject(); }
   })
   .then(function() { // add user roles
     var q = 'INSERT INTO roles_users(role_id, user_id) VALUES($1, $2)';
-    // user role - edcd8f77-ce34-4433-ba85-17f9b17a3b60
     var defaultRole = 'edcd8f77-ce34-4433-ba85-17f9b17a3b60';
-    // admin role = 06860e6f-9ac0-4c2a-8d9c-417343062fb8
-    if (firstUser) defaultRole = '06860e6f-9ac0-4c2a-8d9c-417343062fb8';
+    if (isAdmin) defaultRole = '06860e6f-9ac0-4c2a-8d9c-417343062fb8';
     var params = [defaultRole, user.id];
     return db.sqlQuery(q, params);
   })
