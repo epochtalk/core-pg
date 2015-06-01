@@ -23,44 +23,44 @@ users.searchUsernames = function(searchStr, limit) {
   .map(function(user) { return user.username; });
 };
 
-/* returns user with roles */
-users.addRole = function(userId, role) {
+/* returns user with added role(s) */
+users.addRoles = function(userId, roles) {
   userId = helper.deslugify(userId);
   var userQuery = 'SELECT id, username, email, created_at, updated_at FROM users WHERE id = $1';
   var userParams = [userId];
-  var updatedUser, roleId;
+  var updatedUser;
   return db.sqlQuery(userQuery, userParams)
   .then(function(rows) { // fetch user and ensure user exists
     if (rows.length) {
       updatedUser = rows[0];
-      return;
+      return roles; // return role names to be mapped
     }
     else { return Promise.reject(); } // user doesnt exist
   })
-  .then(function() { // lookup role id by name
+  .map(function(role) { // lookup role id by name then return array of role ids
     var queryRoleId = 'SELECT id FROM roles WHERE name = $1';
     var roleParams = [role];
-    return db.sqlQuery(queryRoleId, roleParams);
+    var savedRoleId;
+    return db.sqlQuery(queryRoleId, roleParams)
+    .then(function(rows) { // return role id
+      if (rows.length) { return rows[0].id; }
+      else { return Promise.reject(); } // role id doesnt exist
+    })
+    .then(function(roleId) { // check if user already has role
+      savedRoleId = roleId;
+      var roleCheckQuery = 'SELECT user_id FROM roles_users WHERE user_id = $1 AND role_id = $2';
+      var roleCheckParams = [userId, roleId];
+      return db.sqlQuery(roleCheckQuery, roleCheckParams);
+    })
+    .then(function(rows) {
+      if (rows.length) { return; } // dont return role id if user already has role
+      else { return savedRoleId; } // return array of roles ids that user doesnt already have
+    });
   })
-  .then(function(rows) { // return role id
-    if (rows.length) {
-      roleId = rows[0].id;
-      return;
-    }
-    else { return Promise.reject(); } // role id doesnt exist
-  })
-  .then(function() { // check if user already has role
-    var roleCheckQuery = 'SELECT user_id FROM roles_users WHERE user_id = $1 AND role_id = $2';
-    var roleCheckParams = [userId, roleId];
-    return db.sqlQuery(roleCheckQuery, roleCheckParams);
-  })
-  .then(function(rows) {
-    if (rows.length) { return; } // user already has role do nothing
-    else { // add role to user
-      var addRoleQuery = 'INSERT INTO roles_users (role_id, user_id) VALUES ($1, $2);';
-      var addRoleParams = [roleId, userId];
-      return db.sqlQuery(addRoleQuery, addRoleParams);
-    }
+  .each(function(roleId) { // insert new row for each roleId returned by previous map function
+    var addRoleQuery = 'INSERT INTO roles_users (role_id, user_id) VALUES ($1, $2);';
+    var addRoleParams = [roleId, userId];
+    return db.sqlQuery(addRoleQuery, addRoleParams);
   })
   .then(function() { // append roles to updated user and return
     var rolesQuery = 'SELECT roles.* FROM roles_users, roles WHERE roles_users.user_id = $1 AND roles.id = roles_users.role_id';
@@ -75,8 +75,8 @@ users.addRole = function(userId, role) {
   .then(helper.slugify);
 };
 
-/* returns user with removed role */
-users.removeRole = function(userId, role) {
+/* returns user with removed role(s) */
+users.removeRoles = function(userId, roles) {
   userId = helper.deslugify(userId);
   var userQuery = 'SELECT id, username, email, created_at, updated_at FROM users WHERE id = $1';
   var userParams = [userId];
@@ -85,20 +85,20 @@ users.removeRole = function(userId, role) {
   .then(function(rows) { // fetch user and ensure user exists
     if (rows.length) {
       updatedUser = rows[0];
-      return;
+      return roles; // return roles to be mapped by next promise
     }
     else { return Promise.reject(); } // user doesnt exist
   })
-  .then(function() {
+  .map(function(role) {
     var queryRoleId = 'SELECT id FROM roles WHERE name = $1';
     var roleParams = [role];
-    return db.sqlQuery(queryRoleId, roleParams);
+    return db.sqlQuery(queryRoleId, roleParams)
+    .then(function(rows) {
+      if (rows.length) { return rows[0].id; } // return role id
+      else { return Promise.reject(); } // role doesnt exist
+    });
   })
-  .then(function(rows) {
-    if (rows.length) { return rows[0].id; } // return role id
-    else { return Promise.reject(); } // role doesnt exist
-  })
-  .then(function(roleId) {
+  .each(function(roleId) {
     var query = 'DELETE FROM roles_users WHERE user_id = $1 AND role_id = $2';
     var params = [userId, roleId];
     return db.sqlQuery(query, params); // delete
