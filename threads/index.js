@@ -8,6 +8,7 @@ var db = require(path.join(__dirname, '..', 'db'));
 var config = require(path.join(__dirname, '..', 'config'));
 var helper = require(path.join(__dirname, '..', 'helper'));
 var NotFoundError = Promise.OperationalError;
+var using = Promise.using;
 
 threads.import = function(thread) {
   // no created_at or updated_at needed, will be set by first post
@@ -194,4 +195,51 @@ threads.sticky = function(threadId, sticky) {
   threadId = helper.deslugify(threadId);
   var stick = 'UPDATE threads SET sticky = $1 WHERE id = $2;';
   return db.sqlQuery(stick, [sticky, threadId]);
+};
+
+threads.move = function(threadId, newBoardId) {
+  threadId = helper.deslugify(threadId);
+  newBoardId = helper.deslugify(newBoardId);
+  var q, params;
+  var thread, threadMeta;
+  var oldBoard, newBoard;
+  return using(db.createTransaction(), function(client) {
+    // lock thread/Meta row
+    params = [threadId];
+    q = 'SELECT * FROM threads t JOIN metadata.threads mt ON mt.thread_id = t.id WHERE t.id = $1 FOR UPDATE';
+    return client.queryAsync(q, params)
+    .then(function(results) { thread = results.rows[0]; })
+    // lock thread's current board/Meta row
+    .then(function() {
+      params = [thread.board_id];
+      q = 'SELECT * FROM boards b JOIN metadata.boards mb ON mb.board_id = b.id WHERE b.id = $1 FOR UPDATE';
+      return client.queryAsync(q, params)
+      .then(function(results) { oldBoard = results.rows[0]; });
+    })
+    // lock thread's new board/Meta row
+    .then(function() {
+      params = [newBoardId];
+      q = 'SELECT * FROM boards b JOIN metadata.boards mb ON mb.board_id = b.id WHERE b.id = $1 FOR UPDATE';
+      return client.queryAsync(q, params)
+      .then(function(results) { newBoard = results.rows[0]; });
+    })
+    // update thread's current board metadata row
+    .then(function() {
+      params = [thread.post_count, oldBoard.board_id];
+      q = 'UPDATE metadata.boards SET (thread_count, post_count) = (thread_count - 1, post_count - $1) WHERE board_id = $2';
+      return client.queryAsync(q, params);
+    })
+    // update thread's new board metadata row
+    .then(function() {
+      params = [thread.post_count, newBoard.board_id];
+      q = 'UPDATE metadata.boards SET (thread_count, post_count) = (thread_count + 1, post_count + $1) WHERE board_id = $2';
+      return client.queryAsync(q, params);
+    })
+    // udpate thread's board_id with new board id
+    .then(function() {
+      params = [newBoardId, threadId];
+      q = 'UPDATE threads SET board_id = $1 WHERE id = $2';
+      return client.queryAsync(q, params);
+    });
+  }); // Promise disposer called at this point
 };
