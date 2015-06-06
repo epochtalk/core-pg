@@ -4,38 +4,46 @@ var path = require('path');
 var pg = require('pg');
 var Promise = require('bluebird');
 var config = require(path.join(__dirname, 'config'));
+Promise.promisifyAll(pg);
 
-db.sqlQuery = function(sqlQuery, sqlParams) {
-  return new Promise(function(fulfill, reject) {
-    pg.connect(config.cstring, function(err, client, done) {
-      if (err) reject(err);
-      else {
-        client.query(sqlQuery, sqlParams, function(err, result) {
-          done();
-          if (err) reject(err);
-          else fulfill(result.rows);
-        });
-      }
-    });
+db.sqlQuery = function(q, params) {
+  return pg.connectAsync(config.cstring)
+  .spread(function(client, done) {
+    return client.queryAsync(q, params)
+    .then(function(result) { return result.rows; })
+    .finally(done);
   });
 };
 
 db.scalar = function(q, params) {
-  return new Promise(function(fulfill, reject) {
-    pg.connect(config.cstring, function(err, client, done) {
-      if (err) reject(err);
-      else {
-        client.query(q, params, function(err, res) {
-          done();
-          if (err) reject(err);
-          if (!res || res.rows.length === 0) {
-            fulfill(null);
-          }
-          else {
-            fulfill(res.rows[0]);
-          }
-        });
-      }
-    });
+  return pg.connectAsync(config.cstring)
+  .spread(function(client, done) {
+    return client.queryAsync(q, params)
+    .then(function(result) {
+      var ret = null;
+      if (result && result.rows.length > 0) { ret = result.rows[0]; }
+      return ret;
+    })
+    .finally(done);
+  });
+};
+
+db.createTransaction = function() {
+  var close;
+  return pg.connectAsync(config.cstring)
+  .spread(function(client, done) {
+    close = done;
+    return client.queryAsync('BEGIN')
+    .then(function() { return client; });
+  })
+  .disposer(function(client, promise) {
+    function closeConnection() { if (close) { close(client); } }
+
+    if (promise.isFulfilled()) {
+      return client.queryAsync('COMMIT').then(closeConnection);
+    }
+    else {
+      return client.queryAsync('ROLLBACK').then(closeConnection);
+    }
   });
 };
