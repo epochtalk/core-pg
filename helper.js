@@ -13,6 +13,7 @@ var slugKeywords = [
   'offender_user_id',
   'offender_post_id',
   'offender_thread_id',
+  'offender_author_id',
   'report_id',
   'status_id'
 ];

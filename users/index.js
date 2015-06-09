@@ -118,7 +118,10 @@ users.removeRoles = function(userId, roles) {
 
 /* returns a limited set of users depending on limit and page */
 users.page = function(opts) {
-  var q = 'SELECT u.id, u.username, u.email, u.created_at, u.updated_at, u.imported_at, p.avatar, p.position, p.signature, p.raw_signature, p.fields, p.post_count FROM users u LEFT JOIN users.profiles p ON u.id = p.user_id ORDER BY';
+  var joinType;
+  if (opts && opts.filter && opts.filter === 'banned') { joinType = 'RIGHT'; }
+  else { joinType = 'LEFT' }
+  var q = 'SELECT u.id, u.username, u.email, u.created_at, u.updated_at, u.imported_at, b.expiration as ban_expiration FROM users u ' + joinType + ' JOIN (SELECT ub.expiration, ub.user_id FROM users.bans ub WHERE ub.expiration > now()) b ON (u.id = b.user_id) ORDER BY';
   var limit = 10;
   var page = 1;
   var sortField = 'username';
@@ -175,8 +178,11 @@ users.pageModerators = function(opts) {
 };
 
 /* returns total user count */
-users.count = function() {
-  var q = 'SELECT COUNT(*) FROM users';
+users.count = function(opts) {
+  var q = 'SELECT COUNT(u.id) FROM users u';
+  if (opts && opts.filter && opts.filter === 'banned') {
+    q += ' RIGHT JOIN users.bans b ON (u.id = b.user_id)'
+  }
   return db.sqlQuery(q)
   .then(function(rows) {
     if (rows.length) { return { count: Number(rows[0].count) }; }
@@ -238,6 +244,44 @@ users.userByUsername = function(username) {
     }
   })
   .then(function() { return helper.slugify(user); });
+};
+
+/* returns the created row in users.bans */
+users.ban = function(userId, expiration) {
+  userId = helper.deslugify(userId);
+  var q = 'SELECT id FROM users.bans WHERE user_id = $1';
+  var params = [userId];
+  expiration = expiration ? expiration : new Date(8640000000000000); // permanent ban
+  return db.sqlQuery(q, params)
+  .then(function(rows) {
+    if (rows.length) { // user has been previously banned
+      q = 'UPDATE users.bans SET expiration = $1, updated_at = now() WHERE user_id = $2 RETURNING id, user_id, expiration, created_at, updated_at';
+      params = [expiration, userId];
+    }
+    else { // user has never been banned
+      q = 'INSERT INTO users.bans(user_id, expiration, created_at, updated_at) VALUES($1, $2, now(), now()) RETURNING id, user_id, expiration, created_at, updated_at';
+      params = [userId, expiration];
+    }
+    return db.sqlQuery(q, params);
+  })
+  .then(function(rows) {
+    if (rows.length) { return rows[0]; }
+    else { return Promise.reject(); }
+  })
+  .then(helper.slugify);
+};
+
+/* returns the created row in users.bans */
+users.unban = function(userId) {
+  userId = helper.deslugify(userId);
+  var q = 'UPDATE users.bans SET expiration = now(), updated_at = now() WHERE user_id = $1 RETURNING id, user_id, expiration, created_at, updated_at';
+  var params = [userId];
+  return db.sqlQuery(q, params)
+  .then(function(rows) {
+    if (rows.length) { return rows[0]; }
+    else { return Promise.reject(); }
+  })
+  .then(helper.slugify);
 };
 
 /* returns only imported user id */
