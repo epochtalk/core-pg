@@ -9,116 +9,77 @@ var db = require(path.join(__dirname, '..', 'db'));
 var config = require(path.join(__dirname, '..', 'config'));
 var helper = require(path.join(__dirname, '..', 'helper'));
 var NotFoundError = Promise.OperationalError;
+var using = Promise.using;
 
 boards.all = function() {
   return db.sqlQuery('SELECT id, parent_board_id, children_ids, category_id, name, description, created_at, updated_at, imported_at from boards')
   .then(helper.slugify);
 };
 
-boards.create = function(board) {
-  board = helper.deslugify(board);
-  var q = 'INSERT INTO boards(category_id, name, description, created_at, parent_board_id, children_ids) VALUES($1, $2, $3, now(), $4, $5) RETURNING id';
-  var params = [board.category_id, board.name, board.description, board.parent_board_id, board.children_ids];
-  return db.sqlQuery(q, params)
-  .then(function(rows) { board.id = rows[0].id; })
-  // set up board metadata
-  .then(function() {
-    var setup = 'INSERT INTO metadata.boards (board_id) VALUES ($1)';
-    params = [board.id];
-    return db.sqlQuery(setup, params);
-  })
-  .then(function() {
-    if (board.parent_board_id) {
-      return addChildToBoard(board.id, board.parent_board_id);
-    }
-  })
-  .then(function() { return helper.slugify(board); });
-};
-
-var addChildToBoard = function(childId, parentId) {
-  var parentBoard;
-  var q = 'SELECT * FROM boards WHERE id = $1';
-  var params = [parentId];
-  return db.sqlQuery(q, params)
-  .then(function(dbParentBoard) {
-    parentBoard = dbParentBoard[0];
-    parentBoard.children_ids = parentBoard.children_ids || [];
-    if (!_.contains(parentBoard.children_ids, childId)) {
-      parentBoard.children_ids.push(childId);
-      var q = 'UPDATE boards SET children_ids = $1 WHERE id = $2';
-      var params = [parentBoard.children_ids, parentId];
-      return db.sqlQuery(q, params);
-    }
-    // parent board already has child board id in children_ids
-    else { return; }
-  })
-  .then(function() { return parentBoard; });
-};
-
-boards.update = function(board) {
-  board = helper.deslugify(board);
-  var q = 'SELECT * FROM boards WHERE id = $1';
-  var params = [board.id];
-  var updatedBoard;
-  return db.sqlQuery(q, params)
-  .then(function(rows) {
-    if (rows.length > 0) {
-      updatedBoard = rows[0];
-      if (board.name) { updatedBoard.name = board.name; }
-
-      if (board.description) { updatedBoard.description = board.description; }
-      else if (board.description === null || board.description === '') { updatedBoard.description = ''; }
-
-      if (board.category_id) { updatedBoard.category_id = board.category_id; }
-      else if (board.category_id === null || board.category_id === '') { updatedBoard.category_id = null; }
-
-      if (board.parent_board_id) { updatedBoard.parent_board_id = board.parent_board_id; }
-      else if (board.parent_board_id === null || board.category_id === '') { updatedBoard.parent_board_id = null; }
-
-      if (board.children_ids) { updatedBoard.children_ids = board.children_ids; }
-      else if (board.children_ids === null) { updatedBoard.children_ids = null; }
-      else if (board.children_ids && board.children_ids.length === 0) { updatedBoard.children_ids = null; }
-
-      var q = 'UPDATE boards SET name = $1, description = $2, category_id = $3, parent_board_id = $4, children_ids = $5, updated_at = now() WHERE id = $6';
-      var params = [updatedBoard.name, updatedBoard.description, updatedBoard.category_id, updatedBoard.parent_board_id, updatedBoard.children_ids, updatedBoard.id];
-      return db.sqlQuery(q, params);
-    }
-    else { Promise.reject(); }
-  })
-  .then(function() {
-    if (board.parent_board_id) {
-      return addChildToBoard(board.id, board.parent_board_id);
-    }
-  })
-  .then(function() { return helper.slugify(updatedBoard); });
-};
-
 boards.import = function(board) {
   var timestamp = Date.now();
   board.created_at = new Date(board.created_at) || timestamp;
   board.updated_at = new Date(board.updated_at) || timestamp;
-  var boardUUID = helper.intToUUID(board.smf.ID_BOARD);
-  var catUUID = helper.intToUUID(board.smf.ID_CAT);
-  var q = 'INSERT INTO boards(id, category_id, name, description, created_at, updated_at, imported_at) VALUES($1, $2, $3, $4, $5, $6, now()) RETURNING id';
-  var params = [boardUUID, catUUID, board.name, board.description, board.created_at, board.updated_at];
-  return db.sqlQuery(q, params)
-  .then(function(rows) {
-    if (rows.length > 0) { return rows[0]; }
-    else { Promise.reject(); }
+  board.id = helper.intToUUID(board.smf.ID_BOARD);
+  var q, params;
+  return using(db.createTransaction(), function(client) {
+    // insert import board
+    q = 'INSERT INTO boards(id, name, description, created_at, updated_at, imported_at) VALUES($1, $2, $3, $4, $5, now())';
+    params = [board.id, board.name, board.description, board.created_at, board.updated_at];
+    return client.queryAsync(q, params)
+    // insert import board metadata
+    .then(function() {
+      q = 'INSERT INTO metadata.boards (board_id) VALUES ($1)';
+      params = [board.id];
+      return client.queryAsync(q, params);
+    });
   })
-  // set up board metadata
-  .then(function(importBoard) {
-    var setup = 'INSERT INTO metadata.boards (board_id) VALUES ($1)';
-    params = [importBoard.id];
-    db.sqlQuery(setup, params);
-    return importBoard;
+  .then(function() { return helper.slugify(board); });
+};
+
+boards.create = function(board) {
+  board = helper.deslugify(board);
+  var q, params;
+  return using(db.createTransaction(), function(client){
+    // insert new board
+    q = 'INSERT INTO boards(name, description, created_at) VALUES($1, $2, now()) RETURNING id';
+    params = [board.name, board.description];
+    return client.queryAsync(q, params)
+    .then(function(results) { board.id = results.rows[0].id; })
+    // insert new board metadata
+    .then(function() {
+      q = 'INSERT INTO metadata.boards (board_id) VALUES ($1)';
+      params = [board.id];
+      return client.queryAsync(q, params);
+    });
   })
-  .then(helper.slugify);
+  .then(function() { return helper.slugify(board); });
+};
+
+boards.update = function(board) {
+  board = helper.deslugify(board);
+  var q, params;
+  return using(db.createTransaction(), function(client) {
+    q = 'SELECT * FROM boards WHERE id = $1 FOR UPDATE';
+    params = [board.id];
+    return client.queryAsync(q, params)
+    .then(function(results) { return results.rows[0]; })
+    .then(function(oldBoard) {
+      board.name = board.name || oldBoard.name;
+      helper.updateAssign(board, oldBoard, board, "description");
+    })
+    .then(function() {
+      q = 'UPDATE boards SET name = $1, description = $2, updated_at = now() WHERE id = $3';
+      params = [board.name, board.description, board.id];
+      return client.queryAsync(q, params);
+    });
+  })
+  .then(function() { return helper.slugify(board); });
 };
 
 boards.find = function(id) {
   id = helper.deslugify(id);
-  var columns = 'b.id, b.parent_board_id, b.children_ids, b.category_id, b.name, b.description, b.created_at, b.updated_at, b.imported_at, mb.thread_count';
+  var columns = 'b.id, b.parent_board_id, b.children_ids, b.category_id, b.name, b.description, b.created_at, b.updated_at, b.imported_at, mb.thread_count, mb.post_count';
   var q = 'SELECT ' + columns + ' FROM boards b ' +
     'LEFT JOIN metadata.boards mb ON b.id = mb.board_id WHERE b.id = $1';
   var params = [id];

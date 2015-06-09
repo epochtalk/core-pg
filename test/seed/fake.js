@@ -31,11 +31,6 @@ fake.boards = function(options) {
     name: faker.company.bsNoun(),
     description: faker.company.bsBuzz() + ' ' + faker.company.bsAdjective() + ' ' + faker.company.bsNoun()
   };
-  if (options) {
-    if (options.parent_board_id) board.parent_board_id = options.parent_board_id;
-    if (options.category_id) board.category_id = options.category_id;
-    if (options.children_ids) board.children_ids = options.children_ids;
-  }
   return Promise.resolve(board).then(core.boards.create);
 };
 

@@ -31,6 +31,23 @@ module.exports = {
   },
   deslugify: function(input) {
     return slugTransform(input, slugid.decode);
+  },
+  /**
+   * This function will check the latest copy for merging. If the
+   * latest copy is undefined, it'll default to the original copy. If the
+   * latest copy is an empty string, it'll set the dest property to null.
+   * All other latest values will be copied over to the dest object.
+   *
+   * dest - destination object after merging
+   * orginal - old user copy
+   * latest - new user data
+   * key - the object property to transfer over
+   */
+  updateAssign: function(dest, original, latest, key) {
+    var value = latest[key];
+    if (latest[key] === '') { value = null; }
+    else if (latest[key] === undefined) { value = original[key]; }
+    dest[key] = value;
   }
 };
 
