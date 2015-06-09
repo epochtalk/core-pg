@@ -16,53 +16,41 @@ threads.import = function(thread) {
   thread.board_id = helper.intToUUID(thread.smf.ID_BOARD);
   thread.locked = thread.locked || false;
   thread.sticky = thread.sticky || false;
-  var q = 'INSERT INTO threads(id, board_id, locked, sticky, imported_at) VALUES($1, $2, $3, $4, now()) RETURNING id';
-  var params = [thread.id, thread.board_id, thread.locked, thread.sticky];
-  return insertPostProcessing(thread, thread.view_count, q, params);
+  var q, params;
+  return using(db.createTransaction(), function(client) {
+    q = 'INSERT INTO threads(id, board_id, locked, sticky, imported_at) VALUES($1, $2, $3, $4, now()) RETURNING id';
+    params = [thread.id, thread.board_id, thread.locked, thread.sticky];
+    return insertPostProcessing(thread, thread.view_count, q, params, client);
+  })
+  .then(function() { return helper.slugify(thread); });
 };
 
 threads.create = function(thread) {
   thread = helper.deslugify(thread);
-  var q = 'INSERT INTO threads(board_id, locked, sticky, created_at) VALUES ($1, $2, $3, now()) RETURNING id';
-  var params = [thread.board_id, thread.locked, thread.sticky];
-  return insertPostProcessing(thread, 0, q, params);
+  var q, params;
+  return using(db.createTransaction(), function(client) {
+    q = 'INSERT INTO threads(board_id, locked, sticky, created_at) VALUES ($1, $2, $3, now()) RETURNING id';
+    params = [thread.board_id, thread.locked, thread.sticky];
+    return insertPostProcessing(thread, 0, q, params, client);
+  })
+  .then(function() { return helper.slugify(thread); });
 };
 
-var insertPostProcessing = function(thread, views, insertQuery, insertParams) {
-  return db.sqlQuery(insertQuery, insertParams)
-  .then(function(rows) { thread.id = rows[0].id; })
+var insertPostProcessing = function(thread, views, q, params, client) {
+  // insert thread
+  return client.queryAsync(q, params)
+  .then(function(results) { thread.id = results.rows[0].id; })
+  // insert thread metadata
   .then(function() {
-    // initialize thread metadata
-    var q = 'INSERT INTO metadata.threads (thread_id, views) VALUES($1, $2);';
-    var params = [thread.id, views];
-    db.sqlQuery(q, params);
+    q = 'INSERT INTO metadata.threads (thread_id, views) VALUES($1, $2);';
+    params = [thread.id, views];
+    return client.queryAsync(q, params);
   })
+  // increment thread count on board
   .then(function() {
-    // increment thread count on board
-    incrementThreadCount(thread.board_id, true);
-    return thread;
-  })
-  .then(helper.slugify);
-};
-
-var incrementThreadCount = function increment(boardId, initial) {
-  var inc, params = [boardId];
-  if (initial) {
-    inc = 'UPDATE metadata.boards SET thread_count = thread_count + 1, total_thread_count = total_thread_count + 1 WHERE board_id = $1';
-    db.sqlQuery(inc, params);
-  }
-  else {
-    inc = 'UPDATE metadata.boards SET total_thread_count = total_thread_count + 1 WHERE board_id = $1';
-    db.sqlQuery(inc, params);
-  }
-
-  // check if theres any parent boards
-  var q = 'SELECT parent_board_id from boards WHERE id = $1';
-  db.sqlQuery(q, params)
-  .then(function(rows) {
-    if (rows.length > 0) {
-      increment(rows[0].parent_board_id);
-    }
+    q = 'UPDATE metadata.boards SET thread_count = thread_count + 1 WHERE board_id = $1';
+    params = [thread.board_id];
+    return client.queryAsync(q, params);
   });
 };
 
