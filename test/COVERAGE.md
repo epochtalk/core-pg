@@ -71,12 +71,6 @@ data type have been stored and can be recalled with the db's find utilities.
 
     * Expectations
 
-    * children_ids (or lack thereof)
-
-    * parent_board_id (or lack thereof)
-
-    * category_id (or lack thereof)
-
 # Threads
 
 * Expectations

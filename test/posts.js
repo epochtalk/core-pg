@@ -106,21 +106,23 @@ lab.experiment('Posts', function() {
     });
   });
   lab.test('should update boards\' posts counts', function(done) {
-    return core.boards.allCategories()
-    .then(function(categories) {
-      expect(categories).to.be.an.array();
-      expect(categories[0].boards).to.have.length(3);
-      return categories[0].boards;
-    })
-    .map(function(board) {
-      expect(board.post_count).to.be.a.number();
-      expect(board.post_count).to.equal(3);
+    Promise.map(runtime.posts, function(seededPost) {
+      return core.posts.find(seededPost.id)
+      .then(function(post) {
+        return core.threads.find(post.thread_id);
+      })
+      .then(function(thread) {
+        return core.boards.find(thread.board_id);
+      })
+      .then(function(board) {
+        expect(board.post_count).to.equal(3);
+      })
+      .catch(function(err) {
+        throw err;
+      });
     })
     .then(function() {
       done();
-    })
-    .catch(function(err) {
-      throw err;
     });
   });
 });
