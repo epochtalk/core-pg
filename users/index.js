@@ -181,7 +181,7 @@ users.pageModerators = function(opts) {
 users.count = function(opts) {
   var q = 'SELECT COUNT(u.id) FROM users u';
   if (opts && opts.filter && opts.filter === 'banned') {
-    q += ' RIGHT JOIN users.bans b ON (u.id = b.user_id)'
+    q += ' RIGHT JOIN users.bans b ON (u.id = b.user_id AND b.expiration > now())'
   }
   return db.sqlQuery(q)
   .then(function(rows) {
