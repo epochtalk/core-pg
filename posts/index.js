@@ -6,185 +6,156 @@ var Promise = require('bluebird');
 var db = require(path.join(__dirname, '..', 'db'));
 var helper = require(path.join(__dirname, '..', 'helper'));
 var NotFoundError = Promise.OperationalError;
+var using = Promise.using;
 
 posts.import = function(post) {
   // check if poster exists
+  var q, params;
   var timestamp = Date.now();
   post.created_at = new Date(post.created_at) || timestamp;
   post.updated_at = new Date(post.updated_at) || timestamp;
-  var userUUID = helper.intToUUID(post.smf.ID_MEMBER);
-  var queryUser = 'SELECT id FROM users WHERE id = $1';
-  var queryUserParams = [userUUID];
-  return db.scalar(queryUser, queryUserParams)
-  .then(function(user) {
+  post.user_id = helper.intToUUID(post.smf.ID_MEMBER);
+  return using(db.createTransaction(), function(client) {
+    q = 'SELECT id FROM users WHERE id = $1';
+    params = [post.user_id];
+    return client.queryAsync(q, params)
     // create user if it does not exists
-    if (!user) {
-      var userInsert = 'INSERT INTO users(id, username, email, imported_at) VALUES ($1, $2, $3, now())';
-      var userInsertParams = [userUUID, post.smf.posterName, post.smf.posterName + '@noemail.org.'];
-      return db.sqlQuery(userInsert, userInsertParams);
-    }
-  })
-  .then(function() {
+    .then(function(results) {
+      if (!results.rows[0]) {
+        q = 'INSERT INTO users(id, username, email, imported_at) VALUES ($1, $2, $3, now())';
+        params = [post.user_id, post.smf.posterName, post.smf.posterName + '@noemail.org.'];
+        return client.queryAsync(q, params);
+        // insert users's profile row
+      }
+    })
     // insert post
-    var postUUID = helper.intToUUID(post.smf.ID_MSG);
-    var threadUUID = helper.intToUUID(post.smf.ID_TOPIC);
-    var q = 'INSERT INTO posts(id, thread_id, user_id, title, body, raw_body, created_at, updated_at, imported_at) VALUES($1, $2, $3, $4, $5, $6, $7, $8, now()) RETURNING id, created_at';
-    var params = [postUUID, threadUUID, userUUID || null, post.title, post.body, post.raw_body, post.created_at, post.updated_at];
-    insertPostProcessing(userUUID, threadUUID, q, params);
-  });
+    .then(function() {
+      post.id = helper.intToUUID(post.smf.ID_MSG);
+      post.thread_id = helper.intToUUID(post.smf.ID_TOPIC);
+      var q = 'INSERT INTO posts(id, thread_id, user_id, title, body, raw_body, created_at, updated_at, imported_at) VALUES($1, $2, $3, $4, $5, $6, $7, $8, now()) RETURNING id, created_at';
+      var params = [post.id, post.thread_id, post.user_id || null, post.title, post.body, post.raw_body, post.created_at, post.updated_at];
+      insertPostProcessing(post, q, params, client);
+    });
+  })
+  .then(function() { return helper.slugify(post); });
 };
 
 posts.create = function(post) {
   post = helper.deslugify(post);
-  var q = 'INSERT INTO posts(thread_id, user_id, title, body, raw_body, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, now(), now()) RETURNING id, created_at';
-  var params = [post.thread_id, post.user_id, post.title, post.body, post.raw_body];
-  return insertPostProcessing(post.user_id, post.thread_id, q, params);
+  var q, params;
+  q = 'INSERT INTO posts(thread_id, user_id, title, body, raw_body, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, now(), now()) RETURNING id, created_at';
+  params = [post.thread_id, post.user_id, post.title, post.body, post.raw_body];
+  return using(db.createTransaction(), function(client) {
+    return insertPostProcessing(post, q, params, client);
+  })
+  .then(function() { return helper.slugify(post); });
 };
 
-var insertPostProcessing = function(userId, threadId, insertQuery, insertParams) {
-  var insertedPost = {}, thread = {};
+var insertPostProcessing = function(post, insertQ, insertParams, client) {
+  var thread = {}, board = {}, user = {};
+  var q, params;
 
-  return db.sqlQuery(insertQuery, insertParams)
-  .then(function(rows) {
-    if (rows.length > 0) {
-      insertedPost.id = rows[0].id;
-      insertedPost.thread_id = threadId;
-      insertedPost.created_at = rows[0].created_at;
-    }
-    else { Promise.reject(); }
+  // lock post's thread and metadata.thread rows
+  q = 'SELECT * FROM threads t JOIN metadata.threads mt ON mt.thread_id = t.id WHERE t.id = $1 FOR UPDATE';
+  return client.queryAsync(q, [post.thread_id])
+  .then(function(results) {
+    if (results.rows.length > 0) { thread = results.rows[0]; }
   })
-  // increment post count on board
+  // lock thread's board and metadata.board rows
   .then(function() {
-    var q = 'SELECT board_id, created_at, updated_at FROM threads WHERE id = $1';
-    var params = [threadId];
-    return db.sqlQuery(q, params)
-    .then(function(rows) {
-      if (rows.length > 0) {
-        thread.boardId = rows[0].board_id;
-        thread.created_at = rows[0].created_at;
-        thread.updated_at = rows[0].updated_at;
+    q = 'SELECT * FROM boards b JOIN metadata.boards mb ON mb.board_id = b.id WHERE b.id = $1 FOR UPDATE';
+    return client.queryAsync(q, [thread.board_id])
+    .then(function(results) {
+      if (results.rows.length > 0) { board = results.rows[0]; }
+    });
+  })
+  // lock post's user and user.profiles rows
+  .then(function() {
+    q = 'SELECT * FROM users u JOIN users.profiles up ON up.user_id = u.id WHERE u.id = $1 FOR UPDATE';
+    return client.queryAsync(q, [post.user_id])
+    .then(function(results) {
+      if (results.rows.length > 0) { user = results.rows[0]; }
+    });
+  })
+  // insert post
+  .then(function() {
+    return client.queryAsync(insertQ, insertParams)
+    .then(function(results) {
+      if (results.rows.length > 0) {
+        post.id = results.rows[0].id;
+        post.created_at = results.rows[0].created_at;
       }
+      else { return Promise.reject('Cound not insert post'); }
     });
   })
   // update thread created_at if earlier post
   .then(function() {
-    if (!thread.created_at || insertedPost.created_at < thread.created_at) {
-      var q = 'UPDATE threads SET created_at = $1 WHERE id = $2';
-      var params = [insertedPost.created_at, threadId];
-      db.sqlQuery(q, params);
+    if (!thread.created_at || post.created_at < thread.created_at) {
+      q = 'UPDATE threads SET created_at = $1 WHERE id = $2';
+      return client.queryAsync(q, [post.created_at, post.thread_id]);
     }
   })
+  // update thread updated_at with newer post
   .then(function() {
-    if (!thread.updated_at || thread.updated_at < insertedPost.created_at) {
-      var q = 'UPDATE threads SET updated_at = $1 WHERE id = $2';
-      var params = [insertedPost.created_at, threadId];
-      db.sqlQuery(q, params);
+    if (!thread.updated_at || thread.updated_at < post.created_at) {
+      q = 'UPDATE threads SET updated_at = $1 WHERE id = $2';
+      return client.queryAsync(q, [post.created_at, post.thread_id]);
     }
   })
-  // update post count on metadata.threads
+  // increment metadata.threads post_count
   .then(function() {
-    var q = 'UPDATE metadata.threads SET post_count = post_count + 1 WHERE thread_id = $1';
-    var params = [threadId];
-    db.sqlQuery(q, params);
+    q = 'UPDATE metadata.threads SET post_count = post_count + 1 WHERE thread_id = $1';
+    return client.queryAsync(q, [post.thread_id]);
   })
-  // update post count and last post by on metadata.board
+  // increment metadata.boards post count
   .then(function() {
-    if (thread.boardId) {
-      incrementPostCount(thread.boardId, userId, true);
-      updateLastPostBy(thread.boardId, threadId, userId, insertedPost.created_at);
-    }
-  })
-  .then(function() { return helper.slugify(insertedPost); });
-};
-
-var incrementPostCount = function increment(boardId, userId, initial) {
-  var inc, params = [boardId];
-  if (initial) {
-    inc = 'UPDATE metadata.boards SET post_count = post_count + 1, total_post_count = total_post_count + 1 WHERE board_id = $1';
-    db.sqlQuery(inc, params);
-  }
-  else {
-    inc = 'UPDATE metadata.boards SET total_post_count = total_post_count + 1 WHERE board_id = $1';
-    db.sqlQuery(inc, params);
-  }
-
-  // check if theres any parent boards
-  var q = 'SELECT parent_board_id from boards WHERE id = $1';
-  db.sqlQuery(q, params)
-  .then(function(rows) {
-    if (rows.length > 0) {
-      increment(rows[0].parent_board_id);
-    }
+    q = 'UPDATE metadata.boards SET post_count = post_count + 1 WHERE board_id = $1';
+    return client.queryAsync(q, [thread.board_id]);
   })
   // increment user.profiles post_count
   .then(function() {
-    var q = 'UPDATE users.profiles SET post_count = post_count+1 WHERE user_id = $1';
-    var params = [userId];
-    db.sqlQuery(q, params);
-  });
-};
-
-var updateLastPostBy = function(boardId, threadId, userId, created_at) {
-  var meta, username, title;
-
-  // get metadata.board row
-  var q = 'SELECT * FROM metadata.boards WHERE board_id = $1';
-  var params = [boardId];
-  db.sqlQuery(q, params)
-  .then(function(rows) {
-    if (rows.length > 0) {
-      var row = rows[0];
-      if (!row.last_post_created_at || row.last_post_created_at < created_at) {
-        meta = row;
+    q = 'UPDATE users.profiles SET post_count = post_count + 1 WHERE user_id = $1';
+    return client.queryAsync(q, [post.user_id]);
+  })
+  // update last post by on metadata.board
+  .then(function() {
+    // get thread title
+    q = 'SELECT p.title FROM threads t JOIN posts p ON t.id = p.thread_id WHERE t.id = $1 ORDER BY p.created_at LIMIT 1 FOR UPDATE';
+    return client.queryAsync(q, [post.thread_id])
+    .then(function(results) {
+      if (results.rows.length > 0 ) { return results.rows[0].title; }
+    })
+    // update last post information
+    .then(function(title) {
+      if (!board.last_post_created_at || board.last_post_created_at < post.created_at) {
+        q = 'UPDATE metadata.boards SET last_post_username = $1, last_thread_id = $2, last_post_created_at = $3, last_thread_title = $4 WHERE board_id = $5';
+        params = [user.username, post.thread_id, post.created_at, title, thread.board_id];
+        return client.queryAsync(q, params);
       }
-    }
-  })
-  // get username
-  .then(function() {
-    if (meta) {
-      q = 'SELECT username FROM users WHERE id = $1';
-      params = [userId];
-      return db.sqlQuery(q, params)
-      .then(function(rows) {
-        if (rows.length > 0) { username = rows[0].username; }
-      });
-    }
-  })
-  // get thread title
-  .then(function() {
-    if (meta) {
-      q = 'SELECT p.title FROM threads t LEFT JOIN posts p ON t.id = p.thread_id WHERE t.id = $1 ORDER BY p.created_at LIMIT 1';
-      params = [threadId];
-      return db.sqlQuery(q, params)
-      .then(function(rows) {
-        if (rows.length > 0 ) { title = rows[0].title; }
-      });
-    }
-  })
-  .then(function() {
-    if (meta && username && title) {
-      q = 'UPDATE metadata.boards SET last_post_username = $1, last_thread_id = $2, last_post_created_at = $3, last_thread_title = $4 WHERE board_id = $5';
-      params = [username, threadId, created_at, title, boardId];
-      db.sqlQuery(q, params);
-    }
+    });
   });
 };
 
 posts.update = function(post) {
   post = helper.deslugify(post);
-  var q = 'SELECT title, body, raw_body FROM posts WHERE id = $1';
-  var params = [post.id];
-  return db.sqlQuery(q, params)
-  .then(function(oldPost) {
-    q = 'UPDATE posts SET title = $1, body = $2, raw_body = $3, thread_id = $4, updated_at = now() WHERE id = $5 RETURNING id, title, body, raw_body, thread_id';
-    var title = post.title || oldPost.title;
-    var body = post.body || oldPost.body;
-    var raw_body = post.raw_body || oldPost.raw_body;
-    var thread_id = post.thread_id || oldPost.thread_id;
-    params = [title, body, raw_body, thread_id, post.id];
-    return db.sqlQuery(q, params);
+  return using(db.createTransaction(), function(client) {
+    var q, params;
+    q = 'SELECT title, body, raw_body FROM posts WHERE id = $1 FOR UPDATE';
+    return client.queryAsync(q, [post.id])
+    .then(function(results) { return results.rows[0]; })
+    .then(function(oldPost) {
+      post.title = post.title || oldPost.title;
+      post.body = post.body || oldPost.body;
+      post.raw_body = post.raw_body || oldPost.raw_body;
+      post.thread_id = post.thread_id || oldPost.thread_id;
+    })
+    .then(function() {
+      q = 'UPDATE posts SET title = $1, body = $2, raw_body = $3, thread_id = $4, updated_at = now() WHERE id = $5';
+      params = [post.title, post.body, post.raw_body, post.thread_id, post.id];
+      return client.queryAsync(q, params);
+    });
   })
-  .then(function(newPost) { return helper.slugify(newPost[0]); });
+  .then(function() { return helper.slugify(post); });
 };
 
 posts.find = function(id) {
