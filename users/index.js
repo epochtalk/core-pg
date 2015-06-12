@@ -7,11 +7,13 @@ var Promise = require('bluebird');
 var db = require(path.normalize(__dirname + '/../db'));
 var helper = require(path.normalize(__dirname + '/../helper'));
 var NotFoundError = Promise.OperationalError;
+var using = Promise.using;
 
 /* returns all values */
 users.all = function() {
   // TODO: scrub passhash
-  return db.sqlQuery('SELECT * FROM users')
+  var q = 'SELECT id, email, username, passhash, confirmation_token, reset_token, reset_expiration, created_at, updated_at, imported_at FROM users';
+  return db.sqlQuery(q)
   .then(helper.slugify);
 };
 
@@ -120,7 +122,7 @@ users.removeRoles = function(userId, roles) {
 users.page = function(opts) {
   var joinType;
   if (opts && opts.filter && opts.filter === 'banned') { joinType = 'RIGHT'; }
-  else { joinType = 'LEFT' }
+  else { joinType = 'LEFT'; }
   var q = 'SELECT u.id, u.username, u.email, u.created_at, u.updated_at, u.imported_at, b.expiration as ban_expiration FROM users u ' + joinType + ' JOIN (SELECT ub.expiration, ub.user_id FROM users.bans ub WHERE ub.expiration > now()) b ON (u.id = b.user_id) ORDER BY';
   var limit = 10;
   var page = 1;
@@ -181,7 +183,7 @@ users.pageModerators = function(opts) {
 users.count = function(opts) {
   var q = 'SELECT COUNT(u.id) FROM users u';
   if (opts && opts.filter && opts.filter === 'banned') {
-    q += ' RIGHT JOIN users.bans b ON (u.id = b.user_id AND b.expiration > now())'
+    q += ' RIGHT JOIN users.bans b ON (u.id = b.user_id AND b.expiration > now())';
   }
   return db.sqlQuery(q)
   .then(function(rows) {
@@ -286,63 +288,74 @@ users.unban = function(userId) {
 
 /* returns only imported user id */
 users.import = function(user) {
-  user.created_at = new Date(user.created_at) || Date.now();
-  var q = 'INSERT INTO users(id, email, username, created_at, imported_at) VALUES($1, $2, $3, $4, now()) RETURNING id';
-  var userUUID = helper.intToUUID(user.smf.ID_MEMBER);
-  var params = [userUUID, user.email, user.username, user.created_at];
-  return db.sqlQuery(q, params)
-  .then(function(rows) {
-    if (rows.length > 0) { return rows[0]; }
+  var q, params;
+  var timestamp = Date.now();
+  user.created_at = new Date(user.created_at) || timestamp;
+  user.updated_at = new Date(user.updated_at) || timestamp;
+  user.id = helper.intToUUID(user.smf.ID_MEMBER);
+
+  return using(db.createTransaction(), function(client) {
+    // insert user row
+    q = 'INSERT INTO users(id, email, username, created_at, updated_at, imported_at) VALUES($1, $2, $3, $4, $5, now()) RETURNING id';
+    params = [user.id, user.email, user.username, user.created_at, user.updated_at];
+    return client.queryAsync(q, params)
+    .then(function(results) {
+      if (results.rows.length > 0) { return results.rows[0]; }
+      else { return Promise.reject('User count not be imported'); }
+    })
+    // insert user profile
+    .then(function() {
+      var profile = {};
+      profile.id = user.id;
+      profile.avatar = user.avatar || null;
+      profile.position = user.position || null;
+      profile.signature = user.signature || null;
+      profile.raw_signature = user.raw_signature || null;
+      profile.fields = {};
+      profile.fields.name = user.name || null;
+      profile.fields.website = user.website || null;
+      profile.fields.btcAddress = user.btcAddress || null;
+      profile.fields.gender = user.gender || null;
+      profile.fields.dob = user.dob || null;
+      profile.fields.language = user.lanugage || null;
+      profile.fields.location = user.location || null;
+      return insertUserProfile(profile, client);
+    });
   })
-  .then(function(returnObject) {
-    var profile = {};
-    profile.id = returnObject.id;
-    profile.avatar = user.avatar || null;
-    profile.position = user.position || null;
-    profile.signature = user.signature || null;
-    profile.raw_signature = user.raw_signature || null;
-    profile.fields = {};
-    profile.fields.name = user.name || null;
-    profile.fields.website = user.website || null;
-    profile.fields.btcAddress = user.btcAddress || null;
-    profile.fields.gender = user.gender || null;
-    profile.fields.dob = user.dob || null;
-    profile.fields.language = user.lanugage || null;
-    profile.fields.location = user.location || null;
-    insertUserProfile(profile);
-    return returnObject;
-  })
-  .then(helper.slugify);
+  .then(function() { return helper.slugify(user); });
 };
 
 /* returns values including email, confirm token, and roles */
 users.create = function(user, isAdmin) {
-  var firstUser, passhash;
+  var q, params, passhash;
   if (user.password) { passhash = bcrypt.hashSync(user.password, 12); }
   delete user.password;
-  var q = 'INSERT INTO users(email, username, passhash, confirmation_token, created_at, updated_at) VALUES($1, $2, $3, $4, now(), now()) RETURNING id';
-  var params = [user.email, user.username, passhash, user.confirmation_token];
 
-  return db.sqlQuery(q, params)
-  .then(function(rows) { // get user id
-    if (rows.length > 0) { user.id = rows[0].id; }
-    else { return Promise.reject(); }
-  })
-  .then(function() { // add user roles
-    var q = 'INSERT INTO roles_users(role_id, user_id) VALUES($1, $2)';
-    var defaultRole = 'edcd8f77-ce34-4433-ba85-17f9b17a3b60';
-    if (isAdmin) defaultRole = '06860e6f-9ac0-4c2a-8d9c-417343062fb8';
-    var params = [defaultRole, user.id];
-    return db.sqlQuery(q, params);
-  })
-  .then(function() { // Query for users roles
-    var q = 'SELECT roles.* FROM roles_users, roles WHERE roles_users.user_id = $1 AND roles.id = roles_users.role_id';
-    var params = [user.id];
-    return db.sqlQuery(q, params);
-  })
-  .then(function(rows) {  // Append users roles
-    if (rows.length > 0) { user.roles = rows; }
-    else { return Promise.reject(); }
+  return using(db.createTransaction(), function(client) {
+    // insert user
+    q = 'INSERT INTO users(email, username, passhash, confirmation_token, created_at, updated_at) VALUES($1, $2, $3, $4, now(), now()) RETURNING id';
+    params = [user.email, user.username, passhash, user.confirmation_token];
+    return client.queryAsync(q, params)
+    .then(function(results) {
+      if (results.rows.length > 0) { user.id = results.rows[0].id; }
+      else { return Promise.reject('User could not be created'); }
+    })
+    // insert default user role
+    .then(function() {
+      q = 'INSERT INTO roles_users(role_id, user_id) VALUES($1, $2)';
+      var defaultRole = 'edcd8f77-ce34-4433-ba85-17f9b17a3b60';
+      if (isAdmin) defaultRole = '06860e6f-9ac0-4c2a-8d9c-417343062fb8';
+      return client.queryAsync(q, [defaultRole, user.id]);
+    })
+    // Query for users roles
+    .then(function() {
+      q = 'SELECT roles.* FROM roles_users, roles WHERE roles_users.user_id = $1 AND roles.id = roles_users.role_id';
+      return client.queryAsync(q, [user.id])
+      .then(function(results) {  // Append users roles
+        if (results.rows.length > 0) { user.roles = results.rows; }
+        else { return Promise.reject('User Roles not found'); }
+      });
+    });
   })
   .then(function() { return helper.slugify(user); });
 };
@@ -350,73 +363,70 @@ users.create = function(user, isAdmin) {
 /* returns values including email, confirm and reset tokens */
 users.update = function(user) {
   user = helper.deslugify(user);
-  var oldUser, oldFields, _user = {}, _fields = {};
-  var q = 'SELECT u.id, u.username, u.email, u.passhash, u.confirmation_token, u.reset_token, u.reset_expiration, u.created_at, u.updated_at, u.imported_at, p.avatar, p.position, p.signature, p.raw_signature, p.fields FROM users u LEFT JOIN users.profiles p ON u.id = p.user_id WHERE u.id = $1';
-  var params = [user.id];
-  return db.sqlQuery(q, params)
-  .then(function(rows) {
-    if (rows.length > 0) { oldUser = rows[0]; }
-    else { return Promise.reject(); }
+  var q, params, oldUser;
+
+  return using(db.createTransaction(), function(client) {
+    // query original user row
+    q = 'SELECT u.id, u.username, u.email, u.passhash, u.confirmation_token, u.reset_token, u.reset_expiration, u.created_at, u.updated_at, u.imported_at, p.avatar, p.position, p.signature, p.raw_signature, p.fields FROM users u LEFT JOIN users.profiles p ON u.id = p.user_id WHERE u.id = $1';
+    params = [user.id];
+    return client.queryAsync(q, params)
+    .then(function(results) {
+      if (results.rows.length > 0) { oldUser = results.rows[0]; }
+      else { return Promise.reject('User not found'); }
+    })
+    // update user information, and update user row
+    .then(function() {
+      user.username = user.username || oldUser.username;
+      user.email = user.email || oldUser.email;
+      helper.updateAssign(user, oldUser, user, 'reset_expiration');
+      helper.updateAssign(user, oldUser, user, 'reset_token');
+      helper.updateAssign(user, oldUser, user, 'confimation_token');
+
+      var passhash = null;
+      if (user.password) { passhash = bcrypt.hashSync(user.password, 12); }
+      else { passhash = oldUser.passhash; }
+      delete user.password;
+
+      q = 'UPDATE users SET username = $1, email = $2, passhash = $3, reset_token = $4, reset_expiration = $5, confirmation_token = $6, updated_at = now() WHERE id = $7';
+      params = [user.username, user.email, passhash, user.reset_token, new Date(user.reset_expiration), user.confirmation_token, user.id];
+      return client.queryAsync(q, params);
+    })
+    // query for user profile row
+    .then(function() {
+      q = 'SELECT * FROM users.profiles WHERE user_id = $1 FOR UPDATE';
+      return client.queryAsync(q, [user.id])
+      .then(function(results) {
+        var exists = false;
+        if (results.rows.length > 0) { exists = true; }
+        return exists;
+      });
+    })
+    // update or insert user profile row
+    .then(function(exists) {
+      var oldFields = oldUser.fields || {};
+
+      // Special Profile Fields
+      helper.updateAssign(user, oldUser, user, 'avatar');
+      helper.updateAssign(user, oldUser, user, 'position');
+      helper.updateAssign(user, oldUser, user, 'signature');
+      helper.updateAssign(user, oldUser, user, 'raw_signature');
+
+      // Generic Profile Fields
+      user.fields = {};
+      helper.updateAssign(user.fields, oldFields, user, 'name');
+      helper.updateAssign(user.fields, oldFields, user, 'website');
+      helper.updateAssign(user.fields, oldFields, user, 'btcAddress');
+      helper.updateAssign(user.fields, oldFields, user, 'gender');
+      helper.updateAssign(user.fields, oldFields, user, 'dob');
+      helper.updateAssign(user.fields, oldFields, user, 'location');
+      helper.updateAssign(user.fields, oldFields, user, 'language');
+
+      if (exists) { return updateUserProfile(user, client); }
+      else { return insertUserProfile(user, client); }
+    })
+    .then(function() { return formatUser(user); });
   })
-  .then(function() {
-    _user.id = oldUser.id;
-    _user.username = user.username || oldUser.username;
-    _user.email = user.email || oldUser.email;
-    updateAssign(_user, oldUser, user, 'reset_expiration');
-    updateAssign(_user, oldUser, user, 'reset_token');
-    updateAssign(_user, oldUser, user, 'confimation_token');
-
-    var passhash = null;
-    if (user.password) { passhash = bcrypt.hashSync(user.password, 12); }
-    else { passhash = oldUser.passhash; }
-
-    var q = 'UPDATE users SET username = $1, email = $2, passhash = $3, reset_token = $4, reset_expiration = $5, confirmation_token = $6, updated_at = now() WHERE id = $7';
-    var params = [_user.username, _user.email, passhash, _user.reset_token, new Date(_user.reset_expiration), _user.confirmation_token, _user.id];
-    return db.sqlQuery(q, params);
-  })
-  .then(function() { return userProfileExists(user.id); })
-  .then(function(exists) { // Update or Insert profile fields
-    oldFields = oldUser.fields || {};
-
-    // Special Profile Fields
-    updateAssign(_user, oldUser, user, 'avatar');
-    updateAssign(_user, oldUser, user, 'position');
-    updateAssign(_user, oldUser, user, 'signature');
-    updateAssign(_user, oldUser, user, 'raw_signature');
-
-    // Generic Profile Fields
-    updateAssign(_fields, oldFields, user, 'name');
-    updateAssign(_fields, oldFields, user, 'website');
-    updateAssign(_fields, oldFields, user, 'btcAddress');
-    updateAssign(_fields, oldFields, user, 'gender');
-    updateAssign(_fields, oldFields, user, 'dob');
-    updateAssign(_fields, oldFields, user, 'location');
-    updateAssign(_fields, oldFields, user, 'language');
-
-    _user.fields = _fields;
-    if (exists) { return updateUserProfile(_user); }
-    else { return insertUserProfile(_user); }
-  })
-  .then(function() { return formatUser(_user); })
   .then(helper.slugify);
-};
-
-/**
- * This function will check the source copy for merging. If the
- * source copy is undefined, it'll default to the original copy. If the
- * source copy is an empty string, it'll set the dest property to null.
- * All other source values will be copied over to the dest object.
- *
- * dest - destination object after merging
- * orginal - old user copy
- * source - new user data
- * key - the object property to transfer over
- */
-var updateAssign = function(dest, original, source, key) {
-  var value = source[key];
-  if (source[key] === '') { value = null; }
-  else if (source[key] === undefined) { value = original[key]; }
-  dest[key] = value;
 };
 
 var formatUser = function(user) {
@@ -434,26 +444,16 @@ var formatUser = function(user) {
   return user;
 };
 
-var userProfileExists = function(userId) {
-  var q = 'SELECT * FROM users.profiles WHERE user_id = $1';
-  var params = [userId];
-  return db.sqlQuery(q, params)
-  .then(function(rows) {
-    if (rows.length > 0) { return true; }
-    else { return false; }
-  });
-};
-
-var insertUserProfile = function(user) {
+var insertUserProfile = function(user, client) {
   var q = 'INSERT INTO users.profiles (user_id, avatar, position, signature, raw_signature, fields) VALUES ($1, $2, $3, $4, $5, $6)';
   var params = [user.id, user.avatar, user.position, user.signature, user.raw_signature, user.fields];
-  return db.sqlQuery(q, params);
+  return client.queryAsync(q, params);
 };
 
-var updateUserProfile = function(user) {
+var updateUserProfile = function(user, client) {
   var q = 'UPDATE users.profiles SET user_id = $1, avatar = $2, position = $3, signature = $4, raw_signature = $5, fields = $6 WHERE user_id = $1';
   var params = [user.id, user.avatar, user.position, user.signature, user.raw_signature, user.fields];
-  return db.sqlQuery(q, params);
+  return client.queryAsync(q, params);
 };
 
 /* return all values */
@@ -508,36 +508,41 @@ users.getUserThreadViews = function(userId) {
 
 users.putUserThreadViews = function(userId, userViewsArray) {
   userId = helper.deslugify(userId);
-  userViewsArray = helper.deslugify(userViewsArray);
-  return Promise.each(userViewsArray, function(view) {
-    view.threadId = helper.deslugify(view.threadId);
-    userThreadViewExists(userId, view.threadId) // check if userview exists
-    .then(function(exists) {
-      if (exists) { updateUserThreadview(userId, view.threadId, view.timestamp); }
-      else { insertUserThreadview(userId, view.threadId, view.timestamp); }
+
+  return using(db.createTransaction(), function(client) {
+    // update each user view
+    return Promise.map(userViewsArray, function(view) {
+      view.threadId = helper.deslugify(view.threadId);
+      // query for existing user-thread row for user view
+      return userThreadViewExists(userId, view.threadId, client)
+      // update or insert user-thread row
+      .then(function(row) {
+        if (row) { updateUserThreadview(row, userId, view, client); }
+        else { insertUserThreadview(userId, view, client); }
+      });
     });
   });
 };
 
-var userThreadViewExists = function(userId, threadId) {
-  // build userView key
-  var q = 'SELECT * FROM users.thread_views WHERE user_id = $1 AND thread_id = $2';
+var userThreadViewExists = function(userId, threadId, client) {
+  var q = 'SELECT * FROM users.thread_views WHERE user_id = $1 AND thread_id = $2 FOR UPDATE';
   var params = [userId, threadId];
-  return db.sqlQuery(q, params)
-  .then(function(rows) {
-    if (rows.length > 0) { return true; }
-    else { return false; }
+  return client.queryAsync(q, params)
+  .then(function(results) {
+    if (results.rows.length > 0) { return results.rows[0]; }
+    else { return; }
   });
 };
 
-var insertUserThreadview = function(userId, threadId, time) {
+var insertUserThreadview = function(userId, view, client) {
   var q = 'INSERT INTO users.thread_views (user_id, thread_id, time) VALUES ($1, $2, $3)';
-  var params = [userId, threadId, new Date(time)];
-  return db.sqlQuery(q, params);
+  var params = [userId, view.threadId, new Date(view.timestamp)];
+  return client.queryAsync(q, params);
 };
 
-var updateUserThreadview = function(userId, threadId, time) {
+var updateUserThreadview = function(row, userId, view, client) {
+  if (row.time.getTime() >= view.timestamp) { return; }
   var q = 'UPDATE users.thread_views SET time = $1 WHERE user_id = $2 AND thread_id = $3';
-  var params = [new Date(time), userId, threadId];
-  return db.sqlQuery(q, params);
+  var params = [new Date(view.timestamp), userId, view.threadId];
+  return client.queryAsync(q, params);
 };

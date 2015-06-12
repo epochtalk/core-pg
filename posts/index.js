@@ -24,8 +24,7 @@ posts.import = function(post) {
       if (!results.rows[0]) {
         q = 'INSERT INTO users(id, username, email, imported_at) VALUES ($1, $2, $3, now())';
         params = [post.user_id, post.smf.posterName, post.smf.posterName + '@noemail.org.'];
-        return client.queryAsync(q, params);
-        // insert users's profile row
+        return client.queryAsync(q, params); // users.profiles not required
       }
     })
     // insert post
@@ -244,7 +243,7 @@ posts.pageByUserCount = function(username) {
   var params = [username];
   return db.sqlQuery(q, params)
   .then(function(rows) {
-    if (rows.length) { return rows[0]; }
+    if (rows.length > 0) { return rows[0]; }
     else { return { count: 0 }; }
   });
 };
@@ -269,7 +268,7 @@ posts.pageByUser = function(username, opts) {
     params = [post.thread_id];
     return db.sqlQuery(q, params)
     .then(function(rows) {
-      if (rows.length) { return rows[0].title; }
+      if (rows.length > 0) { return rows[0].title; }
       else { Promise.reject(); }
     })
     .then(function(threadTitle) {
