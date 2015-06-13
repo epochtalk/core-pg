@@ -460,7 +460,7 @@ var updateUserProfile = function(user, client) {
 users.find = function(id) {
   // TODO: fix indentation
   id = helper.deslugify(id);
-  var q = 'SELECT * FROM users WHERE id = $1';
+  var q = 'SELECT u.*, p.avatar FROM users u LEFT JOIN users.profiles p ON u.id = p.user_id WHERE u.id = $1';
   var params = [id];
   var user;
   return db.sqlQuery(q, params)
