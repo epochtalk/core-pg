@@ -347,6 +347,7 @@ users.create = function(user, isAdmin) {
       if (isAdmin) defaultRole = '06860e6f-9ac0-4c2a-8d9c-417343062fb8';
       return client.queryAsync(q, [defaultRole, user.id]);
     })
+    .then(function() { return insertUserProfile(user, client); })
     // Query for users roles
     .then(function() {
       q = 'SELECT roles.* FROM roles_users, roles WHERE roles_users.user_id = $1 AND roles.id = roles_users.role_id';
