@@ -12,7 +12,7 @@ var NotFoundError = Promise.OperationalError;
 var using = Promise.using;
 
 boards.all = function() {
-  return db.sqlQuery('SELECT id, parent_board_id, children_ids, category_id, name, description, created_at, updated_at, imported_at from boards')
+  return db.sqlQuery('SELECT id, name, description, created_at, updated_at, imported_at from boards')
   .then(helper.slugify);
 };
 
@@ -70,7 +70,7 @@ boards.update = function(board) {
     })
     .then(function() {
       q = 'UPDATE boards SET name = $1, description = $2, updated_at = now() WHERE id = $3';
-      params = [board.name, board.description, board.id];
+      params = [board.name, board.description || '', board.id];
       return client.queryAsync(q, params);
     });
   })
@@ -79,7 +79,7 @@ boards.update = function(board) {
 
 boards.find = function(id) {
   id = helper.deslugify(id);
-  var columns = 'b.id, b.parent_board_id, b.children_ids, b.category_id, b.name, b.description, b.created_at, b.updated_at, b.imported_at, mb.thread_count, mb.post_count';
+  var columns = 'b.id, b.name, b.description, b.created_at, b.updated_at, b.imported_at, mb.thread_count, mb.post_count';
   var q = 'SELECT ' + columns + ' FROM boards b ' +
     'LEFT JOIN metadata.boards mb ON b.id = mb.board_id WHERE b.id = $1';
   var params = [id];

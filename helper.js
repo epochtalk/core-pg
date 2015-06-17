@@ -68,6 +68,7 @@ function slugTransform(input, slugMethod) {
     // iterate over each object key
     _.keys(input).map(function(key) {
       if (!input[key]) { return input[key]; }
+      if (key === 'id' && input[key] === -1) { return input[key]; }
 
       // check if key is candidate for (de)slugification
       if (_.contains(slugKeywords, key)) {
