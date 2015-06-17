@@ -102,66 +102,99 @@ boards.find = function(id) {
 
 boards.updateCategories = function(categories) {
   categories = helper.deslugify(categories);
-  var q = 'UPDATE boards SET category_id = $1';
-  var params = [null];
-  return db.sqlQuery(q, params) // Clear boards of categories
-  .then(function() {
-    var viewOrder = 1;
-    return Promise.each(categories, function (category) {
-      if (category.id === -1) { category.id = undefined; }
-      // Check if category exists
-      var q = 'SELECT * FROM categories WHERE id = $1';
-      var params = [category.id];
-      return db.sqlQuery(q, params)
-      .then(function(rows) {
-        var q, params;
-        if (rows.length > 0) { // Update view order based on array order
-          q = 'UPDATE categories SET name = $1, view_order = $2 WHERE id = $3 RETURNING id';
-          params = [category.name, viewOrder++, category.id];
-        }
-        else { // Category doesn't exist create it
-          q = 'INSERT INTO categories(name, view_order) VALUES($1, $2) RETURNING id';
-          params = [category.name, viewOrder++];
-        }
 
-        return db.sqlQuery(q, params)
-        .then(function(rows) { // Update boards for this category
-          var categoryId = rows[0].id;
-          var q = 'UPDATE boards SET category_id = $1 WHERE id = ANY($2::uuid[])';
-          var params = [categoryId, category.board_ids];
-          return db.sqlQuery(q, params);
+  // insert any new categories
+  var insertBoards = [], q, params;
+  return using(db.createTransaction(), function(client) {
+    return Promise.each(categories, function(cat, index) {
+      var promise;
+      if (cat.id === -1) {
+        q = 'INSERT INTO categories(name, view_order) VALUES($1, $2) RETURNING id';
+        params = [cat.name, index];
+        promise = client.queryAsync(q, params)
+        .then(function(results) { cat.id = results.rows[0].id; });
+      }
+      else {
+        q = 'UPDATE categories SET name = $1, view_order = $2 WHERE id = $3';
+        promise = client.queryAsync(q, [cat.name, index, cat.id]);
+      }
+      return promise;
+    })
+    // parse out all rows
+    .then(function() {
+      categories.forEach(function(cat) {
+        cat.board_ids.forEach(function(board, index) {
+          insertBoards.push({ id: board, category_id: cat.id, view_order: index });
         });
+      });
+    })
+    // clear board_mapping table
+    .then(function() {
+      q = 'DELETE FROM board_mapping WHERE board_id IS NOT NULL';
+      return client.queryAsync(q);
+    })
+    // bulk insert into board_mapping
+    .then(function() {
+      insertBoards.forEach(function(board) {
+        q = 'INSERT INTO board_mapping (board_id, parent_id, category_id, view_order) VALUES ($1, $2, $3, $4)';
+        params = [board.id, board.parent_id, board.category_id, board.view_order];
+        client.queryAsync(q, params);
       });
     });
   });
 };
 
-// TODO: Candidate for DB optimization
 boards.allCategories = function() {
-  var columns = 'b.id, b.parent_board_id, b.children_ids, b.category_id, b.name, b.description, b.created_at, b.updated_at, b.imported_at, mb.post_count, mb.thread_count, mb.total_post_count, mb.total_thread_count, mb.last_post_username, mb.last_post_created_at, mb.last_thread_id, mb.last_thread_title';
-
-  var q = 'SELECT * FROM categories';
+  // get all categories
   var categories;
-  return db.sqlQuery(q)
+  return db.sqlQuery('SELECT * FROM categories')
   .then(function(dbCategories) { categories = dbCategories; })
+  // get all board mappings
   .then(function() {
-    return Promise.map(categories, function(category) {
-      var q = 'SELECT ' + columns + ' from boards b LEFT JOIN metadata.boards mb ON b.id = mb.board_id WHERE category_id = $1';
-      var params = [category.id];
-      return db.sqlQuery(q, params)
-      .then(function(boards) {
-        return Promise.map(boards, function(board) {
-          var q = 'SELECT bm.user_id as id, u.username from board_moderators bm LEFT JOIN users u ON bm.user_id = u.id WHERE bm.board_id = $1';
-          var params = [board.id];
-          return db.sqlQuery(q, params)
-          .then(function(rows) {
-            board.moderators = rows;
-            return board;
-          });
-        });
-      })
-      .then(function(boards) { category.boards = boards; });
+    return db.sqlQuery('SELECT b.id, b.name, b.description, b.created_at, b.updated_at, b.imported_at, mb.post_count, mb.thread_count, mb.last_post_username, mb.last_post_created_at, mb.last_thread_id, mb.last_thread_title, bm.parent_id, bm.category_id, bm.view_order FROM board_mapping bm LEFT JOIN boards b ON bm.board_id = b.id LEFT JOIN metadata.boards mb ON b.id = mb.board_id');
+  })
+  // stitch boards together
+  .then(function(boardMapping) {
+    return categories.map(function(category) {
+      // get all child boards for this category
+      category.boards = _.filter(boardMapping, function(board) {
+        return board.category_id === category.id;
+      });
+      category.boards = _.sortBy(category.boards, 'view_order');
+
+      // recurse through other boards
+      category.boards.map(function(board) {
+        return boardStitching(boardMapping, board);
+      });
+
+      // return category
+      return category;
     });
+  })
+  // sort categories by view_order
+  .then(function() {
+    categories = _.sortBy(categories, 'view_order');
   })
   .then(function() { return helper.slugify(categories); });
 };
+
+function boardStitching(boardMapping, currentBoard) {
+  var hasChildren = _.find(boardMapping, function(board) {
+    return board.parent_id === currentBoard.id;
+  });
+
+  if (hasChildren) {
+    currentBoard.children = _.filter(boardMapping, function(board) {
+      return board.parent_id === currentBoard.id;
+    });
+    currentBoard.children = _.sortBy(currentBoard.children, 'view_order');
+    currentBoard.children.map(function(board) {
+      return boardStitching(boardMapping, board);
+    });
+    return currentBoard;
+  }
+  else {
+    currentBoard.children = [];
+    return currentBoard;
+  }
+}
