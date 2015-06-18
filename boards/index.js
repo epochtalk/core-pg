@@ -100,45 +100,32 @@ boards.find = function(id) {
   .then(helper.slugify);
 };
 
-boards.updateCategories = function(categories) {
-  categories = helper.deslugify(categories);
-
-  // insert any new categories
-  var insertBoards = [], q, params;
+boards.updateCategories = function(boardMapping) {
+  boardMapping = helper.deslugify(boardMapping);
+  var q, params;
   return using(db.createTransaction(), function(client) {
-    return Promise.each(categories, function(cat, index) {
-      var promise;
-      if (cat.id === -1) {
-        q = 'INSERT INTO categories(name, view_order) VALUES($1, $2) RETURNING id';
-        params = [cat.name, index];
-        promise = client.queryAsync(q, params)
-        .then(function(results) { cat.id = results.rows[0].id; });
-      }
-      else {
-        q = 'UPDATE categories SET name = $1, view_order = $2 WHERE id = $3';
-        promise = client.queryAsync(q, [cat.name, index, cat.id]);
-      }
-      return promise;
-    })
-    // parse out all rows
+    q = 'DELETE FROM board_mapping WHERE board_id IS NOT NULL';
+    return client.queryAsync(q)
     .then(function() {
-      categories.forEach(function(cat) {
-        cat.board_ids.forEach(function(board, index) {
-          insertBoards.push({ id: board, category_id: cat.id, view_order: index });
-        });
-      });
-    })
-    // clear board_mapping table
-    .then(function() {
-      q = 'DELETE FROM board_mapping WHERE board_id IS NOT NULL';
-      return client.queryAsync(q);
-    })
-    // bulk insert into board_mapping
-    .then(function() {
-      insertBoards.forEach(function(board) {
-        q = 'INSERT INTO board_mapping (board_id, parent_id, category_id, view_order) VALUES ($1, $2, $3, $4)';
-        params = [board.id, board.parent_id, board.category_id, board.view_order];
-        client.queryAsync(q, params);
+      return Promise.map(boardMapping, function(mapping) {
+        var promise;
+        // Category
+        if (mapping.type === 'category') {
+          q = 'UPDATE categories SET name = $1, view_order = $2 WHERE id = $3';
+          promise = client.queryAsync(q, [mapping.name, mapping.view_order, mapping.id]);
+        }
+        // Boards
+        else if (mapping.type === 'board' && mapping.parent_id) {
+          q = 'INSERT INTO board_mapping (board_id, parent_id, view_order) VALUES ($1, $2, $3)';
+          params = [mapping.id, mapping.parent_id, mapping.view_order];
+          promise = client.queryAsync(q, params);
+        }
+        else if (mapping.type === 'board' && mapping.category_id) {
+          q = 'INSERT INTO board_mapping (board_id, category_id, view_order) VALUES ($1, $2, $3)';
+          params = [mapping.id, mapping.category_id, mapping.view_order];
+          promise = client.queryAsync(q, params);
+        }
+        return promise;
       });
     });
   });
