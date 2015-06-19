@@ -92,8 +92,24 @@ boards.find = function(id) {
     var q = 'SELECT bm.user_id as id, u.username from board_moderators bm LEFT JOIN users u ON bm.user_id = u.id WHERE bm.board_id = $1';
     var params = [id];
     return db.sqlQuery(q, params)
-    .then(function(rows) {
-      board.moderators = rows;
+    .then(function(rows) { board.moderators = rows;})
+    .then(function() { return board; });
+  })
+  // get child boards
+  .then(function(board) {
+    // TODO: board moderators
+    return db.sqlQuery('SELECT b.id, b.name, b.description, b.created_at, b.updated_at, b.imported_at, mb.post_count, mb.thread_count, mb.last_post_username, mb.last_post_created_at, mb.last_thread_id, mb.last_thread_title, bm.parent_id, bm.category_id, bm.view_order FROM board_mapping bm LEFT JOIN boards b ON bm.board_id = b.id LEFT JOIN metadata.boards mb ON b.id = mb.board_id')
+    .then(function(boardMapping) {
+      board.children = _.filter(boardMapping, function(boardMap) {
+        return boardMap.parent_id === board.id;
+      });
+      board.children = _.sortBy(board.children, 'view_order');
+
+      // recurse through category boards
+      board.children.map(function(childBoard) {
+        return boardStitching(boardMapping, childBoard);
+      });
+
       return board;
     });
   })
@@ -149,7 +165,7 @@ boards.allCategories = function() {
       });
       category.boards = _.sortBy(category.boards, 'view_order');
 
-      // recurse through other boards
+      // recurse through category boards
       category.boards.map(function(board) {
         return boardStitching(boardMapping, board);
       });
@@ -159,9 +175,7 @@ boards.allCategories = function() {
     });
   })
   // sort categories by view_order
-  .then(function() {
-    categories = _.sortBy(categories, 'view_order');
-  })
+  .then(function() { categories = _.sortBy(categories, 'view_order'); })
   .then(function() { return helper.slugify(categories); });
 };
 
@@ -175,8 +189,8 @@ function boardStitching(boardMapping, currentBoard) {
       return board.parent_id === currentBoard.id;
     });
     currentBoard.children = _.sortBy(currentBoard.children, 'view_order');
-    currentBoard.children.map(function(board) {
-      return boardStitching(boardMapping, board);
+    currentBoard.children.map(function(childBoard) {
+      return boardStitching(boardMapping, childBoard);
     });
     return currentBoard;
   }
