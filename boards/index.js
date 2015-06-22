@@ -12,7 +12,7 @@ var NotFoundError = Promise.OperationalError;
 var using = Promise.using;
 
 boards.all = function() {
-  return db.sqlQuery('SELECT id, parent_board_id, children_ids, category_id, name, description, created_at, updated_at, imported_at from boards')
+  return db.sqlQuery('SELECT id, name, description, created_at, updated_at, imported_at from boards')
   .then(helper.slugify);
 };
 
@@ -70,7 +70,7 @@ boards.update = function(board) {
     })
     .then(function() {
       q = 'UPDATE boards SET name = $1, description = $2, updated_at = now() WHERE id = $3';
-      params = [board.name, board.description, board.id];
+      params = [board.name, board.description || '', board.id];
       return client.queryAsync(q, params);
     });
   })
@@ -79,7 +79,7 @@ boards.update = function(board) {
 
 boards.find = function(id) {
   id = helper.deslugify(id);
-  var columns = 'b.id, b.parent_board_id, b.children_ids, b.category_id, b.name, b.description, b.created_at, b.updated_at, b.imported_at, mb.thread_count, mb.post_count';
+  var columns = 'b.id, b.name, b.description, b.created_at, b.updated_at, b.imported_at, mb.thread_count, mb.post_count';
   var q = 'SELECT ' + columns + ' FROM boards b ' +
     'LEFT JOIN metadata.boards mb ON b.id = mb.board_id WHERE b.id = $1';
   var params = [id];
@@ -92,76 +92,110 @@ boards.find = function(id) {
     var q = 'SELECT bm.user_id as id, u.username from board_moderators bm LEFT JOIN users u ON bm.user_id = u.id WHERE bm.board_id = $1';
     var params = [id];
     return db.sqlQuery(q, params)
-    .then(function(rows) {
-      board.moderators = rows;
+    .then(function(rows) { board.moderators = rows;})
+    .then(function() { return board; });
+  })
+  // get child boards
+  .then(function(board) {
+    // TODO: board moderators
+    return db.sqlQuery('SELECT b.id, b.name, b.description, b.created_at, b.updated_at, b.imported_at, mb.post_count, mb.thread_count, mb.last_post_username, mb.last_post_created_at, mb.last_thread_id, mb.last_thread_title, bm.parent_id, bm.category_id, bm.view_order FROM board_mapping bm LEFT JOIN boards b ON bm.board_id = b.id LEFT JOIN metadata.boards mb ON b.id = mb.board_id')
+    .then(function(boardMapping) {
+      board.children = _.filter(boardMapping, function(boardMap) {
+        return boardMap.parent_id === board.id;
+      });
+      board.children = _.sortBy(board.children, 'view_order');
+
+      // recurse through category boards
+      board.children.map(function(childBoard) {
+        return boardStitching(boardMapping, childBoard);
+      });
+
       return board;
     });
   })
   .then(helper.slugify);
 };
 
-boards.updateCategories = function(categories) {
-  categories = helper.deslugify(categories);
-  var q = 'UPDATE boards SET category_id = $1';
-  var params = [null];
-  return db.sqlQuery(q, params) // Clear boards of categories
-  .then(function() {
-    var viewOrder = 1;
-    return Promise.each(categories, function (category) {
-      if (category.id === -1) { category.id = undefined; }
-      // Check if category exists
-      var q = 'SELECT * FROM categories WHERE id = $1';
-      var params = [category.id];
-      return db.sqlQuery(q, params)
-      .then(function(rows) {
-        var q, params;
-        if (rows.length > 0) { // Update view order based on array order
-          q = 'UPDATE categories SET name = $1, view_order = $2 WHERE id = $3 RETURNING id';
-          params = [category.name, viewOrder++, category.id];
+boards.updateCategories = function(boardMapping) {
+  boardMapping = helper.deslugify(boardMapping);
+  var q, params;
+  return using(db.createTransaction(), function(client) {
+    q = 'DELETE FROM board_mapping WHERE board_id IS NOT NULL';
+    return client.queryAsync(q)
+    .then(function() {
+      return Promise.map(boardMapping, function(mapping) {
+        var promise;
+        // Category
+        if (mapping.type === 'category') {
+          q = 'UPDATE categories SET name = $1, view_order = $2 WHERE id = $3';
+          promise = client.queryAsync(q, [mapping.name, mapping.view_order, mapping.id]);
         }
-        else { // Category doesn't exist create it
-          q = 'INSERT INTO categories(name, view_order) VALUES($1, $2) RETURNING id';
-          params = [category.name, viewOrder++];
+        // Boards
+        else if (mapping.type === 'board' && mapping.parent_id) {
+          q = 'INSERT INTO board_mapping (board_id, parent_id, view_order) VALUES ($1, $2, $3)';
+          params = [mapping.id, mapping.parent_id, mapping.view_order];
+          promise = client.queryAsync(q, params);
         }
-
-        return db.sqlQuery(q, params)
-        .then(function(rows) { // Update boards for this category
-          var categoryId = rows[0].id;
-          var q = 'UPDATE boards SET category_id = $1 WHERE id = ANY($2::uuid[])';
-          var params = [categoryId, category.board_ids];
-          return db.sqlQuery(q, params);
-        });
+        else if (mapping.type === 'board' && mapping.category_id) {
+          q = 'INSERT INTO board_mapping (board_id, category_id, view_order) VALUES ($1, $2, $3)';
+          params = [mapping.id, mapping.category_id, mapping.view_order];
+          promise = client.queryAsync(q, params);
+        }
+        return promise;
       });
     });
   });
 };
 
-// TODO: Candidate for DB optimization
 boards.allCategories = function() {
-  var columns = 'b.id, b.parent_board_id, b.children_ids, b.category_id, b.name, b.description, b.created_at, b.updated_at, b.imported_at, mb.post_count, mb.thread_count, mb.total_post_count, mb.total_thread_count, mb.last_post_username, mb.last_post_created_at, mb.last_thread_id, mb.last_thread_title';
-
-  var q = 'SELECT * FROM categories';
+  // get all categories
   var categories;
-  return db.sqlQuery(q)
+  return db.sqlQuery('SELECT * FROM categories')
   .then(function(dbCategories) { categories = dbCategories; })
+  // get all board mappings
   .then(function() {
-    return Promise.map(categories, function(category) {
-      var q = 'SELECT ' + columns + ' from boards b LEFT JOIN metadata.boards mb ON b.id = mb.board_id WHERE category_id = $1';
-      var params = [category.id];
-      return db.sqlQuery(q, params)
-      .then(function(boards) {
-        return Promise.map(boards, function(board) {
-          var q = 'SELECT bm.user_id as id, u.username from board_moderators bm LEFT JOIN users u ON bm.user_id = u.id WHERE bm.board_id = $1';
-          var params = [board.id];
-          return db.sqlQuery(q, params)
-          .then(function(rows) {
-            board.moderators = rows;
-            return board;
-          });
-        });
-      })
-      .then(function(boards) { category.boards = boards; });
+    return db.sqlQuery('SELECT b.id, b.name, b.description, b.created_at, b.updated_at, b.imported_at, mb.post_count, mb.thread_count, mb.last_post_username, mb.last_post_created_at, mb.last_thread_id, mb.last_thread_title, bm.parent_id, bm.category_id, bm.view_order FROM board_mapping bm LEFT JOIN boards b ON bm.board_id = b.id LEFT JOIN metadata.boards mb ON b.id = mb.board_id');
+  })
+  // stitch boards together
+  .then(function(boardMapping) {
+    return categories.map(function(category) {
+      // get all child boards for this category
+      category.boards = _.filter(boardMapping, function(board) {
+        return board.category_id === category.id;
+      });
+      category.boards = _.sortBy(category.boards, 'view_order');
+
+      // recurse through category boards
+      category.boards.map(function(board) {
+        return boardStitching(boardMapping, board);
+      });
+
+      // return category
+      return category;
     });
   })
+  // sort categories by view_order
+  .then(function() { categories = _.sortBy(categories, 'view_order'); })
   .then(function() { return helper.slugify(categories); });
 };
+
+function boardStitching(boardMapping, currentBoard) {
+  var hasChildren = _.find(boardMapping, function(board) {
+    return board.parent_id === currentBoard.id;
+  });
+
+  if (hasChildren) {
+    currentBoard.children = _.filter(boardMapping, function(board) {
+      return board.parent_id === currentBoard.id;
+    });
+    currentBoard.children = _.sortBy(currentBoard.children, 'view_order');
+    currentBoard.children.map(function(childBoard) {
+      return boardStitching(boardMapping, childBoard);
+    });
+    return currentBoard;
+  }
+  else {
+    currentBoard.children = [];
+    return currentBoard;
+  }
+}
