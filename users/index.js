@@ -28,51 +28,57 @@ users.searchUsernames = function(searchStr, limit) {
 /* returns user with added role(s) */
 users.addRoles = function(userId, roles) {
   userId = helper.deslugify(userId);
-  var userQuery = 'SELECT id, username, email, created_at, updated_at FROM users WHERE id = $1';
-  var userParams = [userId];
+  var q = 'SELECT id, username, email, created_at, updated_at FROM users WHERE id = $1';
+  var params = [userId];
   var updatedUser;
-  return db.sqlQuery(userQuery, userParams)
-  .then(function(rows) { // fetch user and ensure user exists
-    if (rows.length) {
-      updatedUser = rows[0];
-      return roles; // return role names to be mapped
-    }
-    else { return Promise.reject(); } // user doesnt exist
-  })
-  .map(function(role) { // lookup role id by name then return array of role ids
-    var queryRoleId = 'SELECT id FROM roles WHERE name = $1';
-    var roleParams = [role];
-    var savedRoleId;
-    return db.sqlQuery(queryRoleId, roleParams)
-    .then(function(rows) { // return role id
-      if (rows.length) { return rows[0].id; }
-      else { return Promise.reject(); } // role id doesnt exist
+  return using(db.createTransaction(), function(client) {
+    return client.queryAsync(q, params)
+    .then(function(results) { // fetch user and ensure user exists
+      var rows = results.rows;
+      if (rows.length > 0) {
+        updatedUser = rows[0];
+        return roles; // return role names to be mapped
+      }
+      else { return Promise.reject(); } // user doesnt exist
     })
-    .then(function(roleId) { // check if user already has role
-      savedRoleId = roleId;
-      var roleCheckQuery = 'SELECT user_id FROM roles_users WHERE user_id = $1 AND role_id = $2';
-      var roleCheckParams = [userId, roleId];
-      return db.sqlQuery(roleCheckQuery, roleCheckParams);
+    .map(function(role) { // lookup role id by name then return array of role ids
+      q = 'SELECT id FROM roles WHERE name = $1';
+      params = [role];
+      var savedRoleId;
+      return client.queryAsync(q, params)
+      .then(function(results) { // return role id
+      var rows = results.rows;
+      if (rows.length > 0) { return rows[0].id; }
+        else { return Promise.reject(); } // role id doesnt exist
+      })
+      .then(function(roleId) { // check if user already has role
+        savedRoleId = roleId;
+        q = 'SELECT user_id FROM roles_users WHERE user_id = $1 AND role_id = $2';
+        params = [userId, roleId];
+        return client.queryAsync(q, params);
+      })
+      .then(function(results) {
+        var rows = results.rows;
+        if (rows.length > 0) { return; } // dont return role id if user already has role
+        else { return savedRoleId; } // return array of roles ids that user doesnt already have
+      });
     })
-    .then(function(rows) {
-      if (rows.length) { return; } // dont return role id if user already has role
-      else { return savedRoleId; } // return array of roles ids that user doesnt already have
+    .each(function(roleId) { // insert new row for each roleId returned by previous map function
+      q = 'INSERT INTO roles_users (role_id, user_id) VALUES ($1, $2);';
+      params = [roleId, userId];
+      return client.queryAsync(q, params);
+    })
+    .then(function() { // append roles to updated user and return
+      q = 'SELECT roles.* FROM roles_users, roles WHERE roles_users.user_id = $1 AND roles.id = roles_users.role_id';
+      params = [userId];
+      return client.queryAsync(q, params);
+    })
+    .then(function(results) {  // Append users roles
+      var rows = results.rows;
+      if (rows.length > 0) { updatedUser.roles = rows; }
+      else { updatedUser.roles = []; } // user has no roles
+      return updatedUser;
     });
-  })
-  .each(function(roleId) { // insert new row for each roleId returned by previous map function
-    var addRoleQuery = 'INSERT INTO roles_users (role_id, user_id) VALUES ($1, $2);';
-    var addRoleParams = [roleId, userId];
-    return db.sqlQuery(addRoleQuery, addRoleParams);
-  })
-  .then(function() { // append roles to updated user and return
-    var rolesQuery = 'SELECT roles.* FROM roles_users, roles WHERE roles_users.user_id = $1 AND roles.id = roles_users.role_id';
-    var rolesParams = [userId];
-    return db.sqlQuery(rolesQuery, rolesParams);
-  })
-  .then(function(rows) {  // Append users roles
-    if (rows.length) { updatedUser.roles = rows; }
-    else { updatedUser.roles = []; } // user has no roles
-    return updatedUser;
   })
   .then(helper.slugify);
 };
@@ -80,50 +86,58 @@ users.addRoles = function(userId, roles) {
 /* returns user with removed role(s) */
 users.removeRoles = function(userId, roles) {
   userId = helper.deslugify(userId);
-  var userQuery = 'SELECT id, username, email, created_at, updated_at FROM users WHERE id = $1';
-  var userParams = [userId];
+  var q = 'SELECT id, username, email, created_at, updated_at FROM users WHERE id = $1';
+  var params = [userId];
   var updatedUser;
-  return db.sqlQuery(userQuery, userParams)
-  .then(function(rows) { // fetch user and ensure user exists
-    if (rows.length) {
-      updatedUser = rows[0];
-      return roles; // return roles to be mapped by next promise
-    }
-    else { return Promise.reject(); } // user doesnt exist
-  })
-  .map(function(role) {
-    var queryRoleId = 'SELECT id FROM roles WHERE name = $1';
-    var roleParams = [role];
-    return db.sqlQuery(queryRoleId, roleParams)
-    .then(function(rows) {
-      if (rows.length) { return rows[0].id; } // return role id
-      else { return Promise.reject(); } // role doesnt exist
+  return using(db.createTransaction(), function(client) {
+    return client.queryAsync(q, params)
+    .then(function(results) { // fetch user and ensure user exists
+      var rows = results.rows;
+      if (rows.length > 0) {
+        updatedUser = rows[0];
+        return roles; // return roles to be mapped by next promise
+      }
+      else { return Promise.reject(); } // user doesnt exist
+    })
+    .map(function(role) {
+      q = 'SELECT id FROM roles WHERE name = $1';
+      params = [role];
+      return client.queryAsync(q, params)
+      .then(function(results) {
+        var rows = results.rows;
+        if (rows.length > 0) { return rows[0].id; } // return role id
+        else { return Promise.reject(); } // role doesnt exist
+      });
+    })
+    .each(function(roleId) {
+      q = 'DELETE FROM roles_users WHERE user_id = $1 AND role_id = $2';
+      params = [userId, roleId];
+      return client.queryAsync(q, params);
+    })
+    .then(function() { // append roles to updated user and return
+      q = 'SELECT roles.* FROM roles_users, roles WHERE roles_users.user_id = $1 AND roles.id = roles_users.role_id';
+      params = [userId];
+      return client.queryAsync(q, params);
+    })
+    .then(function(results) {  // Append users roles
+      var rows = results.rows;
+      if (rows.length > 0) { updatedUser.roles = rows; }
+      else { updatedUser.roles = []; } // user has no roles
+      return updatedUser;
     });
-  })
-  .each(function(roleId) {
-    var query = 'DELETE FROM roles_users WHERE user_id = $1 AND role_id = $2';
-    var params = [userId, roleId];
-    return db.sqlQuery(query, params); // delete
-  })
-  .then(function() { // append roles to updated user and return
-    var rolesQuery = 'SELECT roles.* FROM roles_users, roles WHERE roles_users.user_id = $1 AND roles.id = roles_users.role_id';
-    var rolesParams = [userId];
-    return db.sqlQuery(rolesQuery, rolesParams);
-  })
-  .then(function(rows) {  // Append users roles
-    if (rows.length) { updatedUser.roles = rows; }
-    else { updatedUser.roles = []; } // user has no roles
-    return updatedUser;
   })
   .then(helper.slugify);
 };
 
 /* returns a limited set of users depending on limit and page */
 users.page = function(opts) {
-  var joinType;
-  if (opts && opts.filter && opts.filter === 'banned') { joinType = 'RIGHT'; }
-  else { joinType = 'LEFT'; }
-  var q = 'SELECT u.id, u.username, u.email, u.created_at, u.updated_at, u.imported_at, b.expiration as ban_expiration FROM users u ' + joinType + ' JOIN (SELECT ub.expiration, ub.user_id FROM users.bans ub WHERE ub.expiration > now()) b ON (u.id = b.user_id) ORDER BY';
+  var q;
+  if (opts && opts.filter && opts.filter === 'banned') {
+    q = 'SELECT u.id, u.username, u.email, u.created_at, u.updated_at, u.imported_at, b.expiration as ban_expiration FROM users u RIGHT JOIN (SELECT ub.expiration, ub.user_id FROM users.bans ub WHERE ub.expiration > now()) b ON (u.id = b.user_id) ORDER BY';
+  }
+  else {
+    q = 'SELECT u.id, u.username, u.email, u.created_at, u.updated_at, u.imported_at, (SELECT ub.expiration FROM users.bans ub WHERE ub.user_id = u.id AND ub.expiration > now()) as ban_expiration FROM users u ORDER BY';
+  }
   var limit = 10;
   var page = 1;
   var sortField = 'username';
@@ -254,21 +268,25 @@ users.ban = function(userId, expiration) {
   var q = 'SELECT id FROM users.bans WHERE user_id = $1';
   var params = [userId];
   expiration = expiration ? expiration : new Date(8640000000000000); // permanent ban
-  return db.sqlQuery(q, params)
-  .then(function(rows) {
-    if (rows.length) { // user has been previously banned
-      q = 'UPDATE users.bans SET expiration = $1, updated_at = now() WHERE user_id = $2 RETURNING id, user_id, expiration, created_at, updated_at';
-      params = [expiration, userId];
-    }
-    else { // user has never been banned
-      q = 'INSERT INTO users.bans(user_id, expiration, created_at, updated_at) VALUES($1, $2, now(), now()) RETURNING id, user_id, expiration, created_at, updated_at';
-      params = [userId, expiration];
-    }
-    return db.sqlQuery(q, params);
-  })
-  .then(function(rows) {
-    if (rows.length) { return rows[0]; }
-    else { return Promise.reject(); }
+  return using(db.createTransaction(), function(client) {
+    return client.queryAsync(q, params)
+    .then(function(results) {
+      var rows = results.rows;
+      if (rows.length > 0) { // user has been previously banned
+        q = 'UPDATE users.bans SET expiration = $1, updated_at = now() WHERE user_id = $2 RETURNING id, user_id, expiration, created_at, updated_at';
+        params = [expiration, userId];
+      }
+      else { // user has never been banned
+        q = 'INSERT INTO users.bans(user_id, expiration, created_at, updated_at) VALUES($1, $2, now(), now()) RETURNING id, user_id, expiration, created_at, updated_at';
+        params = [userId, expiration];
+      }
+      return client.queryAsync(q, params);
+    })
+    .then(function(results) {
+      var rows = results.rows;
+      if (rows.length > 0) { return rows[0]; }
+      else { return Promise.reject(); }
+    });
   })
   .then(helper.slugify);
 };
@@ -343,9 +361,18 @@ users.create = function(user, isAdmin) {
     // insert default user role
     .then(function() {
       q = 'INSERT INTO roles_users(role_id, user_id) VALUES($1, $2)';
-      var defaultRole = 'edcd8f77-ce34-4433-ba85-17f9b17a3b60';
-      if (isAdmin) defaultRole = '06860e6f-9ac0-4c2a-8d9c-417343062fb8';
-      return client.queryAsync(q, [defaultRole, user.id]);
+      if (isAdmin) {
+        var superAdminRole = '8ab5ef49-c2ce-4421-9524-bb45f289d42c';
+        var adminRole = '06860e6f-9ac0-4c2a-8d9c-417343062fb8';
+        return client.queryAsync(q, [superAdminRole, user.id])
+        .then(function() {
+          return client.queryAsync(q, [adminRole, user.id]);
+        });
+      }
+      else {
+        var userRole = 'edcd8f77-ce34-4433-ba85-17f9b17a3b60';
+        return client.queryAsync(q, [userRole, user.id]);
+      }
     })
     .then(function() { return insertUserProfile(user, client); })
     // Query for users roles
