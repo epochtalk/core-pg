@@ -133,10 +133,10 @@ users.removeRoles = function(userId, roles) {
 users.page = function(opts) {
   var q;
   if (opts && opts.filter && opts.filter === 'banned') {
-    q = 'SELECT u.id, u.username, u.email, u.created_at, u.updated_at, u.imported_at, b.expiration as ban_expiration FROM users u RIGHT JOIN (SELECT ub.expiration, ub.user_id FROM users.bans ub WHERE ub.expiration > now()) b ON (u.id = b.user_id) ORDER BY';
+    q = 'SELECT u.id, u.username, u.email, u.created_at, u.updated_at, u.imported_at, b.expiration as ban_expiration FROM users u RIGHT JOIN (SELECT ub.expiration, ub.user_id FROM users.bans ub WHERE ub.expiration > now()) b ON (u.id = b.user_id)';
   }
   else {
-    q = 'SELECT u.id, u.username, u.email, u.created_at, u.updated_at, u.imported_at, (SELECT ub.expiration FROM users.bans ub WHERE ub.user_id = u.id AND ub.expiration > now()) as ban_expiration FROM users u ORDER BY';
+    q = 'SELECT u.id, u.username, u.email, u.created_at, u.updated_at, u.imported_at, (SELECT ub.expiration FROM users.bans ub WHERE ub.user_id = u.id AND ub.expiration > now()) as ban_expiration FROM users u';
   }
   var limit = 10;
   var page = 1;
@@ -146,9 +146,16 @@ users.page = function(opts) {
   if (opts && opts.page) { page = opts.page; }
   if (opts && opts.sortField) { sortField = opts.sortField; }
   if (opts && opts.sortDesc) { order = 'DESC'; }
-  q = [q, sortField, order, 'LIMIT $1 OFFSET $2'].join(' ');
   var offset = (page * limit) - limit;
-  var params = [limit, offset];
+  var params;
+  if (opts && opts.searchStr) {
+    q = [q, 'WHERE u.username LIKE $1 ORDER BY', sortField, order, 'LIMIT $2 OFFSET $3'].join(' ');
+    params = [opts.searchStr + '%', limit, offset];
+  }
+  else {
+    q = [q, 'ORDER BY', sortField, order, 'LIMIT $1 OFFSET $2'].join(' ');
+    params = [limit, offset];
+  }
   return db.sqlQuery(q, params)
   .then(helper.slugify);
 };
@@ -196,10 +203,15 @@ users.pageModerators = function(opts) {
 /* returns total user count */
 users.count = function(opts) {
   var q = 'SELECT COUNT(u.id) FROM users u';
+  var params;
   if (opts && opts.filter && opts.filter === 'banned') {
     q += ' RIGHT JOIN users.bans b ON (u.id = b.user_id AND b.expiration > now())';
   }
-  return db.sqlQuery(q)
+  if (opts && opts.searchStr) {
+    q += ' WHERE u.username LIKE $1';
+    params = [opts.searchStr + '%'];
+  }
+  return db.sqlQuery(q, params)
   .then(function(rows) {
     if (rows.length) { return { count: Number(rows[0].count) }; }
     else { return Promise.reject(); }
