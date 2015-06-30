@@ -139,7 +139,7 @@ reports.updateUserReportNote = function(reportNote) {
 };
 
 reports.pageUserReports = function(opts) {
-  var q = 'SELECT ru.id, rs.status, ru.reporter_user_id, ru.reporter_reason, ru.reviewer_user_id, ru.offender_user_id, ru.created_at, ru.updated_at, r.username as reporter_username, o.username as offender_username, o.email as offender_email, o.created_at as offender_created_at, b.expiration as offender_ban_expiration FROM administration.reports_users ru JOIN administration.reports_statuses rs ON(ru.status_id = rs.id) JOIN users r ON(ru.reporter_user_id = r.id) JOIN users o ON(ru.offender_user_id = o.id) LEFT JOIN (SELECT ub.expiration, ub.user_id FROM users.bans ub WHERE ub.expiration > now()) b ON (o.id = b.user_id)';
+  var q = 'SELECT ru.id, rs.status, ru.reporter_user_id, ru.reporter_reason, ru.reviewer_user_id, ru.offender_user_id, ru.created_at, ru.updated_at, (SELECT username FROM users WHERE ru.reporter_user_id = id) as reporter_username, o.username as offender_username, o.email as offender_email, o.created_at as offender_created_at, b.expiration as offender_ban_expiration FROM administration.reports_users ru JOIN administration.reports_statuses rs ON(ru.status_id = rs.id) JOIN users o ON(ru.offender_user_id = o.id) LEFT JOIN (SELECT ub.expiration, ub.user_id FROM users.bans ub WHERE ub.expiration > now()) b ON (o.id = b.user_id)';
   var limit = 10;
   var page = 1;
   var sortField = 'created_at';
@@ -150,25 +150,43 @@ reports.pageUserReports = function(opts) {
   if (opts && opts.sortField) { sortField = opts.sortField; }
   if (opts && opts.sortDesc) { order = 'DESC'; }
   var offset = (page * limit) - limit;
-  if (opts && opts.filter) {
+  if (opts && opts.filter && opts.searchStr) { // filter + search
+    q = [q, 'WHERE rs.status = $1 AND o.username LIKE $2 ORDER BY', sortField, order, 'LIMIT $3 OFFSET $4'].join(' ');
+    params = [opts.filter, opts.searchStr + '%', limit, offset];
+  }
+  else if (opts && opts.filter && !opts.searchStr) { // filter only
     q = [q, 'WHERE rs.status = $1 ORDER BY', sortField, order, 'LIMIT $2 OFFSET $3'].join(' ');
     params = [opts.filter, limit, offset];
   }
-  else {
+  else if (opts && !opts.filter && opts.searchStr) { // search only
+    q = [q, 'WHERE o.username LIKE $1 ORDER BY', sortField, order, 'LIMIT $2 OFFSET $3'].join(' ');
+    params = [opts.searchStr + '%', limit, offset];
+  }
+  else { // no filter or search
     q = [q, 'ORDER BY', sortField, order, 'LIMIT $1 OFFSET $2'].join(' ');
     params = [limit, offset];
   }
+
   return db.sqlQuery(q, params)
   .then(helper.slugify);
 };
 
-reports.userReportsCount = function(status) {
-  var q = 'SELECT count(ru.id) FROM administration.reports_users ru JOIN administration.reports_statuses rs ON(rs.id = ru.status_id)';
+reports.userReportsCount = function(opts) {
+  var q = 'SELECT count(ru.id) FROM administration.reports_users ru'; // no status or search
   var params;
-  if (status) {
-    q += ' WHERE rs.status = $1';
-    params = [status];
+  if (opts && opts.status && opts.searchStr) { // status + search
+    q += ' JOIN administration.reports_statuses rs ON(rs.id = ru.status_id) JOIN users u ON(ru.offender_user_id = u.id) WHERE rs.status = $1 AND u.username LIKE $2';
+    params = [opts.status, opts.searchStr + '%'];
   }
+  else if (opts && opts.status && !opts.searchStr) { // status only
+    q += ' JOIN administration.reports_statuses rs ON(rs.id = ru.status_id) WHERE rs.status = $1';
+    params = [opts.status];
+  }
+  else if (opts && !opts.status && opts.searchStr) { // search only
+    q += ' JOIN users u ON(ru.offender_user_id = u.id) WHERE u.username LIKE $1';
+    params = [opts.searchStr + '%'];
+  }
+
   return db.sqlQuery(q, params)
   .then(function(rows) {
     if (rows.length) { return rows[0]; }
@@ -329,7 +347,7 @@ reports.updatePostReportNote = function(reportNote) {
 };
 
 reports.pagePostReports = function(opts) {
-  var q = 'SELECT rp.id, rs.status, rp.reporter_user_id, rp.reporter_reason, rp.reviewer_user_id, rp.offender_post_id, rp.created_at, rp.updated_at, r.username as reporter_username, p.created_at as offender_created_at, p.title as offender_title, p.thread_id as offender_thread_id, o.username as offender_author_username, o.id as offender_author_id, o.email as offender_author_email, o.created_at as offender_author_created_at, b.expiration as offender_ban_expiration FROM administration.reports_posts rp JOIN administration.reports_statuses rs ON(rp.status_id = rs.id) JOIN users r ON(rp.reporter_user_id = r.id) JOIN posts p ON(rp.offender_post_id = p.id) JOIN users o ON(p.user_id = o.id) LEFT JOIN (SELECT ub.expiration, ub.user_id FROM users.bans ub WHERE ub.expiration > now()) b ON (o.id = b.user_id)';
+  var q = 'SELECT rp.id, rs.status, rp.reporter_user_id, rp.reporter_reason, rp.reviewer_user_id, rp.offender_post_id, rp.created_at, rp.updated_at, (SELECT username FROM users WHERE rp.reporter_user_id = id) as reporter_username, p.created_at as offender_created_at, p.title as offender_title, p.thread_id as offender_thread_id, o.username as offender_author_username, o.id as offender_author_id, o.email as offender_author_email, o.created_at as offender_author_created_at, b.expiration as offender_ban_expiration FROM administration.reports_posts rp JOIN administration.reports_statuses rs ON(rp.status_id = rs.id) JOIN posts p ON(rp.offender_post_id = p.id) JOIN users o ON(p.user_id = o.id) LEFT JOIN (SELECT ub.expiration, ub.user_id FROM users.bans ub WHERE ub.expiration > now()) b ON (o.id = b.user_id)';
   var limit = 10;
   var page = 1;
   var sortField = 'created_at';
@@ -340,11 +358,19 @@ reports.pagePostReports = function(opts) {
   if (opts && opts.sortField) { sortField = opts.sortField; }
   if (opts && opts.sortDesc) { order = 'DESC'; }
   var offset = (page * limit) - limit;
-  if (opts && opts.filter) {
+  if (opts && opts.filter && opts.searchStr) { // filter + search
+    q = [q, 'WHERE rs.status = $1 AND o.username LIKE $2 ORDER BY', sortField, order, 'LIMIT $3 OFFSET $4'].join(' ');
+    params = [opts.filter, opts.searchStr + '%', limit, offset];
+  }
+  else if (opts && opts.filter && !opts.searchStr) { // filter only
     q = [q, 'WHERE rs.status = $1 ORDER BY', sortField, order, 'LIMIT $2 OFFSET $3'].join(' ');
     params = [opts.filter, limit, offset];
   }
-  else {
+  else if (opts && !opts.filter && opts.searchStr) { // search only
+    q = [q, 'WHERE o.username LIKE $1 ORDER BY', sortField, order, 'LIMIT $2 OFFSET $3'].join(' ');
+    params = [opts.searchStr + '%', limit, offset];
+  }
+  else { // no filter or search
     q = [q, 'ORDER BY', sortField, order, 'LIMIT $1 OFFSET $2'].join(' ');
     params = [limit, offset];
   }
@@ -352,12 +378,20 @@ reports.pagePostReports = function(opts) {
   .then(helper.slugify);
 };
 
-reports.postReportsCount = function(status) {
-  var q = 'SELECT count(rp.id) FROM administration.reports_posts rp JOIN administration.reports_statuses rs ON(rs.id = rp.status_id)';
+reports.postReportsCount = function(opts) {
+  var q = 'SELECT count(rp.id) FROM administration.reports_posts rp';
   var params;
-  if (status) {
-    q += ' WHERE rs.status = $1';
-    params = [status];
+  if (opts && opts.status && opts.searchStr) { // filter + search
+    q += ' JOIN administration.reports_statuses rs ON(rs.id = rp.status_id) JOIN posts p ON(rp.offender_post_id = p.id) JOIN users o ON(p.user_id = o.id) WHERE rs.status = $1 AND o.username LIKE $2';
+    params = [opts.status, opts.searchStr + '%'];
+  }
+  else if (opts && opts.status && !opts.searchStr) { // filter only
+    q += ' JOIN administration.reports_statuses rs ON(rs.id = rp.status_id) WHERE rs.status = $1';
+    params = [opts.status];
+  }
+  else if (opts && !opts.status && opts.searchStr) { // search only
+    q += ' JOIN posts p ON(rp.offender_post_id = p.id) JOIN users o ON(p.user_id = o.id) WHERE o.username LIKE $1';
+    params = [opts.searchStr + '%'];
   }
   return db.sqlQuery(q, params)
   .then(function(rows) {
