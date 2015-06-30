@@ -8,6 +8,7 @@ var db = require(path.join(__dirname, '..', 'db'));
 var config = require(path.join(__dirname, '..', 'config'));
 var helper = require(path.join(__dirname, '..', 'helper'));
 var NotFoundError = Promise.OperationalError;
+var MoveError = Promise.OperationalError;
 var using = Promise.using;
 
 threads.import = function(thread) {
@@ -197,6 +198,11 @@ threads.move = function(threadId, newBoardId) {
     q = 'SELECT * FROM threads t JOIN metadata.threads mt ON mt.thread_id = t.id WHERE t.id = $1 FOR UPDATE';
     return client.queryAsync(q, params)
     .then(function(results) { thread = results.rows[0]; })
+    .then(function() {
+      if (thread.board_id === newBoardId) {
+        throw new MoveError('New Board Id matches current Board Id');
+      }
+    })
     // lock thread's current board/Meta row
     .then(function() {
       params = [thread.board_id];
