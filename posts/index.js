@@ -249,7 +249,7 @@ posts.pageByUserCount = function(username) {
 };
 
 posts.pageByUser = function(username, opts) {
-  var q = 'SELECT p.id, p.thread_id, p.user_id, p.title, p.raw_body, p.body, p.created_at, p.updated_at, p.imported_at FROM posts p JOIN users u ON(p.user_id = u.id) WHERE u.username = $1 ORDER BY';
+  var q = 'SELECT p.id, p.thread_id, p.user_id, p.title, p.raw_body, p.body, p.created_at, p.updated_at, p.imported_at, (SELECT p2.title FROM posts p2 WHERE p2.thread_id = p.thread_id ORDER BY p2.created_at LIMIT 1) as thread_title FROM posts p JOIN users u ON(p.user_id = u.id) WHERE u.username = $1 ORDER BY';
   var limit = 10;
   var page = 1;
   var sortField = 'created_at';
@@ -262,19 +262,5 @@ posts.pageByUser = function(username, opts) {
   q = [q, sortField, order, 'LIMIT $2 OFFSET $3'].join(' ');
   var params = [username, limit, offset];
   return db.sqlQuery(q, params)
-  .then(function(rows) { return rows || []; })
-  .map(function(post) { // TODO: Append thread titles in main query to allow sorting by thread title
-    q = 'SELECT p.title FROM threads t LEFT JOIN posts p ON t.id = p.thread_id WHERE t.id = $1 ORDER BY p.created_at LIMIT 1';
-    params = [post.thread_id];
-    return db.sqlQuery(q, params)
-    .then(function(rows) {
-      if (rows.length > 0) { return rows[0].title; }
-      else { Promise.reject(); }
-    })
-    .then(function(threadTitle) {
-      post.thread_title = threadTitle;
-      return post;
-    });
-  })
-  .map(helper.slugify);
+  .then(helper.slugify);
 };
