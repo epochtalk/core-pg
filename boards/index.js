@@ -79,7 +79,7 @@ boards.update = function(board) {
 
 boards.find = function(id) {
   id = helper.deslugify(id);
-  var columns = 'b.id, b.name, b.description, b.created_at, b.updated_at, b.imported_at, mb.thread_count, mb.post_count';
+  var columns = 'b.id, b.name, b.description, b.created_at, b.updated_at, b.imported_at, mb.thread_count, mb.post_count, (SELECT bm.parent_id FROM board_mapping bm WHERE bm.board_id = b.id) as parent_id';
   var q = 'SELECT ' + columns + ' FROM boards b ' +
     'LEFT JOIN metadata.boards mb ON b.id = mb.board_id WHERE b.id = $1';
   var params = [id];
