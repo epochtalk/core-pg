@@ -8,6 +8,7 @@ var db = require(path.join(__dirname, '..', 'db'));
 var config = require(path.join(__dirname, '..', 'config'));
 var helper = require(path.join(__dirname, '..', 'helper'));
 var NotFoundError = Promise.OperationalError;
+var MoveError = Promise.OperationalError;
 var using = Promise.using;
 
 threads.import = function(thread) {
@@ -55,7 +56,7 @@ var insertPostProcessing = function(thread, views, q, params, client) {
 };
 
 var threadLastPost = function(thread) {
-  var q = 'SELECT p.created_at, u.username FROM posts p LEFT JOIN users u ON p.user_id = u.id WHERE p.thread_id = $1 ORDER BY p.created_at DESC LIMIT 1';
+  var q = 'SELECT p.created_at, u.username FROM posts p LEFT JOIN users u ON p.user_id = u.id WHERE p.thread_id = $1 AND p.deleted = false ORDER BY p.created_at DESC LIMIT 1';
   var params = [thread.id];
   return db.sqlQuery(q, params)
   .then(function(rows) {
@@ -71,6 +72,28 @@ threads.find = function(id) {
   id = helper.deslugify(id);
   var columns = 't.id, t.board_id, t.locked, t.sticky, t.created_at, t.updated_at, t.post_count, p.user_id, p.title, p.username';
   var q1 = 'SELECT t1.id, t1.board_id, t1.locked, t1.sticky, t1.created_at, t1.updated_at, mt.post_count FROM threads t1 LEFT JOIN metadata.threads mt ON t1.id = mt.thread_id WHERE t1.id = $1';
+  var q2 = 'SELECT p1.user_id, p1.title, u.username FROM posts p1 LEFT JOIN users u on p1.user_id = u.id WHERE p1.thread_id = t.id ORDER BY p1.created_at limit 1';
+  var query = 'SELECT ' + columns + ' FROM ( ' + q1 + ') t LEFT JOIN LATERAL ( ' + q2 + ' ) p ON true';
+
+  var params = [id];
+  return db.sqlQuery(query, params)
+  .then(function(rows) {
+    if (rows.length > 0) { return rows[0]; }
+    else { throw new NotFoundError('Thread not found'); }
+  })
+  .then(function(dbThread) {
+    dbThread.user = { id: dbThread.user_id, username: dbThread.username };
+    delete dbThread.user_id;
+    delete dbThread.username;
+    return dbThread;
+  })
+  .then(helper.slugify);
+};
+
+threads.deepFind = function(id) {
+  id = helper.deslugify(id);
+  var columns = 't.id, t.board_id, t.locked, t.sticky, t.deleted, t.created_at, t.updated_at, t.post_count, p.user_id, p.title, p.username';
+  var q1 = 'SELECT t1.id, t1.board_id, t1.locked, t1.sticky, t1.deleted, t1.created_at, t1.updated_at, mt.post_count FROM threads t1 LEFT JOIN metadata.threads mt ON t1.id = mt.thread_id WHERE t1.id = $1';
   var q2 = 'SELECT p1.user_id, p1.title, u.username FROM posts p1 LEFT JOIN users u on p1.user_id = u.id WHERE p1.thread_id = t.id ORDER BY p1.created_at limit 1';
   var query = 'SELECT ' + columns + ' FROM ( ' + q1 + ') t LEFT JOIN LATERAL ( ' + q2 + ' ) p ON true';
 
@@ -197,6 +220,11 @@ threads.move = function(threadId, newBoardId) {
     q = 'SELECT * FROM threads t JOIN metadata.threads mt ON mt.thread_id = t.id WHERE t.id = $1 FOR UPDATE';
     return client.queryAsync(q, params)
     .then(function(results) { thread = results.rows[0]; })
+    .then(function() {
+      if (thread.board_id === newBoardId) {
+        throw new MoveError('New Board Id matches current Board Id');
+      }
+    })
     // lock thread's current board/Meta row
     .then(function() {
       params = [thread.board_id];
@@ -230,4 +258,15 @@ threads.move = function(threadId, newBoardId) {
       return client.queryAsync(q, params);
     });
   }); // Promise disposer called at this point
+};
+
+threads.getThreadsBoard = function(threadId) {
+  threadId = helper.deslugify(threadId);
+  var q = 'SELECT b.* FROM threads t LEFT JOIN boards b ON t.board_id = b.id WHERE t.id = $1';
+  return db.sqlQuery(q, [threadId])
+  .then(function(rows) {
+    if (rows.length > 0 ) { return rows[0]; }
+    else { throw new NotFoundError('Board Not Found'); }
+  })
+  .then(helper.slugify);
 };

@@ -46,7 +46,7 @@ lab.experiment('Posts', function() {
     })
     .catch(function(err) {
       expect(err).to.be.an.instanceof(NotFoundError);
-      expect(err.cause).to.be.a.string().and.to.equal('Post not found');
+      expect(err.cause).to.be.a.string().and.to.equal('Post Not Found');
       done();
     });
   });
