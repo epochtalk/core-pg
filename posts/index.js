@@ -160,7 +160,7 @@ posts.update = function(post) {
 
 posts.find = function(id) {
   id = helper.deslugify(id);
-  var q = 'SELECT * FROM posts WHERE id = $1 AND deleted = false';
+  var q = 'SELECT * FROM posts WHERE id = $1 AND deleted = False';
   return db.sqlQuery(q, [id])
   .then(function(rows) {
     if (rows.length > 0) { return rows[0]; }
@@ -172,8 +172,7 @@ posts.find = function(id) {
 posts.deepFind = function(id) {
   id = helper.deslugify(id);
   var q = 'SELECT * FROM posts WHERE id = $1';
-  var params = [id];
-  return db.sqlQuery(q, params)
+  return db.sqlQuery(q, [id])
   .then(function(rows) {
     if (rows.length > 0) { return rows[0]; }
     else { throw new NotFoundError('Post Not Found'); }
@@ -220,7 +219,7 @@ posts.byThread = function(threadId, opts) {
   })
   // get all related posts
   .then(function() {
-    var q = 'SELECT id FROM posts WHERE thread_id = $1 AND deleted = false ORDER BY created_at ' + reversed +
+    var q = 'SELECT id FROM posts WHERE thread_id = $1 AND deleted = False ORDER BY created_at ' + reversed +
       ' LIMIT $2 OFFSET $3';
     var query = 'SELECT ' + columns + ' FROM ( ' +
       q + ' ) plist LEFT JOIN LATERAL ( ' +
@@ -261,7 +260,7 @@ posts.pageByUserCount = function(username) {
 };
 
 posts.pageByUser = function(username, opts) {
-  var q = 'SELECT p.id, p.thread_id, p.user_id, p.title, p.raw_body, p.body, p.created_at, p.updated_at, p.imported_at, (SELECT p2.title FROM posts p2 WHERE p2.thread_id = p.thread_id ORDER BY p2.created_at LIMIT 1) as thread_title FROM posts p JOIN users u ON(p.user_id = u.id) WHERE u.username = $1 AND p.deleted = false ORDER BY';
+  var q = 'SELECT p.id, p.thread_id, p.user_id, p.title, p.raw_body, p.body, p.created_at, p.updated_at, p.imported_at, (SELECT p2.title FROM posts p2 WHERE p2.thread_id = p.thread_id ORDER BY p2.created_at LIMIT 1) as thread_title FROM posts p JOIN users u ON(p.user_id = u.id) WHERE u.username = $1 AND p.deleted = False ORDER BY';
   var limit = 10;
   var page = 1;
   var sortField = 'created_at';
@@ -345,7 +344,7 @@ posts.delete = function(id) {
     })
     // update thread updated_at
     .then(function() {
-      q = 'UPDATE threads SET updated_at = (SELECT created_at FROM posts WHERE thread_id = $1 AND deleted = false ORDER BY created_at DESC limit 1) WHERE id = $1';
+      q = 'UPDATE threads SET updated_at = (SELECT created_at FROM posts WHERE thread_id = $1 AND deleted = False ORDER BY created_at DESC limit 1) WHERE id = $1';
       return client.queryAsync(q, [post.thread_id]);
     })
     // update board last post information
@@ -420,12 +419,12 @@ posts.undelete = function(id) {
     })
     // set post deleted flag
     .then(function() {
-      q = 'UPDATE posts SET deleted = false WHERE id = $1';
+      q = 'UPDATE posts SET deleted = False WHERE id = $1';
       return client.queryAsync(q, [id]);
     })
     // update thread updated_at
     .then(function() {
-      q = 'UPDATE threads SET updated_at = (SELECT created_at FROM posts WHERE thread_id = $1 AND deleted = false ORDER BY created_at DESC limit 1) WHERE id = $1';
+      q = 'UPDATE threads SET updated_at = (SELECT created_at FROM posts WHERE thread_id = $1 AND deleted = False ORDER BY created_at DESC limit 1) WHERE id = $1';
       return client.queryAsync(q, [post.thread_id]);
     })
     // update board last post information
@@ -501,7 +500,7 @@ posts.purge = function(id) {
     })
     // update thread updated_at
     .then(function() {
-      q = 'UPDATE threads SET updated_at = (SELECT created_at FROM posts WHERE thread_id = $1 AND deleted = false ORDER BY created_at DESC limit 1) WHERE id = $1';
+      q = 'UPDATE threads SET updated_at = (SELECT created_at FROM posts WHERE thread_id = $1 AND deleted = False ORDER BY created_at DESC limit 1) WHERE id = $1';
       return client.queryAsync(q, [post.thread_id]);
     })
     // update board last post information
