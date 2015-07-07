@@ -56,7 +56,7 @@ var insertPostProcessing = function(thread, views, q, params, client) {
 };
 
 var threadLastPost = function(thread) {
-  var q = 'SELECT p.created_at, u.username FROM posts p LEFT JOIN users u ON p.user_id = u.id WHERE p.thread_id = $1 AND p.deleted = false ORDER BY p.created_at DESC LIMIT 1';
+  var q = 'SELECT p.created_at, u.username FROM posts p LEFT JOIN users u ON p.user_id = u.id WHERE p.thread_id = $1 AND p.deleted = False ORDER BY p.created_at DESC LIMIT 1';
   var params = [thread.id];
   return db.sqlQuery(q, params)
   .then(function(rows) {
@@ -79,7 +79,7 @@ threads.find = function(id) {
   return db.sqlQuery(query, params)
   .then(function(rows) {
     if (rows.length > 0) { return rows[0]; }
-    else { throw new NotFoundError('Thread not found'); }
+    else { throw new NotFoundError('Thread Not Found'); }
   })
   .then(function(dbThread) {
     dbThread.user = { id: dbThread.user_id, username: dbThread.username };
