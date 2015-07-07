@@ -45,7 +45,7 @@ lab.experiment('Threads', function() {
     })
     .catch(function(err) {
       expect(err).to.be.an.instanceof(NotFoundError);
-      expect(err.cause).to.be.a.string().and.to.equal('Thread not found');
+      expect(err.cause).to.be.a.string().and.to.equal('Thread Not Found');
       done();
     });
   });
