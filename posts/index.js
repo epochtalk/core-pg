@@ -282,6 +282,7 @@ posts.delete = function(id) {
   var thread;
   var board;
   var user;
+  var q;
 
   return using(db.createTransaction(), function(client) {
     // lock up post row
@@ -362,6 +363,7 @@ posts.undelete = function(id) {
   var thread;
   var board;
   var user;
+  var q;
 
   return using(db.createTransaction(), function(client) {
     // lock up post row
@@ -442,6 +444,7 @@ posts.purge = function(id) {
   var thread;
   var board;
   var user;
+  var q;
 
   return using(db.createTransaction(), function(client) {
     // lock up post row
