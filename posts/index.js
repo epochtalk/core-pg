@@ -350,7 +350,7 @@ posts.delete = function(id) {
     })
     // update board last post information
     .then(function() {
-      q = 'UPDATE metadata.boards SET last_post_username = username, last_post_created_at = created_at, last_thread_id = thread_id, last_thread_title = title FROM (SELECT post.username as username, post.created_at as created_at, t.id as thread_id, post.title as title FROM ( SELECT id FROM threads WHERE board_id = $1 ORDER BY updated_at DESC LIMIT 1 ) t LEFT JOIN LATERAL ( SELECT u.username, p.created_at, p.title FROM posts p LEFT JOIN users u ON u.id = p.user_id WHERE p.thread_id = t.id ORDER BY p.created_at LIMIT 1 ) post ON true) AS subquery WHERE board_id = $1;';
+      q = 'UPDATE metadata.boards SET last_post_username = username, last_post_created_at = created_at, last_thread_id = thread_id, last_thread_title = title FROM (SELECT post.username as username, post.created_at as created_at, t.id as thread_id, post.title as title FROM ( SELECT id FROM threads WHERE board_id = $1 AND deleted = False ORDER BY updated_at DESC LIMIT 1 ) t LEFT JOIN LATERAL ( SELECT u.username, p.created_at, p.title FROM posts p LEFT JOIN users u ON u.id = p.user_id WHERE p.thread_id = t.id ORDER BY p.created_at LIMIT 1 ) post ON true) AS subquery WHERE board_id = $1;';
       return client.queryAsync(q, [thread.board_id]);
     })
     .then(function() { return post; });
@@ -431,7 +431,7 @@ posts.undelete = function(id) {
     })
     // update board last post information
     .then(function() {
-      q = 'UPDATE metadata.boards SET last_post_username = username, last_post_created_at = created_at, last_thread_id = thread_id, last_thread_title = title FROM (SELECT post.username as username, post.created_at as created_at, t.id as thread_id, post.title as title FROM ( SELECT id FROM threads WHERE board_id = $1 ORDER BY updated_at DESC LIMIT 1 ) t LEFT JOIN LATERAL ( SELECT u.username, p.created_at, p.title FROM posts p LEFT JOIN users u ON u.id = p.user_id WHERE p.thread_id = t.id ORDER BY p.created_at LIMIT 1 ) post ON true) AS subquery WHERE board_id = $1;';
+      q = 'UPDATE metadata.boards SET last_post_username = username, last_post_created_at = created_at, last_thread_id = thread_id, last_thread_title = title FROM (SELECT post.username as username, post.created_at as created_at, t.id as thread_id, post.title as title FROM ( SELECT id FROM threads WHERE board_id = $1 AND deleted = False ORDER BY updated_at DESC LIMIT 1 ) t LEFT JOIN LATERAL ( SELECT u.username, p.created_at, p.title FROM posts p LEFT JOIN users u ON u.id = p.user_id WHERE p.thread_id = t.id ORDER BY p.created_at LIMIT 1 ) post ON true) AS subquery WHERE board_id = $1;';
       return client.queryAsync(q, [thread.board_id]);
     })
     .then(function() { return post; });
@@ -483,18 +483,24 @@ posts.purge = function(id) {
     })
     // update thread post count
     .then(function() {
-      q = 'UPDATE metadata.threads SET post_count = post_count - 1 WHERE thread_id = $1';
-      return client.queryAsync(q, [post.thread_id]);
+      if (!post.deleted) {
+        q = 'UPDATE metadata.threads SET post_count = post_count - 1 WHERE thread_id = $1';
+        return client.queryAsync(q, [post.thread_id]);
+      }
     })
     // update board post count
     .then(function() {
-      q = 'UPDATE metadata.boards SET post_count = post_count - 1 WHERE board_id = $1';
-      return client.queryAsync(q, [thread.board_id]);
+      if (!post.deleted) {
+        q = 'UPDATE metadata.boards SET post_count = post_count - 1 WHERE board_id = $1';
+        return client.queryAsync(q, [thread.board_id]);
+      }
     })
     // update user's post count
     .then(function() {
-      q = 'UPDATE users.profiles SET post_count = post_count - 1 WHERE user_id = $1';
-      return client.queryAsync(q, [post.user_id]);
+      if (!post.deleted) {
+        q = 'UPDATE users.profiles SET post_count = post_count - 1 WHERE user_id = $1';
+        return client.queryAsync(q, [post.user_id]);
+      }
     })
     // purge post from table
     .then(function() {
@@ -508,7 +514,7 @@ posts.purge = function(id) {
     })
     // update board last post information
     .then(function() {
-      q = 'UPDATE metadata.boards SET last_post_username = username, last_post_created_at = created_at, last_thread_id = thread_id, last_thread_title = title FROM (SELECT post.username as username, post.created_at as created_at, t.id as thread_id, post.title as title FROM ( SELECT id FROM threads WHERE board_id = $1 ORDER BY updated_at DESC LIMIT 1 ) t LEFT JOIN LATERAL ( SELECT u.username, p.created_at, p.title FROM posts p LEFT JOIN users u ON u.id = p.user_id WHERE p.thread_id = t.id ORDER BY p.created_at LIMIT 1 ) post ON true) AS subquery WHERE board_id = $1;';
+      q = 'UPDATE metadata.boards SET last_post_username = username, last_post_created_at = created_at, last_thread_id = thread_id, last_thread_title = title FROM (SELECT post.username as username, post.created_at as created_at, t.id as thread_id, post.title as title FROM ( SELECT id FROM threads WHERE board_id = $1 AND deleted = False ORDER BY updated_at DESC LIMIT 1 ) t LEFT JOIN LATERAL ( SELECT u.username, p.created_at, p.title FROM posts p LEFT JOIN users u ON u.id = p.user_id WHERE p.thread_id = t.id ORDER BY p.created_at LIMIT 1 ) post ON true) AS subquery WHERE board_id = $1;';
       return client.queryAsync(q, [thread.board_id]);
     })
     .then(function() { return post; });
