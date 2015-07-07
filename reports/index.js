@@ -5,6 +5,7 @@ var path = require('path');
 var Promise = require('bluebird');
 var db = require(path.join(__dirname, '..', 'db'));
 var helper = require(path.join(__dirname, '..', 'helper'));
+var using = Promise.using;
 
 //  Report Statuses
 //  id | priority |   status
@@ -17,123 +18,140 @@ var helper = require(path.join(__dirname, '..', 'helper'));
 // User Report Operations
 reports.createUserReport = function(userReport) {
   userReport = helper.deslugify(userReport);
-  var q = 'INSERT INTO administration.reports_users(status_id, reporter_user_id, reporter_reason, offender_user_id, created_at, updated_at) VALUES($1, $2, $3, $4, now(), now()) RETURNING id';
-  var statusId = 1; // New reports are always pending
-  var params = [statusId, userReport.reporter_user_id, userReport.reporter_reason, userReport.offender_user_id];
-  return db.sqlQuery(q, params)
-  .then(function(rows) { // return created report id
-    if (rows.length) { return rows[0].id; }
-    else { return Promise.reject(); }
-  })
-  .then(function(reportId) { // Lookup the created report and return it
-    var q = 'SELECT ru.id, rs.status, ru.reporter_user_id, ru.reporter_reason, ru.reviewer_user_id, ru.offender_user_id, ru.created_at, ru.updated_at FROM administration.reports_users ru JOIN administration.reports_statuses rs ON(ru.status_id = rs.id) WHERE ru.id = $1';
-    var params = [reportId];
-    return db.sqlQuery(q, params);
-  })
-  .then(function(rows) { // return created row
-    if(rows.length) { return rows[0]; }
-    else { return Promise.reject(); }
+  return using(db.createTransaction(), function(client) {
+    var q = 'INSERT INTO administration.reports_users(status_id, reporter_user_id, reporter_reason, offender_user_id, created_at, updated_at) VALUES($1, $2, $3, $4, now(), now()) RETURNING id';
+    var statusId = 1; // New reports are always pending
+    var params = [statusId, userReport.reporter_user_id, userReport.reporter_reason, userReport.offender_user_id];
+    return client.queryAsync(q, params)
+    .then(function(results) { // return created report id
+      var rows = results.rows;
+      if (rows.length) { return rows[0].id; }
+      else { return Promise.reject(); }
+    })
+    .then(function(reportId) { // Lookup the created report and return it
+      q = 'SELECT ru.id, rs.status, ru.reporter_user_id, ru.reporter_reason, ru.reviewer_user_id, ru.offender_user_id, ru.created_at, ru.updated_at FROM administration.reports_users ru JOIN administration.reports_statuses rs ON(ru.status_id = rs.id) WHERE ru.id = $1';
+      params = [reportId];
+      return client.queryAsync(q, params);
+    })
+    .then(function(results) { // return created row
+      var rows = results.rows;
+      if(rows.length) { return rows[0]; }
+      else { return Promise.reject(); }
+    });
   })
   .then(helper.slugify);
 };
 
 reports.updateUserReport = function(userReport) {
   userReport = helper.deslugify(userReport);
-  var q = 'SELECT ru.id, rs.status, ru.status_id, ru.reporter_user_id, ru.reporter_reason, ru.reviewer_user_id, ru.offender_user_id, ru.created_at, ru.updated_at FROM administration.reports_users ru JOIN administration.reports_statuses rs ON(ru.status_id = rs.id) WHERE ru.id = $1';
-  var params = [userReport.id];
-  var existingReport;
-  return db.sqlQuery(q, params)
-  .then(function(rows) { // check that report exists and return existing report with string status
-    if (rows.length) { return rows[0]; }
-    else { return Promise.reject(); }
-  })
-  .then(function(dbUserReport) { // lookup status id by passed in status string (e.g "Reviewed" returns 2)
-    existingReport = dbUserReport;
-    var q = 'SELECT id FROM administration.reports_statuses WHERE status = $1';
-    var params = [userReport.status];
-    return db.sqlQuery(q, params);
-  })
-  .then(function(rows) { // extract statusId from row and return
-    if (rows.length) { return rows[0].id; }
-    else { return Promise.reject(); }
-  })
-  .then(function(statusId) { // update report with new status_id, reviewer_user_id, and updated_at
-    var newStatusId = statusId || existingReport.status_id;
-    var newReviewerUserId = userReport.reviewer_user_id || existingReport.reviewer_user_id;
-    var q = 'UPDATE administration.reports_users SET status_id = $1, reviewer_user_id = $2, updated_at = now() WHERE id = $3 RETURNING updated_at';
-    var params = [newStatusId, newReviewerUserId, userReport.id];
-    return db.sqlQuery(q, params);
-  })
-  .then(function(rows) { // extract updated_at from row and return
-    if (rows.length) { return rows[0].updated_at; }
-    else { return Promise.reject(); }
-  })
-  .then(function(updatedAt) { // return updated report
-    existingReport.updated_at = updatedAt;
-    existingReport.status = userReport.status || existingReport.status;
-    existingReport.reviewer_user_id = userReport.reviewer_user_id || existingReport.reviewer_user_id;
-    delete existingReport.status_id; // only return status string
-    return existingReport;
+  return using(db.createTransaction(), function(client) {
+    var q = 'SELECT ru.id, rs.status, ru.status_id, ru.reporter_user_id, ru.reporter_reason, ru.reviewer_user_id, ru.offender_user_id, ru.created_at, ru.updated_at FROM administration.reports_users ru JOIN administration.reports_statuses rs ON(ru.status_id = rs.id) WHERE ru.id = $1';
+    var params = [userReport.id];
+    var existingReport;
+    return client.queryAsync(q, params)
+    .then(function(results) { // check that report exists and return existing report with string status
+      var rows = results.rows;
+      if (rows.length) { return rows[0]; }
+      else { return Promise.reject(); }
+    })
+    .then(function(dbUserReport) { // lookup status id by passed in status string (e.g "Reviewed" returns 2)
+      existingReport = dbUserReport;
+      q = 'SELECT id FROM administration.reports_statuses WHERE status = $1';
+      params = [userReport.status];
+      return client.queryAsync(q, params);
+    })
+    .then(function(results) { // extract statusId from row and return
+      var rows = results.rows;
+      if (rows.length) { return rows[0].id; }
+      else { return Promise.reject(); }
+    })
+    .then(function(statusId) { // update report with new status_id, reviewer_user_id, and updated_at
+      var newStatusId = statusId || existingReport.status_id;
+      var newReviewerUserId = userReport.reviewer_user_id || existingReport.reviewer_user_id;
+      q = 'UPDATE administration.reports_users SET status_id = $1, reviewer_user_id = $2, updated_at = now() WHERE id = $3 RETURNING updated_at';
+      params = [newStatusId, newReviewerUserId, userReport.id];
+      return client.queryAsync(q, params);
+    })
+    .then(function(results) { // extract updated_at from row and return
+      var rows = results.rows;
+      if (rows.length) { return rows[0].updated_at; }
+      else { return Promise.reject(); }
+    })
+    .then(function(updatedAt) { // return updated report
+      existingReport.updated_at = updatedAt;
+      existingReport.status = userReport.status || existingReport.status;
+      existingReport.reviewer_user_id = userReport.reviewer_user_id || existingReport.reviewer_user_id;
+      delete existingReport.status_id; // only return status string
+      return existingReport;
+    });
   })
   .then(helper.slugify);
 };
 
 reports.createUserReportNote = function(reportNote) {
   reportNote = helper.deslugify(reportNote);
-  var q = 'INSERT INTO administration.reports_users_notes(report_id, user_id, note, created_at, updated_at) VALUES($1, $2, $3, now(), now()) RETURNING id, created_at, updated_at';
-  var params = [reportNote.report_id, reportNote.user_id, reportNote.note];
-  return db.sqlQuery(q, params)
-  .then(function(rows) { // return created report note details
-    if (rows.length) { return rows[0]; }
-    else { return Promise.reject(); }
-  })
-  .then(function(reportDetails) { // append id, created_at, updated_at and return created note
-    reportNote.id = reportDetails.id;
-    reportNote.created_at = reportDetails.created_at;
-    reportNote.updated_at = reportDetails.updated_at;
-    return reportNote;
-  })
-  .then(function() {
-    var q = 'SELECT u.username, p.avatar FROM users u JOIN users.profiles p ON (p.user_id = u.id) WHERE u.id = $1';
-    var params = [reportNote.user_id];
-    return db.sqlQuery(q, params);
-  })
-  .then(function(rows) { // return userInfo
-    if (rows.length) { return rows[0]; }
-    else { return Promise.reject(); }
-  })
-  .then(function(userInfo) {
-    reportNote.username = userInfo.username;
-    reportNote.avatar = userInfo.avatar;
-    return reportNote;
+  return using(db.createTransaction(), function(client) {
+    var q = 'INSERT INTO administration.reports_users_notes(report_id, user_id, note, created_at, updated_at) VALUES($1, $2, $3, now(), now()) RETURNING id, created_at, updated_at';
+    var params = [reportNote.report_id, reportNote.user_id, reportNote.note];
+    return client.queryAsync(q, params)
+    .then(function(results) { // return created report note details
+      var rows = results.rows;
+      if (rows.length) { return rows[0]; }
+      else { return Promise.reject(); }
+    })
+    .then(function(reportDetails) { // append id, created_at, updated_at and return created note
+      reportNote.id = reportDetails.id;
+      reportNote.created_at = reportDetails.created_at;
+      reportNote.updated_at = reportDetails.updated_at;
+      return reportNote;
+    })
+    .then(function() {
+      q = 'SELECT u.username, p.avatar FROM users u JOIN users.profiles p ON (p.user_id = u.id) WHERE u.id = $1';
+      params = [reportNote.user_id];
+      return client.queryAsync(q, params);
+    })
+    .then(function(results) { // return userInfo
+      var rows = results.rows;
+      if (rows.length) { return rows[0]; }
+      else { return Promise.reject(); }
+    })
+    .then(function(userInfo) {
+      reportNote.username = userInfo.username;
+      reportNote.avatar = userInfo.avatar;
+      return reportNote;
+    });
   })
   .then(helper.slugify);
 };
 
 reports.updateUserReportNote = function(reportNote) {
   reportNote = helper.deslugify(reportNote);
-  var q = 'SELECT n.id, n.report_id, n.user_id, n.note, n.created_at, n.updated_at, u.username, p.avatar FROM administration.reports_users_notes n JOIN users u ON(u.id = user_id) JOIN users.profiles p ON (p.user_id = n.user_id) WHERE n.id = $1';
-  var params = [reportNote.id];
-  var existingReportNote;
-  return db.sqlQuery(q, params)
-  .then(function(rows) { // lookup and return existing reportNote
-    if (rows.length) { return rows[0]; }
-    else { return Promise.reject(); }
-  })
-  .then(function(dbReportNote) { // update only note content and updated_at timestamp
-    existingReportNote = dbReportNote;
-    existingReportNote.note = reportNote.note;
-    var q = 'UPDATE administration.reports_users_notes SET note = $1, updated_at = now() WHERE id = $2 RETURNING updated_at';
-    var params = [existingReportNote.note, existingReportNote.id];
-    return db.sqlQuery(q, params);
-  })
-  .then(function(rows) { // extract updated_at from row and return
-    if (rows.length) { return rows[0].updated_at; }
-    else { return Promise.reject(); }
-  })
-  .then(function(updatedAt) { // return updated report note
-    existingReportNote.updated_at = updatedAt;
-    return existingReportNote;
+  return using(db.createTransaction(), function(client) {
+    var q = 'SELECT n.id, n.report_id, n.user_id, n.note, n.created_at, n.updated_at, u.username, p.avatar FROM administration.reports_users_notes n JOIN users u ON(u.id = user_id) JOIN users.profiles p ON (p.user_id = n.user_id) WHERE n.id = $1';
+    var params = [reportNote.id];
+    var existingReportNote;
+    return client.queryAsync(q, params)
+    .then(function(results) { // lookup and return existing reportNote
+      var rows = results.rows;
+      if (rows.length) { return rows[0]; }
+      else { return Promise.reject(); }
+    })
+    .then(function(dbReportNote) { // update only note content and updated_at timestamp
+      existingReportNote = dbReportNote;
+      existingReportNote.note = reportNote.note;
+      q = 'UPDATE administration.reports_users_notes SET note = $1, updated_at = now() WHERE id = $2 RETURNING updated_at';
+      params = [existingReportNote.note, existingReportNote.id];
+      return client.queryAsync(q, params);
+    })
+    .then(function(results) { // extract updated_at from row and return
+      var rows = results.rows;
+      if (rows.length) { return rows[0].updated_at; }
+      else { return Promise.reject(); }
+    })
+    .then(function(updatedAt) { // return updated report note
+      existingReportNote.updated_at = updatedAt;
+      return existingReportNote;
+    });
   })
   .then(helper.slugify);
 };
@@ -194,9 +212,17 @@ reports.userReportsCount = function(opts) {
   });
 };
 
+reports.findUserReportNote = function(noteId) {
+  noteId = helper.deslugify(noteId);
+  var q = 'SELECT n.id, n.report_id, n.user_id, n.note, n.created_at, n.updated_at, (SELECT u.username FROM users u WHERE u.id = n.user_id), (SELECT p.avatar FROM users.profiles p WHERE p.user_id = n.user_id) FROM administration.reports_users_notes n WHERE n.id = $1';
+  var params = [noteId];
+  return db.scalar(q, params)
+  .then(helper.slugify);
+};
+
 reports.pageUserReportsNotes = function(reportId, opts) {
   reportId = helper.deslugify(reportId);
-  var q = 'SELECT n.id, n.report_id, n.user_id, n.note, n.created_at, n.updated_at, u.username, p.avatar FROM administration.reports_users_notes n JOIN users u ON(u.id = user_id) JOIN users.profiles p ON (p.user_id = n.user_id) WHERE n.report_id = $1 ORDER BY n.created_at';
+  var q = 'SELECT n.id, n.report_id, n.user_id, n.note, n.created_at, n.updated_at, (SELECT u.username FROM users u WHERE u.id = n.user_id), (SELECT p.avatar FROM users.profiles p WHERE p.user_id = n.user_id) FROM administration.reports_users_notes n WHERE n.report_id = $1 ORDER BY n.created_at';
   var limit = 10;
   var page = 1;
   var order = 'ASC';
@@ -225,123 +251,140 @@ reports.userReportsNotesCount = function(reportId) {
 // Post Report Operations
 reports.createPostReport = function(postReport) {
   postReport = helper.deslugify(postReport);
-  var q = 'INSERT INTO administration.reports_posts(status_id, reporter_user_id, reporter_reason, offender_post_id, created_at, updated_at) VALUES($1, $2, $3, $4, now(), now()) RETURNING id';
-  var statusId = 1; // New reports are always pending
-  var params = [statusId, postReport.reporter_user_id, postReport.reporter_reason, postReport.offender_post_id];
-  return db.sqlQuery(q, params)
-  .then(function(rows) { // return created report id
-    if (rows.length) { return rows[0].id; }
-    else { return Promise.reject(); }
-  })
-  .then(function(reportId) { // Lookup the created report and return it
-    var q = 'SELECT rp.id, rs.status, rp.reporter_user_id, rp.reporter_reason, rp.reviewer_user_id, rp.offender_post_id, rp.created_at, rp.updated_at FROM administration.reports_posts rp JOIN administration.reports_statuses rs ON(rp.status_id = rs.id) WHERE rp.id = $1';
-    var params = [reportId];
-    return db.sqlQuery(q, params);
-  })
-  .then(function(rows) { // return created row
-    if(rows.length) { return rows[0]; }
-    else { return Promise.reject(); }
+  return using(db.createTransaction(), function(client) {
+    var q = 'INSERT INTO administration.reports_posts(status_id, reporter_user_id, reporter_reason, offender_post_id, created_at, updated_at) VALUES($1, $2, $3, $4, now(), now()) RETURNING id';
+    var statusId = 1; // New reports are always pending
+    var params = [statusId, postReport.reporter_user_id, postReport.reporter_reason, postReport.offender_post_id];
+    return client.queryAsync(q, params)
+    .then(function(results) { // return created report id
+      var rows = results.rows;
+      if (rows.length) { return rows[0].id; }
+      else { return Promise.reject(); }
+    })
+    .then(function(reportId) { // Lookup the created report and return it
+      q = 'SELECT rp.id, rs.status, rp.reporter_user_id, rp.reporter_reason, rp.reviewer_user_id, rp.offender_post_id, rp.created_at, rp.updated_at FROM administration.reports_posts rp JOIN administration.reports_statuses rs ON(rp.status_id = rs.id) WHERE rp.id = $1';
+      params = [reportId];
+      return client.queryAsync(q, params);
+    })
+    .then(function(results) { // return created row
+      var rows = results.rows;
+      if(rows.length) { return rows[0]; }
+      else { return Promise.reject(); }
+    });
   })
   .then(helper.slugify);
 };
 
 reports.updatePostReport = function(postReport) {
   postReport = helper.deslugify(postReport);
-  var q = 'SELECT rp.id, rs.status, rp.status_id, rp.reporter_user_id, rp.reporter_reason, rp.reviewer_user_id, rp.offender_post_id, rp.created_at, rp.updated_at FROM administration.reports_posts rp JOIN administration.reports_statuses rs ON(rp.status_id = rs.id) WHERE rp.id = $1';
-  var params = [postReport.id];
-  var existingReport;
-  return db.sqlQuery(q, params)
-  .then(function(rows) { // check that report exists and return existing report with string status
-    if (rows.length) { return rows[0]; }
-    else { return Promise.reject(); }
-  })
-  .then(function(dbPostReport) { // lookup status id by passed in status string (e.g "Reviewed" returns 2)
-    existingReport = dbPostReport;
-    var q = 'SELECT id FROM administration.reports_statuses WHERE status = $1';
-    var params = [postReport.status];
-    return db.sqlQuery(q, params);
-  })
-  .then(function(rows) { // extract statusId from row and return
-    if (rows.length) { return rows[0].id; }
-    else { return Promise.reject(); }
-  })
-  .then(function(statusId) { // update report with new status_id, reviewer_user_id, and updated_at
-    var newStatusId = statusId || existingReport.status_id;
-    var newReviewerUserId = postReport.reviewer_user_id || existingReport.reviewer_user_id;
-    var q = 'UPDATE administration.reports_posts SET status_id = $1, reviewer_user_id = $2, updated_at = now() WHERE id = $3 RETURNING updated_at';
-    var params = [newStatusId, newReviewerUserId, postReport.id];
-    return db.sqlQuery(q, params);
-  })
-  .then(function(rows) { // extract updated_at from row and return
-    if (rows.length) { return rows[0].updated_at; }
-    else { return Promise.reject(); }
-  })
-  .then(function(updatedAt) { // return updated report
-    existingReport.updated_at = updatedAt;
-    existingReport.status = postReport.status || existingReport.status;
-    existingReport.reviewer_user_id = postReport.reviewer_user_id || existingReport.reviewer_user_id;
-    delete existingReport.status_id; // only return status string
-    return existingReport;
+  return using(db.createTransaction(), function(client) {
+    var q = 'SELECT rp.id, rs.status, rp.status_id, rp.reporter_user_id, rp.reporter_reason, rp.reviewer_user_id, rp.offender_post_id, rp.created_at, rp.updated_at FROM administration.reports_posts rp JOIN administration.reports_statuses rs ON(rp.status_id = rs.id) WHERE rp.id = $1';
+    var params = [postReport.id];
+    var existingReport;
+    return client.queryAsync(q, params)
+    .then(function(results) { // check that report exists and return existing report with string status
+      var rows = results.rows;
+      if (rows.length) { return rows[0]; }
+      else { return Promise.reject(); }
+    })
+    .then(function(dbPostReport) { // lookup status id by passed in status string (e.g "Reviewed" returns 2)
+      existingReport = dbPostReport;
+      q = 'SELECT id FROM administration.reports_statuses WHERE status = $1';
+      params = [postReport.status];
+      return client.queryAsync(q, params);
+    })
+    .then(function(results) { // extract statusId from row and return
+      var rows = results.rows;
+      if (rows.length) { return rows[0].id; }
+      else { return Promise.reject(); }
+    })
+    .then(function(statusId) { // update report with new status_id, reviewer_user_id, and updated_at
+      var newStatusId = statusId || existingReport.status_id;
+      var newReviewerUserId = postReport.reviewer_user_id || existingReport.reviewer_user_id;
+      q = 'UPDATE administration.reports_posts SET status_id = $1, reviewer_user_id = $2, updated_at = now() WHERE id = $3 RETURNING updated_at';
+      params = [newStatusId, newReviewerUserId, postReport.id];
+      return client.queryAsync(q, params);
+    })
+    .then(function(results) { // extract updated_at from row and return
+      var rows = results.rows;
+      if (rows.length) { return rows[0].updated_at; }
+      else { return Promise.reject(); }
+    })
+    .then(function(updatedAt) { // return updated report
+      existingReport.updated_at = updatedAt;
+      existingReport.status = postReport.status || existingReport.status;
+      existingReport.reviewer_user_id = postReport.reviewer_user_id || existingReport.reviewer_user_id;
+      delete existingReport.status_id; // only return status string
+      return existingReport;
+    });
   })
   .then(helper.slugify);
 };
 
 reports.createPostReportNote = function(reportNote) {
   reportNote = helper.deslugify(reportNote);
-  var q = 'INSERT INTO administration.reports_posts_notes(report_id, user_id, note, created_at, updated_at) VALUES($1, $2, $3, now(), now()) RETURNING id, created_at, updated_at';
-  var params = [reportNote.report_id, reportNote.user_id, reportNote.note];
-  return db.sqlQuery(q, params)
-  .then(function(rows) { // return created report note details
-    if (rows.length) { return rows[0]; }
-    else { return Promise.reject(); }
-  })
-  .then(function(reportDetails) { // append id and return created note
-    reportNote.id = reportDetails.id;
-    reportNote.created_at = reportDetails.created_at;
-    reportNote.updated_at = reportDetails.updated_at;
-    return reportNote;
-  })
-  .then(function() {
-    var q = 'SELECT u.username, p.avatar FROM users u JOIN users.profiles p ON (p.user_id = u.id) WHERE u.id = $1';
-    var params = [reportNote.user_id];
-    return db.sqlQuery(q, params);
-  })
-  .then(function(rows) { // return userInfo
-    if (rows.length) { return rows[0]; }
-    else { return Promise.reject(); }
-  })
-  .then(function(userInfo) {
-    reportNote.username = userInfo.username;
-    reportNote.avatar = userInfo.avatar;
-    return reportNote;
+  return using(db.createTransaction(), function(client) {
+    var q = 'INSERT INTO administration.reports_posts_notes(report_id, user_id, note, created_at, updated_at) VALUES($1, $2, $3, now(), now()) RETURNING id, created_at, updated_at';
+    var params = [reportNote.report_id, reportNote.user_id, reportNote.note];
+    return client.queryAsync(q, params)
+    .then(function(results) { // return created report note details
+      var rows = results.rows;
+      if (rows.length) { return rows[0]; }
+      else { return Promise.reject(); }
+    })
+    .then(function(reportDetails) { // append id and return created note
+      reportNote.id = reportDetails.id;
+      reportNote.created_at = reportDetails.created_at;
+      reportNote.updated_at = reportDetails.updated_at;
+      return reportNote;
+    })
+    .then(function() {
+      q = 'SELECT u.username, p.avatar FROM users u JOIN users.profiles p ON (p.user_id = u.id) WHERE u.id = $1';
+      params = [reportNote.user_id];
+      return client.queryAsync(q, params);
+    })
+    .then(function(results) { // return userInfo
+      var rows = results.rows;
+      if (rows.length) { return rows[0]; }
+      else { return Promise.reject(); }
+    })
+    .then(function(userInfo) {
+      reportNote.username = userInfo.username;
+      reportNote.avatar = userInfo.avatar;
+      return reportNote;
+    });
   })
   .then(helper.slugify);
 };
 
 reports.updatePostReportNote = function(reportNote) {
   reportNote = helper.deslugify(reportNote);
-  var q = 'SELECT n.id, n.report_id, n.user_id, n.note, n.created_at, n.updated_at, u.username, p.avatar FROM administration.reports_posts_notes n JOIN users u ON(u.id = user_id) JOIN users.profiles p ON (p.user_id = n.user_id) WHERE n.id = $1';
-  var params = [reportNote.id];
-  var existingReportNote;
-  return db.sqlQuery(q, params)
-  .then(function(rows) { // lookup and return existing reportNote
-    if (rows.length) { return rows[0]; }
-    else { return Promise.reject(); }
-  })
-  .then(function(dbReportNote) { // update only note content and updated_at timestamp
-    existingReportNote = dbReportNote;
-    existingReportNote.note = reportNote.note;
-    var q = 'UPDATE administration.reports_posts_notes SET note = $1, updated_at = now() WHERE id = $2 RETURNING updated_at';
-    var params = [existingReportNote.note, existingReportNote.id];
-    return db.sqlQuery(q, params);
-  })
-  .then(function(rows) { // extract updated_at from row and return
-    if (rows.length) { return rows[0].updated_at; }
-    else { return Promise.reject(); }
-  })
-  .then(function(updatedAt) { // return updated report note
-    existingReportNote.updated_at = updatedAt;
-    return existingReportNote;
+  return using(db.createTransaction(), function(client) {
+    var q = 'SELECT n.id, n.report_id, n.user_id, n.note, n.created_at, n.updated_at, u.username, p.avatar FROM administration.reports_posts_notes n JOIN users u ON(u.id = user_id) JOIN users.profiles p ON (p.user_id = n.user_id) WHERE n.id = $1';
+    var params = [reportNote.id];
+    var existingReportNote;
+    return client.queryAsync(q, params)
+    .then(function(results) { // lookup and return existing reportNote
+      var rows = results.rows;
+      if (rows.length) { return rows[0]; }
+      else { return Promise.reject(); }
+    })
+    .then(function(dbReportNote) { // update only note content and updated_at timestamp
+      existingReportNote = dbReportNote;
+      existingReportNote.note = reportNote.note;
+      q = 'UPDATE administration.reports_posts_notes SET note = $1, updated_at = now() WHERE id = $2 RETURNING updated_at';
+      params = [existingReportNote.note, existingReportNote.id];
+      return client.queryAsync(q, params);
+    })
+    .then(function(results) { // extract updated_at from row and return
+      var rows = results.rows;
+      if (rows.length) { return rows[0].updated_at; }
+      else { return Promise.reject(); }
+    })
+    .then(function(updatedAt) { // return updated report note
+      existingReportNote.updated_at = updatedAt;
+      return existingReportNote;
+    });
   })
   .then(helper.slugify);
 };
@@ -400,9 +443,17 @@ reports.postReportsCount = function(opts) {
   });
 };
 
+reports.findPostReportNote = function(noteId) {
+  noteId = helper.deslugify(noteId);
+  var q = 'SELECT n.id, n.report_id, n.user_id, n.note, n.created_at, n.updated_at, (SELECT u.username FROM users u WHERE u.id = n.user_id), (SELECT p.avatar FROM users.profiles p WHERE p.user_id = n.user_id) FROM administration.reports_posts_notes n WHERE n.id = $1';
+  var params = [noteId];
+  return db.scalar(q, params)
+  .then(helper.slugify);
+};
+
 reports.pagePostReportsNotes = function(reportId, opts) {
   reportId = helper.deslugify(reportId);
-  var q = 'SELECT n.id, n.report_id, n.user_id, n.note, n.created_at, n.updated_at, u.username, p.avatar FROM administration.reports_posts_notes n JOIN users u ON(u.id = user_id) JOIN users.profiles p ON (p.user_id = n.user_id) WHERE n.report_id = $1 ORDER BY n.created_at';
+  var q = 'SELECT n.id, n.report_id, n.user_id, n.note, n.created_at, n.updated_at, (SELECT u.username FROM users u WHERE u.id = n.user_id), (SELECT p.avatar FROM users.profiles p WHERE p.user_id = n.user_id) FROM administration.reports_posts_notes n WHERE n.report_id = $1 ORDER BY n.created_at';
   var limit = 10;
   var page = 1;
   var order = 'ASC';
