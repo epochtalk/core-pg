@@ -9,6 +9,7 @@ var config = require(path.join(__dirname, '..', 'config'));
 var helper = require(path.join(__dirname, '..', 'helper'));
 var NotFoundError = Promise.OperationalError;
 var MoveError = Promise.OperationalError;
+var DeletionError = Promise.OperationalError;
 var using = Promise.using;
 
 threads.import = function(thread) {
@@ -56,7 +57,7 @@ var insertPostProcessing = function(thread, views, q, params, client) {
 };
 
 var threadLastPost = function(thread) {
-  var q = 'SELECT p.created_at, u.username FROM posts p LEFT JOIN users u ON p.user_id = u.id WHERE p.thread_id = $1 AND p.deleted = false ORDER BY p.created_at DESC LIMIT 1';
+  var q = 'SELECT p.created_at, u.username FROM posts p LEFT JOIN users u ON p.user_id = u.id WHERE p.thread_id = $1 AND p.deleted = False ORDER BY p.created_at DESC LIMIT 1';
   var params = [thread.id];
   return db.sqlQuery(q, params)
   .then(function(rows) {
@@ -71,7 +72,7 @@ var threadLastPost = function(thread) {
 threads.find = function(id) {
   id = helper.deslugify(id);
   var columns = 't.id, t.board_id, t.locked, t.sticky, t.created_at, t.updated_at, t.post_count, p.user_id, p.title, p.username';
-  var q1 = 'SELECT t1.id, t1.board_id, t1.locked, t1.sticky, t1.created_at, t1.updated_at, mt.post_count FROM threads t1 LEFT JOIN metadata.threads mt ON t1.id = mt.thread_id WHERE t1.id = $1';
+  var q1 = 'SELECT t1.id, t1.board_id, t1.locked, t1.sticky, t1.created_at, t1.updated_at, mt.post_count FROM threads t1 LEFT JOIN metadata.threads mt ON t1.id = mt.thread_id WHERE t1.id = $1 AND deleted = False';
   var q2 = 'SELECT p1.user_id, p1.title, u.username FROM posts p1 LEFT JOIN users u on p1.user_id = u.id WHERE p1.thread_id = t.id ORDER BY p1.created_at limit 1';
   var query = 'SELECT ' + columns + ' FROM ( ' + q1 + ') t LEFT JOIN LATERAL ( ' + q2 + ' ) p ON true';
 
@@ -79,7 +80,7 @@ threads.find = function(id) {
   return db.sqlQuery(query, params)
   .then(function(rows) {
     if (rows.length > 0) { return rows[0]; }
-    else { throw new NotFoundError('Thread not found'); }
+    else { throw new NotFoundError('Thread Not Found'); }
   })
   .then(function(dbThread) {
     dbThread.user = { id: dbThread.user_id, username: dbThread.username };
@@ -143,7 +144,7 @@ threads.byBoard = function(boardId, opts) {
   })
   // get all related threads
   .then(function() {
-    var q1 = 'SELECT id FROM threads WHERE board_id = $1 AND sticky = False ORDER BY updated_at ' + reversed +
+    var q1 = 'SELECT id FROM threads WHERE board_id = $1 AND sticky = False AND deleted = False ORDER BY updated_at ' + reversed +
     ' LIMIT $2 OFFSET $3';
     var query = 'SELECT ' + columns + ' FROM ( ' + q1 + ' ) tlist LEFT JOIN LATERAL ( ' + q2 + ' ) t ON true LEFT JOIN LATERAL ( ' + q3 + ') p ON true';
     var params = [boardId, limit, offset];
@@ -167,7 +168,7 @@ threads.byBoard = function(boardId, opts) {
   .then(function(threads) {
     if (page !== 1) { return {sticky: [], normal: threads}; }
     var retVal = { normal: threads };
-    var stickyQ = 'SELECT id FROM threads WHERE board_id = $1 AND sticky = True ORDER BY created_at';
+    var stickyQ = 'SELECT id FROM threads WHERE board_id = $1 AND sticky = True AND deleted = False ORDER BY created_at';
     var query = 'SELECT ' + columns + ' FROM ( ' + stickyQ + ' ) tlist LEFT JOIN LATERAL ( ' + q2 + ' ) t ON true LEFT JOIN LATERAL ( ' + q3 + ') p ON true';
     var params = [boardId];
     return db.sqlQuery(query, params)
@@ -192,7 +193,7 @@ threads.byBoard = function(boardId, opts) {
 
 threads.incViewCount = function(threadId) {
   threadId = helper.deslugify(threadId);
-  var increment = 'UPDATE metadata.threads SET views = views + 1 WHERE thread_id = $1;';
+  var increment = 'UPDATE metadata.threads SET views = views + 1 WHERE thread_id = $1';
   return db.sqlQuery(increment, [threadId]);
 };
 
@@ -219,7 +220,10 @@ threads.move = function(threadId, newBoardId) {
     params = [threadId];
     q = 'SELECT * FROM threads t JOIN metadata.threads mt ON mt.thread_id = t.id WHERE t.id = $1 FOR UPDATE';
     return client.queryAsync(q, params)
-    .then(function(results) { thread = results.rows[0]; })
+    .then(function(results) {
+      if (results.rows.length > 0) { thread = results.rows[0]; }
+      else { throw new NotFoundError('Thread Not Found'); }
+    })
     .then(function() {
       if (thread.board_id === newBoardId) {
         throw new MoveError('New Board Id matches current Board Id');
@@ -269,4 +273,160 @@ threads.getThreadsBoard = function(threadId) {
     else { throw new NotFoundError('Board Not Found'); }
   })
   .then(helper.slugify);
+};
+
+threads.getThreadOwner = function(threadId) {
+  threadId = helper.deslugify(threadId);
+  var q = 'SELECT user_id FROM posts WHERE thread_id = $1 ORDER BY created_at DESC LIMIT 1';
+  return db.sqlQuery(q, [threadId])
+  .then(function(rows) {
+    if (rows.length > 0) { return rows[0]; }
+    else { throw new NotFoundError('Thread Not Found'); }
+  })
+  .then(helper.slugify);
+};
+
+threads.delete = function(threadId) {
+  threadId = helper.deslugify(threadId);
+  var thread;
+  var board;
+  var q, params;
+
+  return using(db.createTransaction(), function(client) {
+    // lock up thread and Meta
+    q = 'SELECT * from threads t JOIN metadata.threads mt ON t.id = mt.thread_id WHERE t.id = $1 FOR UPDATE';
+    return client.queryAsync(q, [threadId])
+    .then(function(results) {
+      if (results.rows.length > 0) { thread = results.rows[0]; }
+      else { return Promise.reject('Thread Not Found'); }
+    })
+    // check if thread already deleted
+    .then(function() {
+      if (thread.deleted) { throw new DeletionError('Thread Already Deleted'); }
+    })
+    // lock up board and Meta
+    .then(function() {
+      q = 'SELECT * FROM boards b JOIN metadata.boards mb ON b.id = mb.board_id WHERE b.id = $1 FOR UPDATE';
+      return client.queryAsync(q, [thread.board_id])
+      .then(function(results) {
+        if (results.rows.length > 0) { board = results.rows[0]; }
+        else { return Promise.reject('Board Not Found'); }
+      });
+    })
+    // update board's thread_count and post count
+    .then(function() {
+      q = 'UPDATE metadata.boards SET thread_count = thread_count - 1, post_count = post_count - $1 WHERE board_id = $2';
+      return client.queryAsync(q, [thread.post_count, thread.board_id]);
+    })
+    // mark thread as deleted
+    .then(function() {
+      q = 'UPDATE threads SET deleted = True WHERE id = $1';
+      return client.queryAsync(q, [threadId]);
+    })
+    // update board last post information
+    .then(function() {
+      q = 'UPDATE metadata.boards SET last_post_username = username, last_post_created_at = created_at, last_thread_id = thread_id, last_thread_title = title FROM (SELECT post.username as username, post.created_at as created_at, t.id as thread_id, post.title as title FROM ( SELECT id FROM threads WHERE board_id = $1 AND deleted = False ORDER BY updated_at DESC LIMIT 1 ) t LEFT JOIN LATERAL ( SELECT u.username, p.created_at, p.title FROM posts p LEFT JOIN users u ON u.id = p.user_id WHERE p.thread_id = t.id ORDER BY p.created_at LIMIT 1 ) post ON true) AS subquery WHERE board_id = $1;';
+      return client.queryAsync(q, [thread.board_id]);
+    });
+  });
+};
+
+threads.undelete = function(threadId) {
+  threadId = helper.deslugify(threadId);
+  var thread;
+  var board;
+  var q, params;
+
+  return using(db.createTransaction(), function(client) {
+    // lock up thread and Meta
+    q = 'SELECT * from threads t JOIN metadata.threads mt ON t.id = mt.thread_id WHERE t.id = $1 FOR UPDATE';
+    return client.queryAsync(q, [threadId])
+    .then(function(results) {
+      if (results.rows.length > 0) { thread = results.rows[0]; }
+      else { return Promise.reject('Thread Not Found'); }
+    })
+    // check if thread already deleted
+    .then(function() {
+      if (!thread.deleted) { throw new DeletionError('Thread Not Deleted'); }
+    })
+    // lock up board and Meta
+    .then(function() {
+      q = 'SELECT * FROM boards b JOIN metadata.boards mb ON b.id = mb.board_id WHERE b.id = $1 FOR UPDATE';
+      return client.queryAsync(q, [thread.board_id])
+      .then(function(results) {
+        if (results.rows.length > 0) { board = results.rows[0]; }
+        else { return Promise.reject('Board Not Found'); }
+      });
+    })
+    // update board's thread_count and post count
+    .then(function() {
+      q = 'UPDATE metadata.boards SET thread_count = thread_count + 1, post_count = post_count + $1 WHERE board_id = $2';
+      return client.queryAsync(q, [thread.post_count, thread.board_id]);
+    })
+    // mark thread as deleted
+    .then(function() {
+      q = 'UPDATE threads SET deleted = False WHERE id = $1';
+      return client.queryAsync(q, [threadId]);
+    })
+    // update board last post information
+    .then(function() {
+      q = 'UPDATE metadata.boards SET last_post_username = username, last_post_created_at = created_at, last_thread_id = thread_id, last_thread_title = title FROM (SELECT post.username as username, post.created_at as created_at, t.id as thread_id, post.title as title FROM ( SELECT id FROM threads WHERE board_id = $1 AND deleted = False ORDER BY updated_at DESC LIMIT 1 ) t LEFT JOIN LATERAL ( SELECT u.username, p.created_at, p.title FROM posts p LEFT JOIN users u ON u.id = p.user_id WHERE p.thread_id = t.id ORDER BY p.created_at LIMIT 1 ) post ON true) AS subquery WHERE board_id = $1;';
+      return client.queryAsync(q, [thread.board_id]);
+    });
+  });
+};
+
+threads.purge = function(threadId) {
+  threadId = helper.deslugify(threadId);
+  var thread;
+  var board;
+  var q, params;
+
+  return using(db.createTransaction(), function(client) {
+    // lock up thread and Meta
+    q = 'SELECT * from threads t JOIN metadata.threads mt ON t.id = mt.thread_id WHERE t.id = $1 FOR UPDATE';
+    return client.queryAsync(q, [threadId])
+    .then(function(results) {
+      if (results.rows.length > 0) { thread = results.rows[0]; }
+      else { return Promise.reject('Thread Not Found'); }
+    })
+    // lock up board and Meta
+    .then(function() {
+      q = 'SELECT * FROM boards b JOIN metadata.boards mb ON b.id = mb.board_id WHERE b.id = $1 FOR UPDATE';
+      return client.queryAsync(q, [thread.board_id])
+      .then(function(results) {
+        if (results.rows.length > 0) { board = results.rows[0]; }
+        else { return Promise.reject('Board Not Found'); }
+      });
+    })
+    // update board's thread_count and post_count
+    .then(function() {
+      if (!thread.deleted) {
+        q = 'UPDATE metadata.boards SET thread_count = thread_count - 1, post_count = post_count - $1 WHERE board_id = $2';
+        return client.queryAsync(q, [thread.post_count, thread.board_id]);
+      }
+    })
+    // delete thread data from DB
+    .then(function() {
+      q = 'UPDATE metadata.boards SET last_thread_id = NULL WHERE board_id = $1';
+      return client.queryAsync(q, [thread.board_id]);
+    })
+    .then(function() {
+      q = 'DELETE FROM posts WHERE thread_id = $1';
+      return client.queryAsync(q, [threadId]);
+    })
+    .then(function() {
+      q = 'DELETE FROM metadata.threads WHERE thread_id = $1';
+      return client.queryAsync(q, [threadId]);
+    })
+    .then(function() {
+      q = 'DELETE FROM threads WHERE id = $1';
+      return client.queryAsync(q, [threadId]);
+    })
+    // update board last post information
+    .then(function() {
+      q = 'UPDATE metadata.boards SET last_post_username = username, last_post_created_at = created_at, last_thread_id = thread_id, last_thread_title = title FROM (SELECT post.username as username, post.created_at as created_at, t.id as thread_id, post.title as title FROM ( SELECT id FROM threads WHERE board_id = $1 AND deleted = False ORDER BY updated_at DESC LIMIT 1 ) t LEFT JOIN LATERAL ( SELECT u.username, p.created_at, p.title FROM posts p LEFT JOIN users u ON u.id = p.user_id WHERE p.thread_id = t.id ORDER BY p.created_at LIMIT 1 ) post ON true) AS subquery WHERE board_id = $1;';
+      return client.queryAsync(q, [thread.board_id]);
+    });
+  });
 };
