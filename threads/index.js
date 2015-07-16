@@ -264,13 +264,13 @@ threads.move = function(threadId, newBoardId) {
   }); // Promise disposer called at this point
 };
 
-threads.getThreadsBoard = function(threadId) {
+threads.getThreadsBoardInBoardMapping = function(threadId) {
   threadId = helper.deslugify(threadId);
-  var q = 'SELECT b.* FROM threads t LEFT JOIN boards b ON t.board_id = b.id WHERE t.id = $1';
+  var q = 'SELECT bm.* FROM threads t LEFT JOIN board_mapping bm ON t.board_id = bm.board_id WHERE t.id = $1';
   return db.sqlQuery(q, [threadId])
   .then(function(rows) {
     if (rows.length > 0 ) { return rows[0]; }
-    else { throw new NotFoundError('Board Not Found'); }
+    else { return; }
   })
   .then(helper.slugify);
 };
@@ -411,6 +411,8 @@ threads.purge = function(threadId) {
       q = 'UPDATE metadata.boards SET last_thread_id = NULL WHERE board_id = $1';
       return client.queryAsync(q, [thread.board_id]);
     })
+    // TODO: update user post count (trigger)
+    // TODO: fix foreign key reference cascades
     .then(function() {
       q = 'DELETE FROM posts WHERE thread_id = $1';
       return client.queryAsync(q, [threadId]);

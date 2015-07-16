@@ -63,7 +63,10 @@ boards.update = function(board) {
     q = 'SELECT * FROM boards WHERE id = $1 FOR UPDATE';
     params = [board.id];
     return client.queryAsync(q, params)
-    .then(function(results) { return results.rows[0]; })
+    .then(function(results) {
+      if (results.rows.length > 0) { return results.rows[0]; }
+      else { throw new NotFoundError('Board Not Found'); }
+    })
     .then(function(oldBoard) {
       board.name = board.name || oldBoard.name;
       helper.updateAssign(board, oldBoard, board, "description");
@@ -86,46 +89,7 @@ boards.find = function(id) {
   return db.sqlQuery(q, params)
   .then(function(rows) {
     if (rows.length > 0) { return rows[0]; }
-    else { throw new NotFoundError('Board not found'); }
-  })
-  .then(function(board) { // add board moderators
-    var q = 'SELECT bm.user_id as id, u.username from board_moderators bm LEFT JOIN users u ON bm.user_id = u.id WHERE bm.board_id = $1';
-    var params = [id];
-    return db.sqlQuery(q, params)
-    .then(function(rows) { board.moderators = rows;})
-    .then(function() { return board; });
-  })
-  // get child boards
-  .then(function(board) {
-    // TODO: board moderators
-    return db.sqlQuery('SELECT b.id, b.name, b.description, b.created_at, b.updated_at, b.imported_at, mb.post_count, mb.thread_count, mb.last_post_username, mb.last_post_created_at, mb.last_thread_id, mb.last_thread_title, bm.parent_id, bm.category_id, bm.view_order FROM board_mapping bm LEFT JOIN boards b ON bm.board_id = b.id LEFT JOIN metadata.boards mb ON b.id = mb.board_id')
-    .then(function(boardMapping) {
-      board.children = _.filter(boardMapping, function(boardMap) {
-        return boardMap.parent_id === board.id;
-      });
-      board.children = _.sortBy(board.children, 'view_order');
-
-      // recurse through category boards
-      board.children.map(function(childBoard) {
-        return boardStitching(boardMapping, childBoard);
-      });
-
-      return board;
-    });
-  })
-  .then(helper.slugify);
-};
-
-boards.deepFind = function(id) {
-  id = helper.deslugify(id);
-  var columns = 'b.id, b.name, b.description, b.deleted, b.created_at, b.updated_at, b.imported_at, mb.thread_count, mb.post_count, (SELECT bm.parent_id FROM board_mapping bm WHERE bm.board_id = b.id) as parent_id';
-  var q = 'SELECT ' + columns + ' FROM boards b ' +
-    'LEFT JOIN metadata.boards mb ON b.id = mb.board_id WHERE b.id = $1';
-  var params = [id];
-  return db.sqlQuery(q, params)
-  .then(function(rows) {
-    if (rows.length > 0) { return rows[0]; }
-    else { throw new NotFoundError('Board not found'); }
+    else { throw new NotFoundError('Board Not Found'); }
   })
   .then(function(board) { // add board moderators
     var q = 'SELECT bm.user_id as id, u.username from board_moderators bm LEFT JOIN users u ON bm.user_id = u.id WHERE bm.board_id = $1';
@@ -238,3 +202,60 @@ function boardStitching(boardMapping, currentBoard) {
     return currentBoard;
   }
 }
+
+boards.getBoardInBoardMapping = function(boardId) {
+  boardId = helper.deslugify(boardId);
+  var q = 'SELECT * FROM board_mapping WHERE board_id = $1';
+  return db.sqlQuery(q, [boardId])
+  .then(function(rows) {
+    if (rows.length > 0) { return rows[0]; }
+    else { return; }
+  });
+};
+
+boards.delete = function(boardId){
+  boardId = helper.deslugify(boardId);
+  var board;
+  var q, params;
+
+  return using(db.createTransaction(), function(client) {
+    // lock up board and Meta
+    q = 'SELECT * from boards b JOIN metadata.boards mb ON b.id = mb.board_id WHERE b.id = $1 FOR UPDATE';
+    return client.queryAsync(q, [boardId])
+    .then(function(results) {
+      if (results.rows.length > 0) { board = results.rows[0]; }
+      else { return Promise.reject('Board Not Found'); }
+    })
+    // Remove board data from DB
+    .then(function() {
+      q = 'WITH RECURSIVE find_boards(board_id, parent_id, category_id) AS ( SELECT bm.board_id, bm.parent_id, bm.category_id FROM board_mapping bm WHERE bm.board_id = $1 UNION ALL SELECT bm.board_id, bm.parent_id, bm.category_id FROM find_boards fb, board_mapping bm WHERE bm.parent_id = fb.board_id ) DELETE FROM board_mapping WHERE board_id IN ( SELECT board_id FROM find_boards )';
+      return client.queryAsync(q, [boardId]);
+    })
+    // delete posts
+    .then(function() {
+      q = 'DELETE FROM posts WHERE thread_id IN ( SELECT id FROM threads WHERE board_id = $1 )';
+      return client.queryAsync(q, [boardId]);
+    })
+    // TODO: update user post count (trigger)
+    // TODO: fix foreign key reference cascades
+    // delete threads and metadata.threads
+    .then(function() {
+      q = 'DELETE FROM metadata.threads WHERE thread_id IN ( SELECT id FROM threads WHERE board_id = $1 )';
+      return client.queryAsync(q, [boardId]);
+    })
+    .then(function() {
+      q = 'DELETE FROM threads WHERE board_id = $1';
+      return client.queryAsync(q, [boardId]);
+    })
+    // delete board and board metadata
+    .then(function() {
+      q = 'DELETE FROM metadata.boards WHERE board_id = $1';
+      return client.queryAsync(q, [boardId]);
+    })
+    .then(function() {
+      q = 'DELETE FROM boards WHERE id = $1';
+      return client.queryAsync(q, [boardId]);
+    })
+    .catch(console.log);
+  });
+};

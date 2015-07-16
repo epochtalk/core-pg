@@ -142,7 +142,10 @@ posts.update = function(post) {
     var q, params;
     q = 'SELECT title, body, raw_body FROM posts WHERE id = $1 FOR UPDATE';
     return client.queryAsync(q, [post.id])
-    .then(function(results) { return results.rows[0]; })
+    .then(function(results) {
+      if (results.rows.length > 0) { return results.rows[0]; }
+      else { throw new NotFoundError('Post Not Found'); }
+    })
     .then(function(oldPost) {
       post.title = post.title || oldPost.title;
       post.body = post.body || oldPost.body;
@@ -532,13 +535,13 @@ posts.getPostsThread = function(postId) {
   .then(helper.slugify);
 };
 
-posts.getPostsBoard = function(postId) {
+posts.getPostsBoardInBoardMapping = function(postId) {
   postId = helper.deslugify(postId);
-  var q = 'SELECT b.* FROM posts p LEFT JOIN threads t ON p.thread_id = t.id LEFT JOIN boards b ON t.board_id = b.id WHERE p.id = $1';
+  var q = 'SELECT bm.* FROM posts p LEFT JOIN threads t ON p.thread_id = t.id LEFT JOIN board_mapping bm ON t.board_id = bm.board_id WHERE p.id = $1';
   return db.sqlQuery(q, [postId])
   .then(function(rows) {
     if (rows.length > 0 ) { return rows[0]; }
-    else { throw new NotFoundError('Board Not Found'); }
+    else { return; }
   })
   .then(helper.slugify);
 };
