@@ -8,6 +8,7 @@ var db = require(path.join(__dirname, '..', 'db'));
 var config = require(path.join(__dirname, '..', 'config'));
 var helper = require(path.join(__dirname, '..', 'helper'));
 var NotFoundError = Promise.OperationalError;
+var using = Promise.using;
 
 categories.all = function() {
   var q = 'SELECT id, name, view_order, imported_at from categories';
@@ -50,7 +51,29 @@ categories.find = function(id) {
   return db.sqlQuery(q, params)
   .then(function(rows) {
     if (rows.length > 0) { return rows[0]; }
-    else { throw new NotFoundError('Category not found'); }
+    else { throw new NotFoundError('Category Not Found'); }
   })
   .then(helper.slugify);
+};
+
+categories.delete = function(catId) {
+  catId = helper.deslugify(catId);
+  var q, params;
+
+  return using(db.createTransaction(), function(client) {
+    q = 'SELECT * FROM categories WHERE id = $1 FOR UPDATE';
+    return client.queryAsync(q, [catId])
+    .then(function(results) {
+      if (results.rows.length > 0) { return results.rows[0]; }
+      else { return Promise.reject('Category Not Found'); }
+    })
+    .then(function() {
+      q = 'WITH RECURSIVE find_boards(board_id, parent_id, category_id) AS ( SELECT bm.board_id, bm.parent_id, bm.category_id FROm board_mapping bm WHERE bm.category_id = $1 UNION ALL SELECT bm.board_id, bm.parent_id, bm.category_id FROM find_boards fb, board_mapping bm WHERE bm.parent_id = fb.board_id ) DELETE FROM board_mapping WHERE board_id IN ( SELECT board_id FROM find_boards )';
+      return client.queryAsync(q, [catId]);
+    })
+    .then(function() {
+      q = 'DELETE FROM categories WHERE id = $1';
+      return client.queryAsync(q, [catId]);
+    });
+  });
 };

@@ -215,15 +215,14 @@ boards.getBoardInBoardMapping = function(boardId) {
 
 boards.delete = function(boardId){
   boardId = helper.deslugify(boardId);
-  var board;
   var q, params;
 
   return using(db.createTransaction(), function(client) {
     // lock up board and Meta
-    q = 'SELECT * from boards b JOIN metadata.boards mb ON b.id = mb.board_id WHERE b.id = $1 FOR UPDATE';
+    q = 'SELECT * FROM boards b JOIN metadata.boards mb ON b.id = mb.board_id WHERE b.id = $1 FOR UPDATE';
     return client.queryAsync(q, [boardId])
     .then(function(results) {
-      if (results.rows.length > 0) { board = results.rows[0]; }
+      if (results.rows.length > 0) { return results.rows[0]; }
       else { return Promise.reject('Board Not Found'); }
     })
     // Remove board data from DB
@@ -255,7 +254,6 @@ boards.delete = function(boardId){
     .then(function() {
       q = 'DELETE FROM boards WHERE id = $1';
       return client.queryAsync(q, [boardId]);
-    })
-    .catch(console.log);
+    });
   });
 };
