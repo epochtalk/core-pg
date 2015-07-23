@@ -99,7 +99,15 @@ boards.find = function(id) {
   // get child boards
   .then(function(board) {
     // TODO: board moderators
-    return db.sqlQuery('SELECT b.id, b.name, b.description, b.created_at, b.updated_at, b.imported_at, mb.post_count, mb.thread_count, mb.last_post_username, mb.last_post_created_at, mb.last_thread_id, mb.last_thread_title, bm.parent_id, bm.category_id, bm.view_order FROM board_mapping bm LEFT JOIN boards b ON bm.board_id = b.id LEFT JOIN metadata.boards mb ON b.id = mb.board_id')
+    return db.sqlQuery('SELECT * FROM ( SELECT b.id, b.name, b.description, b.created_at, b.updated_at, b.imported_at, mb.post_count, mb.thread_count, mb.last_post_username, mb.last_post_created_at, mb.last_thread_id, mb.last_thread_title, bm.parent_id, bm.category_id, bm.view_order FROM board_mapping bm LEFT JOIN boards b ON bm.board_id = b.id LEFT JOIN metadata.boards mb ON b.id = mb.board_id ) blist LEFT JOIN LATERAL ( SELECT p.deleted as post_deleted, u.deleted as user_deleted FROM posts p LEFT JOIN users u ON p.user_id = u.id WHERE blist.last_thread_id = p.thread_id ORDER BY p.created_at DESC LIMIT 1 ) p ON true')
+    // handle deleted users
+    .then(function(boards) {
+      return boards.map(function(b) {
+        if (b.post_deleted || b.user_deleted) { b.last_post_username = 'deleted'; }
+        return b;
+      });
+    })
+    // stitch child boards on
     .then(function(boardMapping) {
       board.children = _.filter(boardMapping, function(boardMap) {
         return boardMap.parent_id === board.id;
@@ -155,7 +163,16 @@ boards.allCategories = function() {
   .then(function(dbCategories) { categories = dbCategories; })
   // get all board mappings
   .then(function() {
-    return db.sqlQuery('SELECT b.id, b.name, b.description, b.created_at, b.updated_at, b.imported_at, mb.post_count, mb.thread_count, mb.last_post_username, mb.last_post_created_at, mb.last_thread_id, mb.last_thread_title, bm.parent_id, bm.category_id, bm.view_order FROM board_mapping bm LEFT JOIN boards b ON bm.board_id = b.id LEFT JOIN metadata.boards mb ON b.id = mb.board_id');
+    return db.sqlQuery('SELECT * FROM ( SELECT b.id, b.name, b.description, b.created_at, b.updated_at, b.imported_at, mb.post_count, mb.thread_count, mb.last_post_username, mb.last_post_created_at, mb.last_thread_id, mb.last_thread_title, bm.parent_id, bm.category_id, bm.view_order FROM board_mapping bm LEFT JOIN boards b ON bm.board_id = b.id LEFT JOIN metadata.boards mb ON b.id = mb.board_id ) blist LEFT JOIN LATERAL ( SELECT p.deleted as post_deleted, u.deleted as user_deleted FROM posts p LEFT JOIN users u ON p.user_id = u.id WHERE blist.last_thread_id = p.thread_id ORDER BY p.created_at DESC LIMIT 1 ) p ON true');
+  })
+  // handle deleted users
+  .then(function(boards) {
+    return boards.map(function(board) {
+      if (board.post_deleted || board.user_deleted) {
+        board.last_post_username = 'deleted';
+      }
+      return board;
+    });
   })
   // stitch boards together
   .then(function(boardMapping) {

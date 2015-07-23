@@ -57,13 +57,14 @@ var insertPostProcessing = function(thread, views, q, params, client) {
 };
 
 var threadLastPost = function(thread) {
-  var q = 'SELECT p.created_at, u.username FROM posts p LEFT JOIN users u ON p.user_id = u.id WHERE p.thread_id = $1 AND p.deleted = False ORDER BY p.created_at DESC LIMIT 1';
+  var q = 'SELECT p.created_at, p.deleted, u.username, u.deleted as user_deleted FROM posts p LEFT JOIN users u ON p.user_id = u.id WHERE p.thread_id = $1 ORDER BY p.created_at DESC LIMIT 1';
   var params = [thread.id];
   return db.sqlQuery(q, params)
   .then(function(rows) {
     if (rows.length > 0) {
       thread.last_post_created_at = rows[0].created_at;
-      thread.last_post_username = rows[0].username;
+      if (rows[0].deleted || rows[0].user_deleted) { thread.last_post_username = 'deleted'; }
+      else { thread.last_post_username = rows[0].username;}
     }
     return thread;
   });
@@ -88,10 +89,10 @@ threads.find = function(id) {
 
 threads.byBoard = function(boardId, opts) {
   boardId = helper.deslugify(boardId);
-  var columns = 'tlist.id, t.locked, t.sticky, t.created_at, t.updated_at, t.views as view_count, t.post_count, p.title, p.user_id, p.username';
+  var columns = 'tlist.id, t.locked, t.sticky, t.created_at, t.updated_at, t.views as view_count, t.post_count, p.title, p.user_id, p.username, p.user_deleted';
   var q2 = 'SELECT t1.locked, t1.sticky, t1.created_at, t1.updated_at, mt.views, mt.post_count FROM threads t1 ' +
     'LEFT JOIN metadata.threads mt ON tlist.id = mt.thread_id WHERE t1.id = tlist.id';
-  var q3 = 'SELECT p1.title, p1.user_id, u.username FROM posts p1 LEFT JOIN users u ON p1.user_id = u.id WHERE p1.thread_id = tlist.id ORDER BY p1.created_at LIMIT 1';
+  var q3 = 'SELECT p1.title, p1.user_id, u.username, u.deleted as user_deleted FROM posts p1 LEFT JOIN users u ON p1.user_id = u.id WHERE p1.thread_id = tlist.id ORDER BY p1.created_at LIMIT 1';
 
   var limit = 10;
   var page = 1;

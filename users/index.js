@@ -7,19 +7,12 @@ var Promise = require('bluebird');
 var db = require(path.normalize(__dirname + '/../db'));
 var helper = require(path.normalize(__dirname + '/../helper'));
 var NotFoundError = Promise.OperationalError;
+var CreationError = Promise.OperationalError;
 var using = Promise.using;
-
-/* returns all values */
-users.all = function() {
-  // TODO: scrub passhash
-  var q = 'SELECT id, email, username, passhash, confirmation_token, reset_token, reset_expiration, created_at, updated_at, imported_at FROM users';
-  return db.sqlQuery(q)
-  .then(helper.slugify);
-};
 
 /* returns array of usernames matching searchStr */
 users.searchUsernames = function(searchStr, limit) {
-  var q = 'Select username from users where username LIKE $1 ORDER BY username LIMIT $2';
+  var q = 'Select username FROM users WHERE username LIKE $1 ORDER BY username LIMIT $2';
   var params = [searchStr + '%', limit || 15];
   return db.sqlQuery(q, params)
   .map(function(user) { return user.username; });
@@ -133,10 +126,10 @@ users.removeRoles = function(userId, roles) {
 users.page = function(opts) {
   var q;
   if (opts && opts.filter && opts.filter === 'banned') {
-    q = 'SELECT u.id, u.username, u.email, u.created_at, u.updated_at, u.imported_at, b.expiration as ban_expiration FROM users u RIGHT JOIN (SELECT ub.expiration, ub.user_id FROM users.bans ub WHERE ub.expiration > now()) b ON (u.id = b.user_id)';
+    q = 'SELECT u.id, u.username, u.email, u.deleted, u.created_at, u.updated_at, u.imported_at, b.expiration as ban_expiration FROM users u RIGHT JOIN (SELECT ub.expiration, ub.user_id FROM users.bans ub WHERE ub.expiration > now()) b ON (u.id = b.user_id)';
   }
   else {
-    q = 'SELECT u.id, u.username, u.email, u.created_at, u.updated_at, u.imported_at, (SELECT ub.expiration FROM users.bans ub WHERE ub.user_id = u.id AND ub.expiration > now()) as ban_expiration FROM users u';
+    q = 'SELECT u.id, u.username, u.email, u.deleted, u.created_at, u.updated_at, u.imported_at, (SELECT ub.expiration FROM users.bans ub WHERE ub.user_id = u.id AND ub.expiration > now()) as ban_expiration FROM users u';
   }
   var limit = 10;
   var page = 1;
@@ -162,7 +155,7 @@ users.page = function(opts) {
 
 /* returns a limited set of admins depending on limit and page */
 users.pageAdmins = function(opts) {
-  var q = 'SELECT u.username, u.email, u.created_at, ru.user_id, array_agg(r.name ORDER BY r.name) as roles from roles_users ru JOIN roles r ON ((r.name = \'Administrator\' OR r.name = \'Super Administrator\') AND r.id = ru.role_id) LEFT JOIN users u ON(ru.user_id = u.id) GROUP BY ru.user_id, u.username, u.email, u.created_at ORDER BY';
+  var q = 'SELECT u.username, u.email, u.deleted, u.created_at, ru.user_id, array_agg(r.name ORDER BY r.name) as roles from roles_users ru JOIN roles r ON ((r.name = \'Administrator\' OR r.name = \'Super Administrator\') AND r.id = ru.role_id) LEFT JOIN users u ON(ru.user_id = u.id) GROUP BY ru.user_id, u.username, u.email, u.created_at ORDER BY';
   var limit = 10;
   var page = 1;
   var sortField = 'username';
@@ -184,7 +177,7 @@ users.pageAdmins = function(opts) {
 
 /* returns a limited set of moderators depending on limit and page */
 users.pageModerators = function(opts) {
-  var q = 'SELECT u.username, u.email, u.created_at, ru.user_id, array_agg(r.name ORDER BY r.name) as roles from roles_users ru JOIN roles r ON ((r.name = \'Moderator\' OR r.name = \'Global Moderator\') AND r.id = ru.role_id) LEFT JOIN users u ON(ru.user_id = u.id) GROUP BY ru.user_id, u.username, u.email, u.created_at ORDER BY';
+  var q = 'SELECT u.username, u.email, u.deleted, u.created_at, ru.user_id, array_agg(r.name ORDER BY r.name) as roles from roles_users ru JOIN roles r ON ((r.name = \'Moderator\' OR r.name = \'Global Moderator\') AND r.id = ru.role_id) LEFT JOIN users u ON(ru.user_id = u.id) GROUP BY ru.user_id, u.username, u.email, u.created_at ORDER BY';
   var limit = 10;
   var page = 1;
   var sortField = 'username';
@@ -240,7 +233,6 @@ users.countModerators = function() {
 
 /* returns all values */
 users.userByEmail = function(email) {
-  // TODO: scrub passhash
   var q = 'SELECT * FROM users WHERE email = $1';
   var params = [email];
   return db.sqlQuery(q, params).then(function(rows) {
@@ -254,7 +246,7 @@ users.userByEmail = function(email) {
 users.userByUsername = function(username) {
   var user;
   // TODO: optimize calls using promise.join
-  var q = 'SELECT u.id, u.username, u.email, u.passhash, u.confirmation_token, u.reset_token, u.reset_expiration, u.created_at, u.updated_at, u.imported_at, p.avatar, p.position, p.signature, p.raw_signature, p.fields, p.post_count FROM users u LEFT JOIN users.profiles p ON u.id = p.user_id WHERE u.username = $1';
+  var q = 'SELECT u.id, u.username, u.email, u.passhash, u.confirmation_token, u.reset_token, u.reset_expiration, u.deleted, u.created_at, u.updated_at, u.imported_at, p.avatar, p.position, p.signature, p.raw_signature, p.fields, p.post_count FROM users u LEFT JOIN users.profiles p ON u.id = p.user_id WHERE u.username = $1';
   var params = [username];
   return db.sqlQuery(q, params)
   .then(function(rows) {
@@ -331,7 +323,7 @@ users.import = function(user) {
     return client.queryAsync(q, params)
     .then(function(results) {
       if (results.rows.length > 0) { return results.rows[0]; }
-      else { return Promise.reject('User count not be imported'); }
+      else { throw new CreationError('User Cound Not Be Imported'); }
     })
     // insert user profile
     .then(function() {
@@ -368,7 +360,7 @@ users.create = function(user, isAdmin) {
     return client.queryAsync(q, params)
     .then(function(results) {
       if (results.rows.length > 0) { user.id = results.rows[0].id; }
-      else { return Promise.reject('User could not be created'); }
+      else { throw new CreationError('User Could Not Be Created'); }
     })
     // insert default user role
     .then(function() {
@@ -393,7 +385,7 @@ users.create = function(user, isAdmin) {
       return client.queryAsync(q, [user.id])
       .then(function(results) {  // Append users roles
         if (results.rows.length > 0) { user.roles = results.rows; }
-        else { return Promise.reject('User Roles not found'); }
+        else { throw new CreationError('User Roles Not Found'); }
       });
     });
   })
@@ -412,7 +404,7 @@ users.update = function(user) {
     return client.queryAsync(q, params)
     .then(function(results) {
       if (results.rows.length > 0) { oldUser = results.rows[0]; }
-      else { return Promise.reject('User not found'); }
+      else { throw new CreationError('User Not Found'); }
     })
     // update user information, and update user row
     .then(function() {
@@ -500,7 +492,7 @@ var updateUserProfile = function(user, client) {
 users.find = function(id) {
   // TODO: fix indentation
   id = helper.deslugify(id);
-  var q = 'SELECT u.id, u.username, u.email, u.passhash, u.confirmation_token, u.reset_token, u.reset_expiration, u.created_at, u.updated_at, u.imported_at, p.avatar, p.position, p.signature, p.raw_signature, p.fields, p.post_count FROM users u LEFT JOIN users.profiles p ON u.id = p.user_id WHERE u.id = $1';
+  var q = 'SELECT u.id, u.username, u.email, u.passhash, u.confirmation_token, u.reset_token, u.reset_expiration, u.deleted, u.created_at, u.updated_at, u.imported_at, p.avatar, p.position, p.signature, p.raw_signature, p.fields, p.post_count FROM users u LEFT JOIN users.profiles p ON u.id = p.user_id WHERE u.id = $1';
   var params = [id];
   var user;
   return db.sqlQuery(q, params)
@@ -521,7 +513,7 @@ users.find = function(id) {
         }
       });
     }
-    else { throw new NotFoundError('User not found'); }
+    else { throw new NotFoundError('User Not Found'); }
   })
   .then(helper.slugify);
 };
@@ -585,4 +577,85 @@ var updateUserThreadview = function(row, userId, view, client) {
   var q = 'UPDATE users.thread_views SET time = $1 WHERE user_id = $2 AND thread_id = $3';
   var params = [new Date(view.timestamp), userId, view.threadId];
   return client.queryAsync(q, params);
+};
+
+users.deactivate = function(userId) {
+  userId = helper.deslugify(userId);
+  var q, params;
+
+  return using(db.createTransaction(), function(client) {
+    q = 'UPDATE users SET deleted = True WHERE id = $1';
+    return client.queryAsync(q, [userId]);
+  });
+};
+
+users.reactivate = function(userId) {
+  userId = helper.deslugify(userId);
+  var q, params;
+
+  return using(db.createTransaction(), function(client) {
+    q = 'UPDATE users SET deleted = False WHERE id = $1';
+    return client.queryAsync(q, [userId]);
+  });
+};
+
+users.delete = function(userId) {
+  userId = helper.deslugify(userId);
+  var q, params;
+
+  return using(db.createTransaction(), function(client) {
+    // delete user thread views
+    q = 'DELETE FROM users.thread_views WHERE user_id = $1';
+    return client.queryAsync(q, [userId])
+    // delete user bans
+    .then(function() {
+      q = 'DELETE FROM users.bans WHERE user_id = $1';
+      return client.queryAsycn(q, [userId]);
+    })
+    // delete user roles
+    .then(function() {
+      q = 'DELETE FROM roles_users WHERE user_id = $1';
+      return client.queryAsync(q, [userId]);
+    })
+    // get threads user has started
+    .then(function() {
+      q = ' SELECT thread_id FROM ( SELECT DISTINCT(thread_id) AS id FROM posts WHERE user_id = $1 ) t LEFT JOIN LATERAL ( SELECT thread_id FROM (SELECT user_id, thread_id FROM posts WHERE thread_id = t.id ORDER BY created_at LIMIT 1) f WHERE f.user_id = $1 ) pFirst ON true WHERE thread_id IS NOT NULL';
+      return client.queryAsync(q, [userId]);
+    })
+    // parse out thread ids
+    .then(function(userThreads) {
+      var threads = [];
+      userThreads.forEach(function(thread) {
+        threads.push(thread.thread_id);
+      });
+      return threads;
+    })
+    // delete user's thread meta
+    .then(function(userThreads) {
+      q = 'DELETE FROM metadata.threads WHERE thread_id IN $1';
+      return client.queryAsync(q, [userThreads])
+      .then(function() { return userThreads; });
+    })
+    // TODO: user post count and board thread count are not updated
+    // delete user's thread
+    .then(function(userThreads) {
+      q = 'DELETE FROM threads WHERE id IN $1';
+      return client.queryAsync(q, [userThreads]);
+    })
+    // delete user's posts
+    .then(function() {
+      q = 'DELETE FROM posts WHERE user_id = $1';
+      return client.queryAsync(q, [userId]);
+    })
+    // delete user profile
+    .then(function() {
+      q = 'DELETE FROM users.profiles WHERE user_id = $1';
+      return client.queryAsync(q, [userId]);
+    })
+    // delete user
+    .then(function() {
+      q = 'DELETE FROM users WHERE id = $1';
+      return client.queryAsync(q, [userId]);
+    });
+  });
 };
