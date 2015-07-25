@@ -610,7 +610,7 @@ users.delete = function(userId) {
     // delete user bans
     .then(function() {
       q = 'DELETE FROM users.bans WHERE user_id = $1';
-      return client.queryAsycn(q, [userId]);
+      return client.queryAsync(q, [userId]);
     })
     // delete user roles
     .then(function() {
