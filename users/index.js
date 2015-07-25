@@ -581,7 +581,7 @@ var updateUserThreadview = function(row, userId, view, client) {
 
 users.deactivate = function(userId) {
   userId = helper.deslugify(userId);
-  var q, params;
+  var q;
 
   return using(db.createTransaction(), function(client) {
     q = 'UPDATE users SET deleted = True WHERE id = $1';
@@ -591,7 +591,7 @@ users.deactivate = function(userId) {
 
 users.reactivate = function(userId) {
   userId = helper.deslugify(userId);
-  var q, params;
+  var q;
 
   return using(db.createTransaction(), function(client) {
     q = 'UPDATE users SET deleted = False WHERE id = $1';
@@ -601,7 +601,7 @@ users.reactivate = function(userId) {
 
 users.delete = function(userId) {
   userId = helper.deslugify(userId);
-  var q, params;
+  var q;
 
   return using(db.createTransaction(), function(client) {
     // delete user thread views
@@ -625,21 +625,21 @@ users.delete = function(userId) {
     // parse out thread ids
     .then(function(userThreads) {
       var threads = [];
-      userThreads.forEach(function(thread) {
+      userThreads.rows.forEach(function(thread) {
         threads.push(thread.thread_id);
       });
       return threads;
     })
     // delete user's thread meta
     .then(function(userThreads) {
-      q = 'DELETE FROM metadata.threads WHERE thread_id IN $1';
+      q = 'DELETE FROM metadata.threads WHERE thread_id = ANY($1::uuid[])';
       return client.queryAsync(q, [userThreads])
       .then(function() { return userThreads; });
     })
     // TODO: user post count and board thread count are not updated
     // delete user's thread
     .then(function(userThreads) {
-      q = 'DELETE FROM threads WHERE id IN $1';
+      q = 'DELETE FROM threads WHERE id = ANY($1::uuid[])';
       return client.queryAsync(q, [userThreads]);
     })
     // delete user's posts
