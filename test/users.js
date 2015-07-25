@@ -34,15 +34,6 @@ lab.experiment('Users', function() {
       done();
     });
   });
-  lab.test('should return all users', function(done) {
-    core.users.all().then(function(users) {
-      expect(users).to.be.an.array();
-      expect(users).to.have.length(runtime.users.length);
-    })
-    .then(function() {
-      done();
-    });
-  });
   lab.test('should return a user by username', function(done) {
     Promise.map(runtime.users, function(seededUser) {
       return core.users.userByUsername(seededUser.username).then(function(user) {
@@ -111,7 +102,7 @@ lab.experiment('Users', function() {
     })
     .catch(function(err) {
       expect(err).to.be.an.instanceof(NotFoundError);
-      expect(err.cause).to.be.a.string().and.to.equal('User not found');
+      expect(err.cause).to.be.a.string().and.to.equal('User Not Found');
       done();
     });
   });
