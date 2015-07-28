@@ -155,7 +155,7 @@ users.page = function(opts) {
 
 /* returns a limited set of admins depending on limit and page */
 users.pageAdmins = function(opts) {
-  var q = 'SELECT u.username, u.email, u.deleted, u.created_at, ru.user_id, array_agg(r.name ORDER BY r.name) as roles from roles_users ru JOIN roles r ON ((r.name = \'Administrator\' OR r.name = \'Super Administrator\') AND r.id = ru.role_id) LEFT JOIN users u ON(ru.user_id = u.id) GROUP BY ru.user_id, u.username, u.email, u.created_at ORDER BY';
+  var q = 'SELECT u.username, u.email, u.deleted, u.created_at, ru.user_id, array_agg(r.name ORDER BY r.name) as roles from roles_users ru JOIN roles r ON ((r.name = \'Administrator\' OR r.name = \'Super Administrator\') AND r.id = ru.role_id) LEFT JOIN users u ON(ru.user_id = u.id) GROUP BY ru.user_id, u.username, u.email, u.created_at, u.deleted ORDER BY';
   var limit = 10;
   var page = 1;
   var sortField = 'username';
@@ -177,7 +177,7 @@ users.pageAdmins = function(opts) {
 
 /* returns a limited set of moderators depending on limit and page */
 users.pageModerators = function(opts) {
-  var q = 'SELECT u.username, u.email, u.deleted, u.created_at, ru.user_id, array_agg(r.name ORDER BY r.name) as roles from roles_users ru JOIN roles r ON ((r.name = \'Moderator\' OR r.name = \'Global Moderator\') AND r.id = ru.role_id) LEFT JOIN users u ON(ru.user_id = u.id) GROUP BY ru.user_id, u.username, u.email, u.created_at ORDER BY';
+  var q = 'SELECT u.username, u.email, u.deleted, u.created_at, ru.user_id, array_agg(r.name ORDER BY r.name) as roles from roles_users ru JOIN roles r ON ((r.name = \'Moderator\' OR r.name = \'Global Moderator\') AND r.id = ru.role_id) LEFT JOIN users u ON(ru.user_id = u.id) GROUP BY ru.user_id, u.username, u.email, u.created_at, u.deleted ORDER BY';
   var limit = 10;
   var page = 1;
   var sortField = 'username';
