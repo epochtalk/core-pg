@@ -242,40 +242,24 @@ boards.getBoardInBoardMapping = function(boardId) {
   });
 };
 
+/**
+ * This sets off a cascade delete that also sets off the delete triggers
+ * for both threads and posts. This should properly update all the metadata
+ * across the db. The only side effect is that the metadata.boards row needs
+ * to be deleted before the board row. This is because the threads delete has
+ * a pre trigger that tries to update the metadata.boards row, but at that
+ * point, the board no longer exists causing an exception to be raised on
+ * that constraint. The proper fix would be to merge all the metadata tables
+ * back into the modal tables.
+ */
 boards.delete = function(boardId){
   boardId = helper.deslugify(boardId);
   var q, params;
 
   return using(db.createTransaction(), function(client) {
-    // lock up board and Meta
-    q = 'SELECT * FROM boards b JOIN metadata.boards mb ON b.id = mb.board_id WHERE b.id = $1 FOR UPDATE';
-    return client.queryAsync(q, [boardId])
-    .then(function(results) {
-      if (results.rows.length > 0) { return results.rows[0]; }
-      else { return Promise.reject('Board Not Found'); }
-    })
     // Remove board data from DB
-    .then(function() {
-      q = 'WITH RECURSIVE find_boards(board_id, parent_id, category_id) AS ( SELECT bm.board_id, bm.parent_id, bm.category_id FROM board_mapping bm WHERE bm.board_id = $1 UNION ALL SELECT bm.board_id, bm.parent_id, bm.category_id FROM find_boards fb, board_mapping bm WHERE bm.parent_id = fb.board_id ) DELETE FROM board_mapping WHERE board_id IN ( SELECT board_id FROM find_boards )';
-      return client.queryAsync(q, [boardId]);
-    })
-    // delete posts
-    .then(function() {
-      q = 'DELETE FROM posts WHERE thread_id IN ( SELECT id FROM threads WHERE board_id = $1 )';
-      return client.queryAsync(q, [boardId]);
-    })
-    // TODO: update user post count (trigger)
-    // TODO: fix foreign key reference cascades
-    // delete threads and metadata.threads
-    .then(function() {
-      q = 'DELETE FROM metadata.threads WHERE thread_id IN ( SELECT id FROM threads WHERE board_id = $1 )';
-      return client.queryAsync(q, [boardId]);
-    })
-    .then(function() {
-      q = 'DELETE FROM threads WHERE board_id = $1';
-      return client.queryAsync(q, [boardId]);
-    })
-    // delete board and board metadata
+    q = 'WITH RECURSIVE find_boards(board_id, parent_id, category_id) AS ( SELECT bm.board_id, bm.parent_id, bm.category_id FROM board_mapping bm WHERE bm.board_id = $1 UNION ALL SELECT bm.board_id, bm.parent_id, bm.category_id FROM find_boards fb, board_mapping bm WHERE bm.parent_id = fb.board_id ) DELETE FROM board_mapping WHERE board_id IN ( SELECT board_id FROM find_boards )';
+    return client.queryAsync(q, [boardId])
     .then(function() {
       q = 'DELETE FROM metadata.boards WHERE board_id = $1';
       return client.queryAsync(q, [boardId]);
