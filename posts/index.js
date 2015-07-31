@@ -152,8 +152,8 @@ posts.update = function(post) {
     })
     .then(function(oldPost) {
       post.title = post.title || oldPost.title;
-      post.body = post.body || oldPost.body;
-      post.raw_body = post.raw_body || oldPost.raw_body;
+      helper.updateAssign(post, oldPost, post, 'body');
+      helper.updateAssign(post, oldPost, post, 'raw_body');
       post.thread_id = post.thread_id || oldPost.thread_id;
     })
     .then(function() {
