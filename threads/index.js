@@ -12,6 +12,12 @@ var MoveError = Promise.OperationalError;
 var DeletionError = Promise.OperationalError;
 var using = Promise.using;
 
+/**
+ * This has a trigger attached to the threads table that will increment the
+ * board's thread count on each new thread. The metadata.threads table also has a
+ * trigger to update the board's post_count when metadata.threads's post_count is
+ * changed. It also updates the board's last post information.
+ */
 threads.import = function(thread) {
   // no created_at or updated_at needed, will be set by first post
   thread.id = helper.intToUUID(thread.smf.ID_TOPIC);
@@ -22,38 +28,38 @@ threads.import = function(thread) {
   return using(db.createTransaction(), function(client) {
     q = 'INSERT INTO threads(id, board_id, locked, sticky, imported_at) VALUES($1, $2, $3, $4, now()) RETURNING id';
     params = [thread.id, thread.board_id, thread.locked, thread.sticky];
-    return insertPostProcessing(thread, thread.view_count, q, params, client);
+    return client.queryAsync(q, params)
+    // insert thread metadata
+    .then(function() {
+      q = 'INSERT INTO metadata.threads (thread_id, views) VALUES($1, $2);';
+      params = [thread.id, thread.view_count];
+      return client.queryAsync(q, params);
+    });
   })
   .then(function() { return helper.slugify(thread); });
 };
 
+/**
+ * This has a trigger attached to the threads table that will increment the
+ * board's thread count on each new thread. The metadata.threads table also has a
+ * trigger to update the board's post_count when metadata.threads's post_count is
+ * changed. It also updates the board's last post information.
+ */
 threads.create = function(thread) {
   thread = helper.deslugify(thread);
   var q, params;
   return using(db.createTransaction(), function(client) {
     q = 'INSERT INTO threads(board_id, locked, sticky, created_at) VALUES ($1, $2, $3, now()) RETURNING id';
     params = [thread.board_id, thread.locked, thread.sticky];
-    return insertPostProcessing(thread, 0, q, params, client);
+    return client.queryAsync(q, params)
+    .then(function(results) { thread.id = results.rows[0].id; })
+    // insert thread metadata
+    .then(function() {
+      q = 'INSERT INTO metadata.threads (thread_id, views) VALUES($1, 0);';
+      return client.queryAsync(q, [thread.id]);
+    });
   })
   .then(function() { return helper.slugify(thread); });
-};
-
-var insertPostProcessing = function(thread, views, q, params, client) {
-  // insert thread
-  return client.queryAsync(q, params)
-  .then(function(results) { thread.id = results.rows[0].id; })
-  // insert thread metadata
-  .then(function() {
-    q = 'INSERT INTO metadata.threads (thread_id, views) VALUES($1, $2);';
-    params = [thread.id, views];
-    return client.queryAsync(q, params);
-  })
-  // increment thread count on board
-  .then(function() {
-    q = 'UPDATE metadata.boards SET thread_count = thread_count + 1 WHERE board_id = $1';
-    params = [thread.board_id];
-    return client.queryAsync(q, params);
-  });
 };
 
 var threadLastPost = function(thread) {
@@ -265,6 +271,11 @@ threads.getThreadOwner = function(threadId) {
   .then(helper.slugify);
 };
 
+/**
+ * This sets off a trigger that updates the metadata.boards' thread_count and
+ * post_count accordingly. It also updates the metadata.boards' last post
+ * information. 
+ */
 threads.delete = function(threadId) {
   threadId = helper.deslugify(threadId);
   var thread;
@@ -273,51 +284,7 @@ threads.delete = function(threadId) {
 
   return using(db.createTransaction(), function(client) {
     // lock up thread and Meta
-    q = 'SELECT * from threads t JOIN metadata.threads mt ON t.id = mt.thread_id WHERE t.id = $1 FOR UPDATE';
-    return client.queryAsync(q, [threadId])
-    .then(function(results) {
-      if (results.rows.length > 0) { thread = results.rows[0]; }
-      else { return Promise.reject('Thread Not Found'); }
-    })
-    // lock up board and Meta
-    .then(function() {
-      q = 'SELECT * FROM boards b JOIN metadata.boards mb ON b.id = mb.board_id WHERE b.id = $1 FOR UPDATE';
-      return client.queryAsync(q, [thread.board_id])
-      .then(function(results) {
-        if (results.rows.length > 0) { board = results.rows[0]; }
-        else { return Promise.reject('Board Not Found'); }
-      });
-    })
-    // update board's thread_count and post_count
-    .then(function() {
-      if (!thread.deleted) {
-        q = 'UPDATE metadata.boards SET thread_count = thread_count - 1, post_count = post_count - $1 WHERE board_id = $2';
-        return client.queryAsync(q, [thread.post_count, thread.board_id]);
-      }
-    })
-    // delete thread data from DB
-    .then(function() {
-      q = 'UPDATE metadata.boards SET last_thread_id = NULL WHERE board_id = $1';
-      return client.queryAsync(q, [thread.board_id]);
-    })
-    // TODO: update user post count (trigger)
-    // TODO: fix foreign key reference cascades
-    .then(function() {
-      q = 'DELETE FROM posts WHERE thread_id = $1';
-      return client.queryAsync(q, [threadId]);
-    })
-    .then(function() {
-      q = 'DELETE FROM metadata.threads WHERE thread_id = $1';
-      return client.queryAsync(q, [threadId]);
-    })
-    .then(function() {
-      q = 'DELETE FROM threads WHERE id = $1';
-      return client.queryAsync(q, [threadId]);
-    })
-    // update board last post information
-    .then(function() {
-      q = 'UPDATE metadata.boards SET last_post_username = username, last_post_created_at = created_at, last_thread_id = thread_id, last_thread_title = title FROM (SELECT post.username as username, post.created_at as created_at, t.id as thread_id, post.title as title FROM ( SELECT id FROM threads WHERE board_id = $1 AND deleted = False ORDER BY updated_at DESC LIMIT 1 ) t LEFT JOIN LATERAL ( SELECT u.username, p.created_at, p.title FROM posts p LEFT JOIN users u ON u.id = p.user_id WHERE p.thread_id = t.id ORDER BY p.created_at LIMIT 1 ) post ON true) AS subquery WHERE board_id = $1;';
-      return client.queryAsync(q, [thread.board_id]);
-    });
+    q = 'DELETE FROM threads WHERE id = $1';
+    return client.queryAsync(q, [threadId]);
   });
 };

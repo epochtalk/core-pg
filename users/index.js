@@ -604,15 +604,10 @@ users.delete = function(userId) {
   var q;
 
   return using(db.createTransaction(), function(client) {
-    // delete user thread views
-    q = 'DELETE FROM users.thread_views WHERE user_id = $1';
+    // delete user bans TODO: cascade delete?
+    q = 'DELETE FROM users.bans WHERE user_id = $1';
     return client.queryAsync(q, [userId])
-    // delete user bans
-    .then(function() {
-      q = 'DELETE FROM users.bans WHERE user_id = $1';
-      return client.queryAsync(q, [userId]);
-    })
-    // delete user roles
+    // delete user roles TODO: cascade delete?
     .then(function() {
       q = 'DELETE FROM roles_users WHERE user_id = $1';
       return client.queryAsync(q, [userId]);
@@ -630,27 +625,10 @@ users.delete = function(userId) {
       });
       return threads;
     })
-    // delete user's thread meta
-    .then(function(userThreads) {
-      q = 'DELETE FROM metadata.threads WHERE thread_id = ANY($1::uuid[])';
-      return client.queryAsync(q, [userThreads])
-      .then(function() { return userThreads; });
-    })
-    // TODO: user post count and board thread count are not updated
     // delete user's thread
     .then(function(userThreads) {
       q = 'DELETE FROM threads WHERE id = ANY($1::uuid[])';
       return client.queryAsync(q, [userThreads]);
-    })
-    // delete user's posts
-    .then(function() {
-      q = 'DELETE FROM posts WHERE user_id = $1';
-      return client.queryAsync(q, [userId]);
-    })
-    // delete user profile
-    .then(function() {
-      q = 'DELETE FROM users.profiles WHERE user_id = $1';
-      return client.queryAsync(q, [userId]);
     })
     // delete user
     .then(function() {
