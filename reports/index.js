@@ -229,9 +229,12 @@ reports.pageUserReportsNotes = function(reportId, opts) {
   if (opts && opts.limit) { limit = opts.limit; }
   if (opts && opts.page) { page = opts.page; }
   if (opts && opts.sortDesc) { order = 'DESC'; }
-  q = [q, order, 'LIMIT $2 OFFSET $3'].join(' ');
+  // ignore limit and page for now
+  // q = [q, order, 'LIMIT $2 OFFSET $3'].join(' ');
+  q = [q, order].join(' ');
   var offset = (page * limit) - limit;
-  var params = [reportId, limit, offset];
+  // var params = [reportId, limit, offset];
+  var params = [reportId];
   return db.sqlQuery(q, params)
   .then(helper.slugify);
 };
@@ -460,9 +463,12 @@ reports.pagePostReportsNotes = function(reportId, opts) {
   if (opts && opts.limit) { limit = opts.limit; }
   if (opts && opts.page) { page = opts.page; }
   if (opts && opts.sortDesc) { order = 'DESC'; }
-  q = [q, order, 'LIMIT $2 OFFSET $3'].join(' ');
+  // ignore limit and page for now
+  // q = [q, order, 'LIMIT $2 OFFSET $3'].join(' ');
+  q = [q, order].join(' ');
   var offset = (page * limit) - limit;
-  var params = [reportId, limit, offset];
+  // var params = [reportId, limit, offset];
+  var params = [reportId];
   return db.sqlQuery(q, params)
   .then(helper.slugify);
 };
