@@ -37,13 +37,18 @@ db.createTransaction = function() {
     .then(function() { return client; });
   })
   .disposer(function(client, promise) {
-    function closeConnection() { if (close) { close(client); } }
+    function closeConnection() { if (close) { close(); } }
 
     if (promise.isFulfilled()) {
       return client.queryAsync('COMMIT').then(closeConnection);
     }
     else {
-      return client.queryAsync('ROLLBACK').then(closeConnection);
+      return client.queryAsync('ROLLBACK')
+      .then(closeConnection)
+      .catch(function(err) {
+        if (close) { close(client); }
+        if (err) { throw err; }
+      });
     }
   });
 };
