@@ -118,12 +118,11 @@ posts.byThread = function(threadId, opts) {
     'WHEN r.name = \'Moderator\' THEN \'3\' ' +
     'ELSE r.name END ASC LIMIT 1';
 
-  var limit = 10;
-  var page = 1;
-  var reversed = ''; // ASC by default
-  if (opts && opts.limit) limit = opts.limit;
-  if (opts && opts.page) page = opts.page;
+  opts = opts || {};
+  var limit = opts.limit || 25;
+  var page = opts.page || 1;
   var offset = (page * limit) - limit;
+  var reversed = ''; // ASC by default
 
   // get total post count for this thread
   var getThreadSQL = 'SELECT post_count FROM metadata.threads WHERE thread_id = $1';
@@ -186,14 +185,11 @@ posts.pageByUserCount = function(username) {
 
 posts.pageByUser = function(username, opts) {
   var q = 'SELECT p.id, p.thread_id, p.user_id, p.title, p.raw_body, p.body, p.deleted, u.deleted as user_deleted, p.created_at, p.updated_at, p.imported_at, (SELECT p2.title FROM posts p2 WHERE p2.thread_id = p.thread_id ORDER BY p2.created_at LIMIT 1) as thread_title FROM posts p JOIN users u ON(p.user_id = u.id) WHERE u.username = $1 ORDER BY';
-  var limit = 10;
-  var page = 1;
-  var sortField = 'created_at';
-  var order = 'ASC';
-  if (opts && opts.limit) { limit = opts.limit; }
-  if (opts && opts.page) { page = opts.page; }
-  if (opts && opts.sortField) { sortField = opts.sortField; }
-  if (opts && opts.sortDesc) { order = 'DESC'; }
+  opts = opts || {};
+  var limit = opts.limit || 25;
+  var page = opts.page || 1;
+  var sortField = opts.sortField || 'created_at';
+  var order = opts.sortDesc ? 'DESC' : 'ASC';
   var offset = (page * limit) - limit;
   q = [q, sortField, order, 'LIMIT $2 OFFSET $3'].join(' ');
   var params = [username, limit, offset];

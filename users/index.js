@@ -131,15 +131,13 @@ users.page = function(opts) {
   else {
     q = 'SELECT u.id, u.username, u.email, u.deleted, u.created_at, u.updated_at, u.imported_at, (SELECT ub.expiration FROM users.bans ub WHERE ub.user_id = u.id AND ub.expiration > now()) as ban_expiration FROM users u';
   }
-  var limit = 10;
-  var page = 1;
-  var sortField = 'username';
-  var order = 'ASC';
-  if (opts && opts.limit) { limit = opts.limit; }
-  if (opts && opts.page) { page = opts.page; }
-  if (opts && opts.sortField) { sortField = opts.sortField; }
-  if (opts && opts.sortDesc) { order = 'DESC'; }
+
+  opts = opts || {};
+  var limit = opts.limit || 25;
+  var page = opts.page || 1;
   var offset = (page * limit) - limit;
+  var sortField = opts.sortField || 'username';
+  var order = opts.sortDesc ? 'DESC' : 'ASC';
   var params;
   if (opts && opts.searchStr) {
     q = [q, 'WHERE u.username LIKE $1 ORDER BY', sortField, order, 'LIMIT $2 OFFSET $3'].join(' ');
@@ -156,18 +154,13 @@ users.page = function(opts) {
 /* returns a limited set of admins depending on limit and page */
 users.pageAdmins = function(opts) {
   var q = 'SELECT u.username, u.email, u.deleted, u.created_at, ru.user_id, array_agg(r.name ORDER BY r.name) as roles from roles_users ru JOIN roles r ON ((r.name = \'Administrator\' OR r.name = \'Super Administrator\') AND r.id = ru.role_id) LEFT JOIN users u ON(ru.user_id = u.id) GROUP BY ru.user_id, u.username, u.email, u.created_at, u.deleted ORDER BY';
-  var limit = 10;
-  var page = 1;
-  var sortField = 'username';
-  var order = 'ASC';
-  if (opts && opts.limit) { limit = opts.limit; }
-  if (opts && opts.page) { page = opts.page; }
-  if (opts && opts.sortField) {
-    sortField = opts.sortField;
-    // Invert order if sorting by roles, so super admin is sorted to the top
-    if (sortField === 'roles') { opts.sortDesc = !opts.sortDesc; }
-  }
-  if (opts && opts.sortDesc) { order = 'DESC'; }
+  opts = opts || {};
+  var limit = opts.limit || 25;
+  var page = opts.page || 1;
+  var sortField = opts.sortField || 'username';
+  // Invert order if sorting by roles, so super admin is sorted to the top
+  if (sortField === 'roles') { opts.sortDesc = !opts.sortDesc; }
+  var order = opts.sortDesc ? 'DESC' : 'ASC';
   q = [q, sortField, order, 'LIMIT $1 OFFSET $2'].join(' ');
   var offset = (page * limit) - limit;
   var params = [limit, offset];
@@ -178,14 +171,11 @@ users.pageAdmins = function(opts) {
 /* returns a limited set of moderators depending on limit and page */
 users.pageModerators = function(opts) {
   var q = 'SELECT u.username, u.email, u.deleted, u.created_at, ru.user_id, array_agg(r.name ORDER BY r.name) as roles from roles_users ru JOIN roles r ON ((r.name = \'Moderator\' OR r.name = \'Global Moderator\') AND r.id = ru.role_id) LEFT JOIN users u ON(ru.user_id = u.id) GROUP BY ru.user_id, u.username, u.email, u.created_at, u.deleted ORDER BY';
-  var limit = 10;
-  var page = 1;
-  var sortField = 'username';
-  var order = 'ASC';
-  if (opts && opts.limit) { limit = opts.limit; }
-  if (opts && opts.page) { page = opts.page; }
-  if (opts && opts.sortField) { sortField = opts.sortField; }
-  if (opts && opts.sortDesc) { order = 'DESC'; }
+  opts = opts || {};
+  var limit = opts.limit || 25;
+  var page = opts.page || 1;
+  var sortField = opts.sortField || 'username';
+  var order = opts.sortDesc ? 'DESC' : 'ASC';
   q = [q, sortField, order, 'LIMIT $1 OFFSET $2'].join(' ');
   var offset = (page * limit) - limit;
   var params = [limit, offset];

@@ -100,12 +100,11 @@ threads.byBoard = function(boardId, opts) {
     'LEFT JOIN metadata.threads mt ON tlist.id = mt.thread_id WHERE t1.id = tlist.id';
   var q3 = 'SELECT p1.title, p1.user_id, u.username, u.deleted as user_deleted FROM posts p1 LEFT JOIN users u ON p1.user_id = u.id WHERE p1.thread_id = tlist.id ORDER BY p1.created_at LIMIT 1';
 
-  var limit = 10;
-  var page = 1;
-  var reversed = 'DESC'; // default to DESC
-  if (opts && opts.limit) limit = opts.limit;
-  if (opts && opts.page) page = opts.page;
+  opts = opts || {};
+  var limit = opts.limit || 25;
+  var page = opts.page || 1;
   var offset = (page * limit) - limit;
+  var reversed = 'DESC'; // default to DESC
 
   // get total thread count for this board
   var getBoardSQL = 'SELECT thread_count FROM metadata.boards WHERE board_id = $1';
@@ -274,7 +273,7 @@ threads.getThreadOwner = function(threadId) {
 /**
  * This sets off a trigger that updates the metadata.boards' thread_count and
  * post_count accordingly. It also updates the metadata.boards' last post
- * information. 
+ * information.
  */
 threads.delete = function(threadId) {
   threadId = helper.deslugify(threadId);
