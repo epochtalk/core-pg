@@ -19,8 +19,8 @@ function core(opts) {
   core.threads = require(path.join(__dirname, 'threads'));
   core.reports = require(path.join(__dirname, 'reports'));
   core.images = require(path.join(__dirname, 'images'));
-  core.close = function() {
-    pg.end();
-  };
+  core.messages = require(path.join(__dirname, 'messages'));
+  core.conversations = require(path.join(__dirname, 'conversations'));
+  core.close = function() { pg.end(); };
   return core;
 }
