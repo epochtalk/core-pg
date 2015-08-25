@@ -125,7 +125,7 @@ posts.byThread = function(threadId, opts) {
   var reversed = ''; // ASC by default
 
   // get total post count for this thread
-  var getThreadSQL = 'SELECT post_count FROM metadata.threads WHERE thread_id = $1';
+  var getThreadSQL = 'SELECT post_count FROM threads WHERE id = $1';
   var getThreadParams = [threadId];
   return db.scalar(getThreadSQL, getThreadParams)
   .then(function(result) {
