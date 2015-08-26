@@ -178,8 +178,8 @@ posts.pageByUserCount = function(username) {
   var params = [username];
   return db.sqlQuery(q, params)
   .then(function(rows) {
-    if (rows.length > 0) { return rows[0]; }
-    else { return { count: 0 }; }
+    if (rows.length > 0) { return rows[0].count; }
+    else { return 0; }
   });
 };
 
