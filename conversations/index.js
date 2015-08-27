@@ -58,17 +58,12 @@ conversations.messages = function(conversationId, viewerId, opts) {
   // get user info for each copied user id
   .map(function(message) {
     message.copied = message.copied_ids.map(function(userId) {
-      var mapQuery = 'SELECT id, username, deleted, avatar FROM users WHERE id = $1';
+      var q = 'SELECT id, username, deleted, avatar FROM users WHERE id = $1';
       return db.sqlQuery(q, userId)
       .then(function(result) { return result[0]; });
     });
     delete message.copied_ids;
     return message;
-  })
-  // reverse message listing
-  .then(function(messages) {
-    messages.reverse();
-    return messages;
   })
   .then(helper.slugify);
 };
