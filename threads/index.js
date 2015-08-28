@@ -140,7 +140,7 @@ threads.byBoard = function(boardId, opts) {
   .then(function(threads) {
     if (page !== 1) { return {sticky: [], normal: threads}; }
     var retVal = { normal: threads };
-    var stickyQ = 'SELECT id FROM threads WHERE board_id = $1 AND sticky = True ORDER BY created_at';
+    var stickyQ = 'SELECT id FROM threads WHERE board_id = $1 AND sticky = True ORDER BY updated_at DESC';
     var query = 'SELECT ' + columns + ' FROM ( ' + stickyQ + ' ) tlist LEFT JOIN LATERAL ( ' + q2 + ' ) t ON true LEFT JOIN LATERAL ( ' + q3 + ') p ON true';
     var params = [boardId];
     return db.sqlQuery(query, params)
