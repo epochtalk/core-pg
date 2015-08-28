@@ -56,10 +56,10 @@ CREATE OR REPLACE FUNCTION create_thread() RETURNS TRIGGER AS $create_thread$
 $create_thread$ LANGUAGE plpgsql;
 
 -- Drop old pre and post Threads Delete triggers and functions
-DROP FUNCTION IF EXISTS pre_delete_thread();
-DROP FUNCTION IF EXISTS post_delete_thread();
 DROP TRIGGER IF EXISTS pre_delete_thread_trigger ON threads;
 DROP TRIGGER IF EXISTS post_delete_thread_trigger ON threads;
+DROP FUNCTION IF EXISTS pre_delete_thread();
+DROP FUNCTION IF EXISTS post_delete_thread();
 
 -- Create threads Delete trigger and function
 CREATE OR REPLACE FUNCTION delete_thread() RETURNS TRIGGER AS $delete_thread$
