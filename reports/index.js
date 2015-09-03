@@ -223,16 +223,16 @@ reports.findUserReportNote = function(noteId) {
 reports.pageUserReportsNotes = function(reportId, opts) {
   reportId = helper.deslugify(reportId);
   var q = 'SELECT n.id, n.report_id, n.user_id, n.note, n.created_at, n.updated_at, (SELECT u.username FROM users u WHERE u.id = n.user_id), (SELECT p.avatar FROM users.profiles p WHERE p.user_id = n.user_id) FROM administration.reports_users_notes n WHERE n.report_id = $1 ORDER BY n.created_at';
-  var limit = 10;
-  var page = 1;
+  // var limit = 10;
+  // var page = 1;
   var order = 'ASC';
-  if (opts && opts.limit) { limit = opts.limit; }
-  if (opts && opts.page) { page = opts.page; }
+  // if (opts && opts.limit) { limit = opts.limit; }
+  // if (opts && opts.page) { page = opts.page; }
   if (opts && opts.sortDesc) { order = 'DESC'; }
   // ignore limit and page for now
   // q = [q, order, 'LIMIT $2 OFFSET $3'].join(' ');
   q = [q, order].join(' ');
-  var offset = (page * limit) - limit;
+  // var offset = (page * limit) - limit;
   // var params = [reportId, limit, offset];
   var params = [reportId];
   return db.sqlQuery(q, params)
@@ -457,16 +457,16 @@ reports.findPostReportNote = function(noteId) {
 reports.pagePostReportsNotes = function(reportId, opts) {
   reportId = helper.deslugify(reportId);
   var q = 'SELECT n.id, n.report_id, n.user_id, n.note, n.created_at, n.updated_at, (SELECT u.username FROM users u WHERE u.id = n.user_id), (SELECT p.avatar FROM users.profiles p WHERE p.user_id = n.user_id) FROM administration.reports_posts_notes n WHERE n.report_id = $1 ORDER BY n.created_at';
-  var limit = 10;
-  var page = 1;
+  // var limit = 10;
+  // var page = 1;
   var order = 'ASC';
-  if (opts && opts.limit) { limit = opts.limit; }
-  if (opts && opts.page) { page = opts.page; }
+  // if (opts && opts.limit) { limit = opts.limit; }
+  // if (opts && opts.page) { page = opts.page; }
   if (opts && opts.sortDesc) { order = 'DESC'; }
   // ignore limit and page for now
   // q = [q, order, 'LIMIT $2 OFFSET $3'].join(' ');
   q = [q, order].join(' ');
-  var offset = (page * limit) - limit;
+  // var offset = (page * limit) - limit;
   // var params = [reportId, limit, offset];
   var params = [reportId];
   return db.sqlQuery(q, params)
@@ -483,6 +483,7 @@ reports.postReportsNotesCount = function(reportId) {
     else { return Promise.reject(); }
   });
 };
+
 
 // Message Report Operations
 reports.createMessageReport = function(messageReport) {
@@ -509,4 +510,202 @@ reports.createMessageReport = function(messageReport) {
     });
   })
   .then(helper.slugify);
+};
+
+reports.updateMessageReport = function(messageReport) {
+  messageReport = helper.deslugify(messageReport);
+  return using(db.createTransaction(), function(client) {
+    var q = 'SELECT rm.id, rs.status, rm.status_id, rm.reporter_user_id, rm.reporter_reason, rm.reviewer_user_id, rm.offender_message_id, rm.created_at, rm.updated_at FROM administration.reports_messages rm JOIN administration.reports_statuses rs ON(rm.status_id = rs.id) WHERE rm.id = $1';
+    var params = [messageReport.id];
+    var existingReport;
+    return client.queryAsync(q, params)
+    .then(function(results) { // check that report exists and return existing report with string status
+      var rows = results.rows;
+      if (rows.length) { return rows[0]; }
+      else { return Promise.reject(); }
+    })
+    .then(function(dbMessageReport) { // lookup status id by passed in status string (e.g "Reviewed" returns 2)
+      existingReport = dbMessageReport;
+      q = 'SELECT id FROM administration.reports_statuses WHERE status = $1';
+      params = [messageReport.status];
+      return client.queryAsync(q, params);
+    })
+    .then(function(results) { // extract statusId from row and return
+      var rows = results.rows;
+      if (rows.length) { return rows[0].id; }
+      else { return Promise.reject(); }
+    })
+    .then(function(statusId) { // update report with new status_id, reviewer_user_id, and updated_at
+      var newStatusId = statusId || existingReport.status_id;
+      var newReviewerUserId = messageReport.reviewer_user_id || existingReport.reviewer_user_id;
+      q = 'UPDATE administration.reports_messages SET status_id = $1, reviewer_user_id = $2, updated_at = now() WHERE id = $3 RETURNING updated_at';
+      params = [newStatusId, newReviewerUserId, messageReport.id];
+      return client.queryAsync(q, params);
+    })
+    .then(function(results) { // extract updated_at from row and return
+      var rows = results.rows;
+      if (rows.length) { return rows[0].updated_at; }
+      else { return Promise.reject(); }
+    })
+    .then(function(updatedAt) { // return updated report
+      existingReport.updated_at = updatedAt;
+      existingReport.status = messageReport.status || existingReport.status;
+      existingReport.reviewer_user_id = messageReport.reviewer_user_id || existingReport.reviewer_user_id;
+      delete existingReport.status_id; // only return status string
+      return existingReport;
+    });
+  })
+  .then(helper.slugify);
+};
+
+reports.createMessageReportNote = function(reportNote) {
+  reportNote = helper.deslugify(reportNote);
+  return using(db.createTransaction(), function(client) {
+    var q = 'INSERT INTO administration.reports_messages_notes(report_id, user_id, note, created_at, updated_at) VALUES($1, $2, $3, now(), now()) RETURNING id, created_at, updated_at';
+    var params = [reportNote.report_id, reportNote.user_id, reportNote.note];
+    return client.queryAsync(q, params)
+    .then(function(results) { // return created report note details
+      var rows = results.rows;
+      if (rows.length) { return rows[0]; }
+      else { return Promise.reject(); }
+    })
+    .then(function(reportDetails) { // append id and return created note
+      reportNote.id = reportDetails.id;
+      reportNote.created_at = reportDetails.created_at;
+      reportNote.updated_at = reportDetails.updated_at;
+      return reportNote;
+    })
+    .then(function() {
+      q = 'SELECT u.username, p.avatar FROM users u JOIN users.profiles p ON (p.user_id = u.id) WHERE u.id = $1';
+      params = [reportNote.user_id];
+      return client.queryAsync(q, params);
+    })
+    .then(function(results) { // return userInfo
+      var rows = results.rows;
+      if (rows.length) { return rows[0]; }
+      else { return Promise.reject(); }
+    })
+    .then(function(userInfo) {
+      reportNote.username = userInfo.username;
+      reportNote.avatar = userInfo.avatar;
+      return reportNote;
+    });
+  })
+  .then(helper.slugify);
+};
+
+reports.updateMessageReportNote = function(reportNote) {
+  reportNote = helper.deslugify(reportNote);
+  return using(db.createTransaction(), function(client) {
+    var q = 'SELECT n.id, n.report_id, n.user_id, n.note, n.created_at, n.updated_at, u.username, p.avatar FROM administration.reports_messages_notes n JOIN users u ON(u.id = user_id) JOIN users.profiles p ON (p.user_id = n.user_id) WHERE n.id = $1';
+    var params = [reportNote.id];
+    var existingReportNote;
+    return client.queryAsync(q, params)
+    .then(function(results) { // lookup and return existing reportNote
+      var rows = results.rows;
+      if (rows.length) { return rows[0]; }
+      else { return Promise.reject(); }
+    })
+    .then(function(dbReportNote) { // update only note content and updated_at timestamp
+      existingReportNote = dbReportNote;
+      existingReportNote.note = reportNote.note;
+      q = 'UPDATE administration.reports_messages_notes SET note = $1, updated_at = now() WHERE id = $2 RETURNING updated_at';
+      params = [existingReportNote.note, existingReportNote.id];
+      return client.queryAsync(q, params);
+    })
+    .then(function(results) { // extract updated_at from row and return
+      var rows = results.rows;
+      if (rows.length) { return rows[0].updated_at; }
+      else { return Promise.reject(); }
+    })
+    .then(function(updatedAt) { // return updated report note
+      existingReportNote.updated_at = updatedAt;
+      return existingReportNote;
+    });
+  })
+  .then(helper.slugify);
+};
+
+reports.pageMessageReports = function(opts) {
+  var q = 'SELECT rm.id, rs.status, rm.reporter_user_id, rm.reporter_reason, rm.reviewer_user_id, rm.offender_message_id, rm.created_at, rm.updated_at, (SELECT username FROM users WHERE rm.reporter_user_id = id) as reporter_username, pm.created_at as offender_created_at, pm.body as offender_message, o.username as offender_author_username, o.id as offender_author_id, o.email as offender_author_email, o.created_at as offender_author_created_at, b.expiration as offender_ban_expiration FROM administration.reports_messages rm JOIN administration.reports_statuses rs ON(rm.status_id = rs.id) JOIN private_messages pm ON(rm.offender_message_id = pm.id) JOIN users o ON(pm.sender_id = o.id) LEFT JOIN (SELECT ub.expiration, ub.user_id FROM users.bans ub WHERE ub.expiration > now()) b ON (o.id = b.user_id)';
+  var limit = 10;
+  var page = 1;
+  var sortField = 'created_at';
+  var order = 'ASC';
+  var params;
+  if (opts && opts.limit) { limit = opts.limit; }
+  if (opts && opts.page) { page = opts.page; }
+  if (opts && opts.sortField) { sortField = opts.sortField; }
+  if (opts && opts.sortDesc) { order = 'DESC'; }
+  var offset = (page * limit) - limit;
+  if (opts && opts.filter && opts.searchStr) { // filter + search
+    q = [q, 'WHERE rs.status = $1 AND o.username LIKE $2 ORDER BY', sortField, order, 'LIMIT $3 OFFSET $4'].join(' ');
+    params = [opts.filter, opts.searchStr + '%', limit, offset];
+  }
+  else if (opts && opts.filter && !opts.searchStr) { // filter only
+    q = [q, 'WHERE rs.status = $1 ORDER BY', sortField, order, 'LIMIT $2 OFFSET $3'].join(' ');
+    params = [opts.filter, limit, offset];
+  }
+  else if (opts && !opts.filter && opts.searchStr) { // search only
+    q = [q, 'WHERE o.username LIKE $1 ORDER BY', sortField, order, 'LIMIT $2 OFFSET $3'].join(' ');
+    params = [opts.searchStr + '%', limit, offset];
+  }
+  else { // no filter or search
+    q = [q, 'ORDER BY', sortField, order, 'LIMIT $1 OFFSET $2'].join(' ');
+    params = [limit, offset];
+  }
+  return db.sqlQuery(q, params)
+  .then(helper.slugify);
+};
+
+reports.messageReportsCount = function(opts) {
+  var q = 'SELECT count(rm.id) FROM administration.reports_messages rm';
+  var params;
+  if (opts && opts.status && opts.searchStr) { // filter + search
+    q += ' JOIN administration.reports_statuses rs ON(rs.id = rm.status_id) JOIN private_messages pm ON(rm.offender_message_id = pm.id) JOIN users o ON(pm.sender_id = o.id) WHERE rs.status = $1 AND o.username LIKE $2';
+    params = [opts.status, opts.searchStr + '%'];
+  }
+  else if (opts && opts.status && !opts.searchStr) { // filter only
+    q += ' JOIN administration.reports_statuses rs ON(rs.id = rm.status_id) WHERE rs.status = $1';
+    params = [opts.status];
+  }
+  else if (opts && !opts.status && opts.searchStr) { // search only
+    q += ' JOIN private_messages pm ON(rm.offender_message_id = pm.id) JOIN users o ON(pm.sender_id = o.id) WHERE o.username LIKE $1';
+    params = [opts.searchStr + '%'];
+  }
+  return db.sqlQuery(q, params)
+  .then(function(rows) {
+    if (rows.length) { return rows[0]; }
+    else { return Promise.reject(); }
+  });
+};
+
+reports.findMessageReportNote = function(noteId) {
+  noteId = helper.deslugify(noteId);
+  var q = 'SELECT n.id, n.report_id, n.user_id, n.note, n.created_at, n.updated_at, (SELECT u.username FROM users u WHERE u.id = n.user_id), (SELECT p.avatar FROM users.profiles p WHERE p.user_id = n.user_id) FROM administration.reports_messages_notes n WHERE n.id = $1';
+  var params = [noteId];
+  return db.scalar(q, params)
+  .then(helper.slugify);
+};
+
+reports.pageMessageReportsNotes = function(reportId, opts) {
+  reportId = helper.deslugify(reportId);
+  var q = 'SELECT n.id, n.report_id, n.user_id, n.note, n.created_at, n.updated_at, (SELECT u.username FROM users u WHERE u.id = n.user_id), (SELECT p.avatar FROM users.profiles p WHERE p.user_id = n.user_id) FROM administration.reports_messages_notes n WHERE n.report_id = $1 ORDER BY n.created_at';
+  var order = 'ASC';
+  if (opts && opts.sortDesc) { order = 'DESC'; }
+  q = [q, order].join(' ');
+  var params = [reportId];
+  return db.sqlQuery(q, params)
+  .then(helper.slugify);
+};
+
+reports.messageReportsNotesCount = function(reportId) {
+  reportId = helper.deslugify(reportId);
+  var q = 'SELECT count(id) FROM administration.reports_messages_notes WHERE report_id = $1';
+  var params = [reportId];
+  return db.sqlQuery(q, params)
+  .then(function(rows) {
+    if (rows.length) { return rows[0]; }
+    else { return Promise.reject(); }
+  });
 };
