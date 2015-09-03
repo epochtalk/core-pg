@@ -248,6 +248,17 @@ threads.move = function(threadId, newBoardId) {
   }); // Promise disposer called at this point
 };
 
+threads.getThreadFirstPost = function(threadId) {
+  threadId = helper.deslugify(threadId);
+  var q = 'SELECT id, title, body, raw_body, thread_id FROM posts WHERE thread_id = $1 ORDER BY created_at LIMIT 1';
+  return db.sqlQuery(q, [threadId])
+  .then(function(rows) {
+    if (rows.length > 0) { return rows[0]; }
+    else { return new NotFoundError('Thread Not Found'); }
+  })
+  .then(helper.slugify);
+};
+
 threads.getThreadsBoardInBoardMapping = function(threadId) {
   threadId = helper.deslugify(threadId);
   var q = 'SELECT bm.* FROM threads t LEFT JOIN board_mapping bm ON t.board_id = bm.board_id WHERE t.id = $1';
