@@ -6,7 +6,11 @@ config.update = function(opts) {
   for(var k in opts) config[k] = opts[k];
   if (config.db) {
     var db = config.db;
-    config.cstring = 'postgres://' + db.host + '/' + db.database;
+    var credentials = '';
+    if (db.username && db.password) {
+      credentials = db.username + ':' + db.password + '@';
+    }
+    config.cstring = 'postgres://' + credentials + db.host + '/' + db.database;
   }
 };
 
