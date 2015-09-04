@@ -119,11 +119,11 @@ posts.byThread = function(threadId, opts) {
     'ELSE r.name END ASC LIMIT 1';
 
   opts = opts || {};
-  var start = opts.start || 1;
+  var start = opts.start || 0;
   var limit = opts.limit || 25;
 
   // get total post count for this thread
-  var q = 'SELECT id FROM posts WHERE thread_id = $1 AND position >= $2 ORDER BY position LIMIT $3';
+  var q = 'SELECT id FROM posts WHERE thread_id = $1 AND position > $2 ORDER BY position LIMIT $3';
   var query = 'SELECT ' + columns + ' FROM ( ' +
     q + ' ) plist LEFT JOIN LATERAL ( ' +
     q2 + ' ) post ON true LEFT JOIN LATERAL ( ' +
