@@ -93,7 +93,7 @@ posts.update = function(post) {
 
 posts.find = function(id) {
   id = helper.deslugify(id);
-  var q = 'SELECT p.id, p.thread_id, p.user_id, p.title, p.body, p.raw_body, p.deleted, p.created_at, p.updated_at, p.imported_at, u.username, u.deleted as user_deleted, up.signature, up.avatar FROM posts p LEFT JOIN users u ON p.user_id = u.id LEFT JOIN users.profiles up ON u.id = up.user_id WHERE p.id = $1';
+  var q = 'SELECT p.id, p.thread_id, p.user_id, p.title, p.body, p.raw_body, p.position, p.deleted, p.created_at, p.updated_at, p.imported_at, u.username, u.deleted as user_deleted, up.signature, up.avatar FROM posts p LEFT JOIN users u ON p.user_id = u.id LEFT JOIN users.profiles up ON u.id = up.user_id WHERE p.id = $1';
   return db.sqlQuery(q, [id])
   .then(function(rows) {
     if (rows.length > 0) { return rows[0]; }
@@ -105,8 +105,8 @@ posts.find = function(id) {
 
 posts.byThread = function(threadId, opts) {
   threadId = helper.deslugify(threadId);
-  var columns = 'plist.id, post.thread_id, post.user_id, post.title, post.body, post.raw_body, post.deleted, post.created_at, post.updated_at, post.imported_at, post.username, post.user_deleted, post.signature, post.avatar, p2.role';
-  var q2 = 'SELECT p.thread_id, p.user_id, p.title, p.body, p.raw_body, p.deleted, p.created_at, p.updated_at, p.imported_at, u.username, u.deleted as user_deleted, up.signature, up.avatar FROM posts p ' +
+  var columns = 'plist.id, post.thread_id, post.user_id, post.title, post.body, post.raw_body, post.position, post.deleted, post.created_at, post.updated_at, post.imported_at, post.username, post.user_deleted, post.signature, post.avatar, p2.role';
+  var q2 = 'SELECT p.thread_id, p.user_id, p.title, p.body, p.raw_body, p.position, p.deleted, p.created_at, p.updated_at, p.imported_at, u.username, u.deleted as user_deleted, up.signature, up.avatar FROM posts p ' +
     'LEFT JOIN users u ON p.user_id = u.id ' +
     'LEFT JOIN users.profiles up ON u.id = up.user_id ' +
     'WHERE p.id = plist.id';
@@ -119,41 +119,18 @@ posts.byThread = function(threadId, opts) {
     'ELSE r.name END ASC LIMIT 1';
 
   opts = opts || {};
+  var start = opts.start || 1;
   var limit = opts.limit || 25;
-  var page = opts.page || 1;
-  var offset = (page * limit) - limit;
-  var reversed = ''; // ASC by default
 
   // get total post count for this thread
-  var getThreadSQL = 'SELECT post_count FROM metadata.threads WHERE thread_id = $1';
-  var getThreadParams = [threadId];
-  return db.scalar(getThreadSQL, getThreadParams)
-  .then(function(result) {
-    if (result) {
-      // determine whether to start from the front or back
-      var postCount = result.post_count;
-      if (offset > Math.floor(postCount / 2)) {
-        reversed = 'DESC';
-        limit = postCount <= offset + limit ? postCount - offset : limit;
-        offset = postCount <= offset + limit ? 0 : postCount - offset - limit;
-      }
-    }
-  })
-  // get all related posts
-  .then(function() {
-    var q = 'SELECT id FROM posts WHERE thread_id = $1 ORDER BY created_at ' + reversed +
-      ' LIMIT $2 OFFSET $3';
-    var query = 'SELECT ' + columns + ' FROM ( ' +
-      q + ' ) plist LEFT JOIN LATERAL ( ' +
-      q2 + ' ) post ON true LEFT JOIN LATERAL ( ' +
-      q3 + ' ) p2 ON true';
-    var params = [threadId, limit, offset];
-    return db.sqlQuery(query, params);
-  })
-  .then(function(posts) {
-    if (reversed) { posts.reverse(); } // reverse ordering if backward search
-    return Promise.map(posts, formatPost); // format posts
-  })
+  var q = 'SELECT id FROM posts WHERE thread_id = $1 AND position >= $2 ORDER BY position LIMIT $3';
+  var query = 'SELECT ' + columns + ' FROM ( ' +
+    q + ' ) plist LEFT JOIN LATERAL ( ' +
+    q2 + ' ) post ON true LEFT JOIN LATERAL ( ' +
+    q3 + ' ) p2 ON true';
+  var params = [threadId, start, limit];
+  return db.sqlQuery(query, params)
+  .map(formatPost)
   .then(helper.slugify);
 };
 
@@ -184,7 +161,7 @@ posts.pageByUserCount = function(username) {
 };
 
 posts.pageByUser = function(username, opts) {
-  var q = 'SELECT p.id, p.thread_id, p.user_id, p.title, p.raw_body, p.body, p.deleted, u.deleted as user_deleted, p.created_at, p.updated_at, p.imported_at, (SELECT p2.title FROM posts p2 WHERE p2.thread_id = p.thread_id ORDER BY p2.created_at LIMIT 1) as thread_title FROM posts p JOIN users u ON(p.user_id = u.id) WHERE u.username = $1 ORDER BY';
+  var q = 'SELECT p.id, p.thread_id, p.user_id, p.title, p.raw_body, p.body, p.position, p.deleted, u.deleted as user_deleted, p.created_at, p.updated_at, p.imported_at, (SELECT p2.title FROM posts p2 WHERE p2.thread_id = p.thread_id ORDER BY p2.created_at LIMIT 1) as thread_title FROM posts p JOIN users u ON(p.user_id = u.id) WHERE u.username = $1 ORDER BY';
   opts = opts || {};
   var limit = opts.limit || 25;
   var page = opts.page || 1;
@@ -194,7 +171,7 @@ posts.pageByUser = function(username, opts) {
   q = [q, sortField, order, 'LIMIT $2 OFFSET $3'].join(' ');
   var params = [username, limit, offset];
   return db.sqlQuery(q, params)
-  .then(function(posts) { return Promise.map(posts, formatPost); })
+  .map(formatPost)
   .then(helper.slugify);
 };
 

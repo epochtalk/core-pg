@@ -79,7 +79,7 @@ var threadLastPost = function(thread) {
 threads.find = function(id) {
   id = helper.deslugify(id);
   var columns = 't.id, t.board_id, t.locked, t.sticky, t.created_at, t.updated_at, t.post_count, p.user_id, p.title, p.username, p.user_deleted';
-  var q1 = 'SELECT t1.id, t1.board_id, t1.locked, t1.sticky, t1.created_at, t1.updated_at, mt.post_count FROM threads t1 LEFT JOIN metadata.threads mt ON t1.id = mt.thread_id WHERE t1.id = $1';
+  var q1 = 'SELECT id, board_id, locked, sticky, post_count, created_at, updated_at FROM threads WHERE id = $1';
   var q2 = 'SELECT p1.user_id, p1.title, u.username, u.deleted as user_deleted FROM posts p1 LEFT JOIN users u on p1.user_id = u.id WHERE p1.thread_id = t.id ORDER BY p1.created_at limit 1';
   var query = 'SELECT ' + columns + ' FROM ( ' + q1 + ') t LEFT JOIN LATERAL ( ' + q2 + ' ) p ON true';
 
@@ -96,7 +96,7 @@ threads.find = function(id) {
 threads.byBoard = function(boardId, opts) {
   boardId = helper.deslugify(boardId);
   var columns = 'tlist.id, t.locked, t.sticky, t.created_at, t.updated_at, t.views as view_count, t.post_count, p.title, p.user_id, p.username, p.user_deleted';
-  var q2 = 'SELECT t1.locked, t1.sticky, t1.created_at, t1.updated_at, mt.views, mt.post_count FROM threads t1 ' +
+  var q2 = 'SELECT t1.locked, t1.sticky, t1.post_count, t1.created_at, t1.updated_at, mt.views FROM threads t1 ' +
     'LEFT JOIN metadata.threads mt ON tlist.id = mt.thread_id WHERE t1.id = tlist.id';
   var q3 = 'SELECT p1.title, p1.user_id, u.username, u.deleted as user_deleted FROM posts p1 LEFT JOIN users u ON p1.user_id = u.id WHERE p1.thread_id = tlist.id ORDER BY p1.created_at LIMIT 1';
 
@@ -107,7 +107,7 @@ threads.byBoard = function(boardId, opts) {
   var reversed = 'DESC'; // default to DESC
 
   // get total thread count for this board
-  var getBoardSQL = 'SELECT thread_count FROM metadata.boards WHERE board_id = $1';
+  var getBoardSQL = 'SELECT thread_count FROM boards WHERE id = $1';
   var getBoardParams = [boardId];
   return db.scalar(getBoardSQL, getBoardParams)
   .then(function(result) {
@@ -140,7 +140,7 @@ threads.byBoard = function(boardId, opts) {
   .then(function(threads) {
     if (page !== 1) { return {sticky: [], normal: threads}; }
     var retVal = { normal: threads };
-    var stickyQ = 'SELECT id FROM threads WHERE board_id = $1 AND sticky = True ORDER BY created_at';
+    var stickyQ = 'SELECT id FROM threads WHERE board_id = $1 AND sticky = True ORDER BY updated_at DESC';
     var query = 'SELECT ' + columns + ' FROM ( ' + stickyQ + ' ) tlist LEFT JOIN LATERAL ( ' + q2 + ' ) t ON true LEFT JOIN LATERAL ( ' + q3 + ') p ON true';
     var params = [boardId];
     return db.sqlQuery(query, params)
@@ -230,16 +230,16 @@ threads.move = function(threadId, newBoardId) {
     // update thread's current board metadata row
     .then(function() {
       params = [thread.post_count, oldBoard.board_id];
-      q = 'UPDATE metadata.boards SET (thread_count, post_count) = (thread_count - 1, post_count - $1) WHERE board_id = $2';
+      q = 'UPDATE boards SET (thread_count, post_count) = (thread_count - 1, post_count - $1) WHERE id = $2';
       return client.queryAsync(q, params);
     })
     // update thread's new board metadata row
     .then(function() {
       params = [thread.post_count, newBoard.board_id];
-      q = 'UPDATE metadata.boards SET (thread_count, post_count) = (thread_count + 1, post_count + $1) WHERE board_id = $2';
+      q = 'UPDATE boards SET (thread_count, post_count) = (thread_count + 1, post_count + $1) WHERE id = $2';
       return client.queryAsync(q, params);
     })
-    // udpate thread's board_id with new board id
+    // update thread's board_id with new board id
     .then(function() {
       params = [newBoardId, threadId];
       q = 'UPDATE threads SET board_id = $1 WHERE id = $2';
