@@ -1,6 +1,4 @@
-var config = {
-  cstring: process.env.DATABASE_URL || ''
-};
+var config = {};
 
 config.update = function(opts) {
   for(var k in opts) config[k] = opts[k];
