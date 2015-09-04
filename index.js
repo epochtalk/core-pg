@@ -6,7 +6,7 @@ var core = {};
 
 function core(opts) {
   if (opts && (opts.cstring || (opts.host && opts.database))) {
-    config.update(opts);
+    config.update({ db: opts });
   }
 
   core.users = require(path.join(__dirname, 'users'));
