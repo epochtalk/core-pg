@@ -5,11 +5,8 @@ var pg = require('pg');
 var core = {};
 
 function core(opts) {
-  if (opts && opts.host && opts.database) {
-    var updateOptions = {
-      cstring: 'postgres://' + opts.host + '/' + opts.database
-    };
-    config.update(updateOptions);
+  if (opts && (opts.cstring || (opts.host && opts.database))) {
+    config.update(opts);
   }
 
   core.users = require(path.join(__dirname, 'users'));
