@@ -7,10 +7,14 @@ config.update = function(opts) {
   if (config.db) {
     var db = config.db;
     var credentials = '';
+    var port = '';
     if (db.username && db.password) {
       credentials = db.username + ':' + db.password + '@';
     }
-    config.cstring = 'postgres://' + credentials + db.host + '/' + db.database;
+    if (db.port) {
+      port = ':' + db.port;
+    }
+    config.cstring = 'postgres://' + credentials + db.host + port + '/' + db.database;
   }
 };
 
