@@ -18,6 +18,7 @@ function core(opts) {
   core.images = require(path.join(__dirname, 'images'));
   core.messages = require(path.join(__dirname, 'messages'));
   core.conversations = require(path.join(__dirname, 'conversations'));
+  core.roles = require(path.join(__dirname, 'roles'));
   core.close = function() { pg.end(); };
   return core;
 }
