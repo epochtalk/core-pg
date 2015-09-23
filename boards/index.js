@@ -30,8 +30,7 @@ boards.import = function(board) {
     // insert import board metadata
     .then(function() {
       q = 'INSERT INTO metadata.boards (board_id) VALUES ($1)';
-      params = [board.id];
-      return client.queryAsync(q, params);
+      return client.queryAsync(q, [board.id]);
     });
   })
   .then(function() { return helper.slugify(board); });
@@ -49,8 +48,7 @@ boards.create = function(board) {
     // insert new board metadata
     .then(function() {
       q = 'INSERT INTO metadata.boards (board_id) VALUES ($1)';
-      params = [board.id];
-      return client.queryAsync(q, params);
+      return client.queryAsync(q, [board.id]);
     });
   })
   .then(function() { return helper.slugify(board); });
@@ -61,8 +59,7 @@ boards.update = function(board) {
   var q, params;
   return using(db.createTransaction(), function(client) {
     q = 'SELECT * FROM boards WHERE id = $1 FOR UPDATE';
-    params = [board.id];
-    return client.queryAsync(q, params)
+    return client.queryAsync(q, [board.id])
     .then(function(results) {
       if (results.rows.length > 0) { return results.rows[0]; }
       else { throw new NotFoundError('Board Not Found'); }
@@ -78,6 +75,17 @@ boards.update = function(board) {
     });
   })
   .then(function() { return helper.slugify(board); });
+};
+
+boards.breadcrumb = function(boardId) {
+  boardId = helper.deslugify(boardId);
+  var q = 'SELECT b.id, b.name, bm.parent_id, bm.category_id FROM boards b LEFT JOIN board_mapping bm ON b.id = bm.board_id WHERE b.id = $1';
+  return db.sqlQuery(q, [boardId])
+  .then(function(rows) {
+    if (rows.length > 0) { return rows[0]; }
+    else { return {}; }
+  })
+  .then(helper.slugify);
 };
 
 boards.find = function(id) {
@@ -256,7 +264,7 @@ boards.getBoardInBoardMapping = function(boardId) {
  */
 boards.delete = function(boardId){
   boardId = helper.deslugify(boardId);
-  var q, params;
+  var q;
 
   return using(db.createTransaction(), function(client) {
     // Remove board data from DB
