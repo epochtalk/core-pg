@@ -161,7 +161,7 @@ posts.pageByUserCount = function(username) {
 };
 
 posts.pageByUser = function(username, opts) {
-  var q = 'SELECT p.id, p.thread_id, p.user_id, p.title, p.raw_body, p.body, p.position, p.deleted, u.deleted as user_deleted, p.created_at, p.updated_at, p.imported_at, (SELECT p2.title FROM posts p2 WHERE p2.thread_id = p.thread_id ORDER BY p2.created_at LIMIT 1) as thread_title FROM posts p JOIN users u ON(p.user_id = u.id) WHERE u.username = $1 ORDER BY';
+  var q = 'SELECT p.id, p.thread_id, p.user_id, p.title, p.raw_body, p.body, p.position, p.deleted, u.deleted as user_deleted, p.created_at, p.updated_at, p.imported_at, b.id as board_id, exists (SELECT board_id FROM board_mapping WHERE board_id = b.id) as board_visible, (SELECT p2.title FROM posts p2 WHERE p2.thread_id = p.thread_id ORDER BY p2.created_at LIMIT 1) as thread_title FROM posts p LEFT JOIN users u ON p.user_id = u.id LEFT JOIN threads t ON p.thread_id = t.id LEFT JOIN boards b ON t.board_id = b.id WHERE u.username = $1 ORDER BY';
   opts = opts || {};
   var limit = opts.limit || 25;
   var page = opts.page || 1;
