@@ -363,20 +363,13 @@ users.create = function(user, isAdmin) {
           return client.queryAsync(q, [adminRole, user.id]);
         });
       }
-      else {
-        var userRole = 'edcd8f77-ce34-4433-ba85-17f9b17a3b60';
-        return client.queryAsync(q, [userRole, user.id]);
-      }
     })
     .then(function() { return insertUserProfile(user, client); })
     // Query for users roles
     .then(function() {
       q = 'SELECT roles.* FROM roles_users, roles WHERE roles_users.user_id = $1 AND roles.id = roles_users.role_id';
       return client.queryAsync(q, [user.id])
-      .then(function(results) {  // Append users roles
-        if (results.rows.length > 0) { user.roles = results.rows; }
-        else { throw new CreationError('User Roles Not Found'); }
-      });
+      .then(function(results) { user.roles = results.rows; });
     });
   })
   .then(function() { return helper.slugify(user); });
