@@ -67,9 +67,7 @@ users.addRoles = function(userId, roles) {
       return client.queryAsync(q, params);
     })
     .then(function(results) {  // Append users roles
-      var rows = results.rows;
-      if (rows.length > 0) { updatedUser.roles = rows; }
-      else { updatedUser.roles = []; } // user has no roles
+      updatedUser.roles = results.rows;
       return updatedUser;
     });
   })
@@ -113,9 +111,7 @@ users.removeRoles = function(userId, roles) {
       return client.queryAsync(q, params);
     })
     .then(function(results) {  // Append users roles
-      var rows = results.rows;
-      if (rows.length > 0) { updatedUser.roles = rows; }
-      else { updatedUser.roles = []; } // user has no roles
+      updatedUser.roles = results.rows;
       return updatedUser;
     });
   })
