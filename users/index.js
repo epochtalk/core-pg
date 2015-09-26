@@ -230,26 +230,23 @@ users.userByEmail = function(email) {
 
 /* returns all values */
 users.userByUsername = function(username) {
-  var user;
-  // TODO: optimize calls using promise.join
+  // TODO: optimize calls by merge both queries
   var q = 'SELECT u.id, u.username, u.email, u.passhash, u.confirmation_token, u.reset_token, u.reset_expiration, u.deleted, u.created_at, u.updated_at, u.imported_at, p.avatar, p.position, p.signature, p.raw_signature, p.fields, p.post_count FROM users u LEFT JOIN users.profiles p ON u.id = p.user_id WHERE u.username = $1';
   var params = [username];
   return db.sqlQuery(q, params)
   .then(function(rows) {
-    if (rows.length > 0) { user = formatUser(rows[0]); }
+    if (rows.length > 0) { return formatUser(rows[0]); }
   })
-  .then(function() {
+  .then(function(user) {
     if (user) {
       var q = 'SELECT roles.* FROM roles_users, roles WHERE roles_users.user_id = $1 AND roles.id = roles_users.role_id';
       var params = [user.id];
       return db.sqlQuery(q, params)
-      .then(function(rows) {  // Append users roles
-        if (rows.length > 0) { user.roles = rows; }
-        else { user.roles = []; } // user has no roles
-      });
+      .then(function(rows) { user.roles = rows; })
+      .then(function() { return user; });
     }
   })
-  .then(function() { return helper.slugify(user); });
+  .then(helper.slugify);
 };
 
 /* returns the created row in users.bans */
@@ -469,30 +466,21 @@ var updateUserProfile = function(user, client) {
 
 /* return all values */
 users.find = function(id) {
-  // TODO: fix indentation
+  // TODO: optimize calls by merge both queries
   id = helper.deslugify(id);
   var q = 'SELECT u.id, u.username, u.email, u.passhash, u.confirmation_token, u.reset_token, u.reset_expiration, u.deleted, u.created_at, u.updated_at, u.imported_at, p.avatar, p.position, p.signature, p.raw_signature, p.fields, p.post_count FROM users u LEFT JOIN users.profiles p ON u.id = p.user_id WHERE u.id = $1';
   var params = [id];
-  var user;
   return db.sqlQuery(q, params)
   .then(function(rows) {
-    if (rows.length > 0) {
-      user = rows[0];
-      var q = 'SELECT roles.* FROM roles_users, roles WHERE roles_users.user_id = $1 AND roles.id = roles_users.role_id';
-      var params = [user.id];
-      return db.sqlQuery(q, params)
-      .then(function(rows) {  // Append users roles
-        if (rows.length > 0) {
-          user.roles = rows;
-          return user;
-        }
-        else { // User has no roles
-          user.roles = [];
-          return user;
-        }
-      });
-    }
+    if (rows.length > 0) { return rows[0]; }
     else { throw new NotFoundError('User Not Found'); }
+  })
+  .then(function(user) {
+    var q = 'SELECT roles.* FROM roles_users, roles WHERE roles_users.user_id = $1 AND roles.id = roles_users.role_id';
+    var params = [user.id];
+    return db.sqlQuery(q, params)
+    .then(function(rows) { user.roles = rows; })
+    .then(function() { return user; });
   })
   .then(helper.slugify);
 };

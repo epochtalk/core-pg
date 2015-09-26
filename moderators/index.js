@@ -25,7 +25,7 @@ moderators.remove = function(userId, boardId) {
 moderators.getUsersBoards = function(userId) {
   userId = helper.deslugify(userId);
   var q = 'SELECT board_id FROM board_moderators WHERE user_id = $1';
-  return db.sqlQuery(q, [userId]);
+  return db.sqlQuery(q, [userId]).then(helper.slugify);
 };
 
 moderators.isModerator = function(userId, boardId) {
