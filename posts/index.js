@@ -70,7 +70,7 @@ posts.update = function(post) {
   post = helper.deslugify(post);
   return using(db.createTransaction(), function(client) {
     var q, params;
-    q = 'SELECT title, body, raw_body FROM posts WHERE id = $1 FOR UPDATE';
+    q = 'SELECT title, body, raw_body, created_at FROM posts WHERE id = $1 FOR UPDATE';
     return client.queryAsync(q, [post.id])
     .then(function(results) {
       if (results.rows.length > 0) { return results.rows[0]; }
@@ -81,6 +81,10 @@ posts.update = function(post) {
       helper.updateAssign(post, oldPost, post, 'body');
       helper.updateAssign(post, oldPost, post, 'raw_body');
       post.thread_id = post.thread_id || oldPost.thread_id;
+
+      q = 'INSERT INTO posts_history(post_id, body, raw_body, created_at) VALUES ($1, $2, $3, $4) RETURNING id, created_at';
+      params = [post.id, oldPost.body, oldPost.raw_body, oldPost.created_at];
+      return client.queryAsync(q, params);
     })
     .then(function() {
       q = 'UPDATE posts SET title = $1, body = $2, raw_body = $3, thread_id = $4, updated_at = now() WHERE id = $5';
@@ -89,6 +93,20 @@ posts.update = function(post) {
     });
   })
   .then(function() { return helper.slugify(post); });
+};
+
+posts.history = function(id) {
+  id = helper.deslugify(id);
+  return using(db.createTransaction(), function(client) {
+    var q, params;
+    q = 'SELECT id, body, raw_body, created_at FROM posts_history WHERE post_id = $1';
+    return client.queryAsync(q, [id])
+    .then(function(results) {
+      if (results.rows.length > 0) { return results.rows; }
+      else { throw new NotFoundError('Post Not Found'); }
+    })
+  })
+  .then(helper.slugify);
 };
 
 posts.find = function(id) {
