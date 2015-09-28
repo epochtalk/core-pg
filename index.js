@@ -5,9 +5,7 @@ var pg = require('pg');
 var core = {};
 
 function core(opts) {
-  if (opts && (opts.cstring || (opts.host && opts.database))) {
-    config.update({ db: opts });
-  }
+  config.update(opts);
 
   core.users = require(path.join(__dirname, 'users'));
   core.categories = require(path.join(__dirname, 'categories'));
