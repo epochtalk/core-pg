@@ -7,6 +7,7 @@ var core = {};
 function core(opts) {
   config.update(opts);
 
+  core.configurations = require(path.join(__dirname, 'configurations'));
   core.users = require(path.join(__dirname, 'users'));
   core.categories = require(path.join(__dirname, 'categories'));
   core.boards = require(path.join(__dirname, 'boards'));
