@@ -443,7 +443,7 @@ var userThreadViewExists = function(userId, threadId, client) {
 };
 
 var insertUserThreadview = function(userId, threadId, client) {
-  var q = 'INSERT INTO users.thread_views (user_id, thread_id) VALUES ($1, $2, now())';
+  var q = 'INSERT INTO users.thread_views (user_id, thread_id, time) VALUES ($1, $2, now())';
   var params = [userId, threadId];
   return client.queryAsync(q, params);
 };
