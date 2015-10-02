@@ -297,11 +297,9 @@ threads.getThreadOwner = function(threadId) {
  * post_count accordingly. It also updates the metadata.boards' last post
  * information.
  */
-threads.delete = function(threadId) {
+threads.purge = function(threadId) {
   threadId = helper.deslugify(threadId);
-  var thread;
-  var board;
-  var q, params;
+  var q;
 
   return using(db.createTransaction(), function(client) {
     // lock up thread and Meta

@@ -10,7 +10,7 @@ var CreationError = Promise.OperationalError;
 var using = Promise.using;
 
 roles.all = function() {
-  var q = 'SELECT id, name, description, lookup, priority, permissions FROM roles';
+  var q = 'SELECT id, name, description, lookup, priority, highlight_color, permissions FROM roles';
   return db.sqlQuery(q);
 };
 
@@ -25,11 +25,11 @@ roles.add = function(role) {
   var q, params;
   var permissions = JSON.stringify(role.permissions);
   if (role.id) {
-    q = 'INSERT INTO roles (id, name, description, lookup, priority, permissions, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, now(), now())';
-    params = [role.id, role.name, role.description || '', role.lookup, role.priority, permissions];
+    q = 'INSERT INTO roles (id, name, description, lookup, priority, highlight_color, permissions, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, now(), now())';
+    params = [role.id, role.name, role.description || '', role.lookup, role.priority, role.highlightColor, permissions];
   }
   else {
-    q = 'INSERT INTO roles (name, description, lookup, priority, permissions, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, now(), now())';
+    q = 'INSERT INTO roles (name, description, lookup, priority, highlight_color permissions, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, now(), now())';
     params = [role.name, role.description || '', role.lookup, role.priority, permissions];
   }
   return db.sqlQuery(q, params);
