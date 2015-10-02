@@ -29,8 +29,8 @@ roles.add = function(role) {
     params = [role.id, role.name, role.description || '', role.lookup, role.priority, role.highlightColor, permissions];
   }
   else {
-    q = 'INSERT INTO roles (name, description, lookup, priority, highlight_color permissions, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, now(), now())';
-    params = [role.name, role.description || '', role.lookup, role.priority, permissions];
+    q = 'INSERT INTO roles (name, description, lookup, priority, highlight_color, permissions, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, now(), now())';
+    params = [role.name, role.description || '', role.lookup, role.priority, role.highlightColor, permissions];
   }
   return db.sqlQuery(q, params);
 };
