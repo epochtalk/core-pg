@@ -3,7 +3,7 @@ var Lab = require('lab');
 var lab = exports.lab = Lab.script();
 var expect = require('code').expect;
 var Promise = require('bluebird');
-var core = require(path.join(__dirname, '..'))({host: 'localhost', database: 'epoch_test'});
+var db = require(path.join(__dirname, 'db'));
 var seed = require(path.join(__dirname, 'seed', 'populate'));
 var fixture = require(path.join(__dirname, 'fixtures', 'boards'));
 var NotFoundError = Promise.OperationalError;
@@ -26,7 +26,7 @@ lab.experiment('Boards', function() {
     });
   });
   lab.test('should return all boards', function(done) {
-    core.boards.all()
+    db.boards.all()
     .then(function(boards) {
       expect(boards).to.be.an.array();
       expect(boards).to.have.length(runtime.boards.length);
@@ -37,7 +37,7 @@ lab.experiment('Boards', function() {
   });
   lab.test('should find a board by id', function(done) {
     Promise.map(runtime.boards, function(seededBoard) {
-      return core.boards.find(seededBoard.id)
+      return db.boards.find(seededBoard.id)
       .then(function(board) {
         expectations(seededBoard, board);
       })
@@ -50,7 +50,7 @@ lab.experiment('Boards', function() {
     });
   });
   lab.test('should fail to find a board by invalid id', function(done) {
-    return core.boards.find()
+    return db.boards.find()
     .then(function(board) {
       throw new Error('Should not have found a board');
     })

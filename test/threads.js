@@ -3,7 +3,7 @@ var Lab = require('lab');
 var lab = exports.lab = Lab.script();
 var expect = require('code').expect;
 var Promise = require('bluebird');
-var core = require(path.join(__dirname, '..'))({host: 'localhost', database: 'epoch_test'});
+var db = require(path.join(__dirname, 'db'));
 var seed = require(path.join(__dirname, 'seed', 'populate'));
 var fixture = require(path.join(__dirname, 'fixtures', 'threads'));
 var NotFoundError = Promise.OperationalError;
@@ -25,7 +25,7 @@ lab.experiment('Threads', function() {
   });
   lab.test('should find a thread by id', function(done) {
     Promise.map(runtime.threads, function(seededThread) {
-      return core.threads.find(seededThread.id)
+      return db.threads.find(seededThread.id)
       .then(function(thread) {
         expectations(seededThread, thread);
       })
@@ -38,7 +38,7 @@ lab.experiment('Threads', function() {
     });
   });
   lab.test('should fail to find a thread by invalid id', function(done) {
-    return core.threads.find()
+    return db.threads.find()
     .then(function(thread) {
       throw new Error('Should not have found a thread');
     })
@@ -50,7 +50,7 @@ lab.experiment('Threads', function() {
   });
   lab.test('should return threads for a board', function(done) {
     Promise.map(runtime.boards.slice(0, 3), function(parentBoard) {
-      return core.threads.byBoard(parentBoard.id)
+      return db.threads.byBoard(parentBoard.id)
       .then(function(threads) {
         expect(threads).to.exist;
         expect(threads.normal.length).to.equal(3);
@@ -65,7 +65,7 @@ lab.experiment('Threads', function() {
   });
   lab.test('should not return threads for a board', function(done) {
     Promise.map(runtime.boards.slice(3, 5), function(parentBoard) {
-      return core.threads.byBoard(parentBoard.id)
+      return db.threads.byBoard(parentBoard.id)
       .then(function(threads) {
         expect(threads).to.exist;
         expect(threads.normal).to.have.length(0);
@@ -80,7 +80,7 @@ lab.experiment('Threads', function() {
     });
   });
   lab.test('should return no threads for an invalid board', function(done) {
-    return core.threads.byBoard()
+    return db.threads.byBoard()
     .then(function(threads) {
       expect(threads).to.exist;
       expect(threads.normal).to.have.length(0);
@@ -95,7 +95,7 @@ lab.experiment('Threads', function() {
   });
   lab.test('should increment board\'s thread count', function(done) {
     return Promise.map(runtime.boards.slice(0, 3), function(seededBoard) {
-      return core.boards.find(seededBoard.id)
+      return db.boards.find(seededBoard.id)
       .then(function(board) {
         expect(board.thread_count).to.equal(3);
       })
@@ -109,14 +109,14 @@ lab.experiment('Threads', function() {
   });
   lab.test('should increment its view count', function(done) {
     Promise.map(runtime.threads, function(seededThread) {
-      return core.threads.incViewCount(seededThread.id)
+      return db.threads.incViewCount(seededThread.id)
       .catch(function(err) {
         throw err;
       });
     })
     .then(function() {
       return Promise.map(runtime.boards.slice(0, 3), function(parentBoard) {
-        return core.threads.byBoard(parentBoard.id)
+        return db.threads.byBoard(parentBoard.id)
         .then(function(threads) {
           threads.normal.map(function(thread) {
             expect(thread.view_count).to.equal(1);
