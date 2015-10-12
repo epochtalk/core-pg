@@ -350,11 +350,7 @@ users.create = function(user, isAdmin) {
       q = 'INSERT INTO roles_users(role_id, user_id) VALUES($1, $2)';
       if (isAdmin) {
         var superAdminRole = '8ab5ef49-c2ce-4421-9524-bb45f289d42c';
-        var adminRole = '06860e6f-9ac0-4c2a-8d9c-417343062fb8';
-        return client.queryAsync(q, [superAdminRole, user.id])
-        .then(function() {
-          return client.queryAsync(q, [adminRole, user.id]);
-        });
+        return client.queryAsync(q, [superAdminRole, user.id]);
       }
     })
     .then(function() { return insertUserProfile(user, client); })
