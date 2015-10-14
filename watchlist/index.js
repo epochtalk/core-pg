@@ -117,8 +117,10 @@ function listThreads(userId, opts) {
   var q = 'SELECT tlist.id, t.locked, t.sticky, t.created_at, t.updated_at, t.views as view_count, t.post_count, p.title, p.user_id, p.username, p.user_deleted, t.time AS last_viewed, tv.id AS post_id, tv.position AS post_position, pl.last_post_id, pl.position AS last_post_position, pl.created_at AS last_post_created_at, pl.deleted AS last_post_deleted, pl.id AS last_post_user_id, pl.username AS last_post_username, pl.user_deleted AS last_post_user_deleted ';
   q += 'FROM ( ';
   q += 'SELECT t.id ';
-  q += 'FROM threads t ';
-  q += 'WHERE EXISTS (SELECT 1 FROM users.watch_threads WHERE user_id = $1 AND thread_id = t.id) ';
+  q += 'FROM users.watch_threads wt ';
+  q += 'LEFT JOIN threads t ON wt.thread_id = t.id ';
+  q += 'WHERE wt.user_id = $1 ';
+  q += 'AND wt.thread_id = t.id ';
   q += 'AND t.updated_at IS NOT NULL ';
   q += 'ORDER BY t.updated_at DESC LIMIT $2 OFFSET $3 ';
   q += ') tlist LEFT JOIN LATERAL ( ';
