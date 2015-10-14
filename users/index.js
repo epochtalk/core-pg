@@ -19,90 +19,53 @@ users.searchUsernames = function(searchStr, limit) {
 };
 
 /* returns user with added role(s) */
-users.addRoles = function(userId, roles) {
-  userId = helper.deslugify(userId);
-  var q = 'SELECT id, username, email, created_at, updated_at FROM users WHERE id = $1';
-  var params = [userId];
-  var updatedUser;
+users.addRoles = function(usernames, roleId) {
+  roleId = helper.deslugify(roleId);
+  var q = 'SELECT id, username, email, created_at, updated_at FROM users WHERE username = ANY($1::text[])';
+  var params = [ usernames ];
   return using(db.createTransaction(), function(client) {
     return client.queryAsync(q, params)
     .then(function(results) { // fetch user and ensure user exists
       var rows = results.rows;
-      if (rows.length > 0) {
-        updatedUser = rows[0];
-        return roles; // return role names to be mapped
-      }
-      else { return Promise.reject(); } // user doesnt exist
+      if (rows.length > 0) { return rows; } // return role names to be mapped
+      else { return Promise.reject(); } // users dont exist
     })
-    .map(function(role) { // lookup role id by name then return array of role ids
-      q = 'SELECT id FROM roles WHERE name = $1';
-      params = [role];
-      var savedRoleId;
+    .map(function(user) { // insert userid and roleid into roles_users if it doesnt exist already
+      q = 'INSERT INTO roles_users(role_id, user_id) SELECT $1, $2 WHERE NOT EXISTS (SELECT 1 FROM roles_users WHERE role_id = $1 AND user_id = $2);';
+      params = [roleId, user.id];
       return client.queryAsync(q, params)
-      .then(function(results) { // return role id
-      var rows = results.rows;
-      if (rows.length > 0) { return rows[0].id; }
-        else { return Promise.reject(); } // role id doesnt exist
-      })
-      .then(function(roleId) { // check if user already has role
-        savedRoleId = roleId;
-        q = 'SELECT user_id FROM roles_users WHERE user_id = $1 AND role_id = $2';
-        params = [userId, roleId];
+      .then(function() { // append roles to updated user and return
+        q = 'SELECT roles.* FROM roles_users, roles WHERE roles_users.user_id = $1 AND roles.id = roles_users.role_id';
+        params = [user.id];
         return client.queryAsync(q, params);
       })
       .then(function(results) {
-        var rows = results.rows;
-        if (rows.length > 0) { return; } // dont return role id if user already has role
-        else { return savedRoleId; } // return array of roles ids that user doesnt already have
+        user.roles = results.rows;
+        return user;
       });
-    })
-    .each(function(roleId) { // insert new row for each roleId returned by previous map function
-      q = 'INSERT INTO roles_users (role_id, user_id) VALUES ($1, $2);';
-      params = [roleId, userId];
-      return client.queryAsync(q, params);
-    })
-    .then(function() { // append roles to updated user and return
-      q = 'SELECT roles.* FROM roles_users, roles WHERE roles_users.user_id = $1 AND roles.id = roles_users.role_id';
-      params = [userId];
-      return client.queryAsync(q, params);
-    })
-    .then(function(results) {  // Append users roles
-      updatedUser.roles = results.rows;
-      return updatedUser;
-    });
+    }).then(function(allUsers) { return allUsers; });
   })
   .then(helper.slugify);
 };
 
 /* returns user with removed role(s) */
-users.removeRoles = function(userId, roles) {
+users.removeRoles = function(userId, roleId) {
   userId = helper.deslugify(userId);
+  roleId = helper.deslugify(roleId);
   var q = 'SELECT id, username, email, created_at, updated_at FROM users WHERE id = $1';
-  var params = [userId];
+  var params = [ userId ];
   var updatedUser;
   return using(db.createTransaction(), function(client) {
     return client.queryAsync(q, params)
     .then(function(results) { // fetch user and ensure user exists
       var rows = results.rows;
-      if (rows.length > 0) {
-        updatedUser = rows[0];
-        return roles; // return roles to be mapped by next promise
-      }
+      if (rows.length > 0) { return rows[0]; } // return user
       else { return Promise.reject(); } // user doesnt exist
     })
-    .map(function(role) {
-      q = 'SELECT id FROM roles WHERE name = $1';
-      params = [role];
-      return client.queryAsync(q, params)
-      .then(function(results) {
-        var rows = results.rows;
-        if (rows.length > 0) { return rows[0].id; } // return role id
-        else { return Promise.reject(); } // role doesnt exist
-      });
-    })
-    .each(function(roleId) {
-      q = 'DELETE FROM roles_users WHERE user_id = $1 AND role_id = $2';
-      params = [userId, roleId];
+    .then(function(user) {
+      updatedUser = user;
+      q = 'DELETE FROM roles_users WHERE role_id = $1 AND user_id = $2';
+      params = [roleId, user.id];
       return client.queryAsync(q, params);
     })
     .then(function() { // append roles to updated user and return
@@ -110,7 +73,7 @@ users.removeRoles = function(userId, roles) {
       params = [userId];
       return client.queryAsync(q, params);
     })
-    .then(function(results) {  // Append users roles
+    .then(function(results) {
       updatedUser.roles = results.rows;
       return updatedUser;
     });
