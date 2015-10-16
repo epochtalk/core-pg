@@ -29,8 +29,8 @@ configurations.getPublic = function() {
 configurations.get = function() {
   var q = 'SELECT * FROM configurations';
   return db.sqlQuery(q)
-  .then(function(publicConfigurations) {
-    var row = publicConfigurations[0];
+  .then(function(privateConfigurations) {
+    var row = privateConfigurations[0];
     return {
       logEnabled: row.log_enabled,
       privateKey: row.private_key,
