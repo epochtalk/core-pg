@@ -77,8 +77,18 @@ roles.users = function(roleId, opts) {
     params = [roleId, limit, offset];
   }
   return db.sqlQuery(q, params)
+  .map(function(user) {
+    var q = 'SELECT roles.* FROM roles_users, roles WHERE roles_users.user_id = $1 AND roles.id = roles_users.role_id';
+    var params = [user.id];
+    return db.sqlQuery(q, params)
+    .then(function(rows) { user.roles = rows; })
+    .then(function() { return user; });
+  })
   .then(function(users) {
     userData.users = users;
+    return users;
+  })
+  .then(function() {
     if (opts && opts.searchStr) {
       q = 'SELECT COUNT(u.id) FROM users u LEFT JOIN roles_users ru ON u.id = ru.user_id WHERE ru.role_id = $1 AND u.username LIKE $2';
       params = [roleId, opts.searchStr + '%'];
