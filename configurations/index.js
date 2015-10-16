@@ -208,8 +208,5 @@ configurations.update = function(options) {
   var dollarsString = '(' + dollars.toString() + ')';
   var query = 'UPDATE configurations SET ' + identifiersString + ' = ' + dollarsString + ';';
 
-  return db.sqlQuery(query, params)
-  .then(function(configs) {
-    console.log(configs);
-  });
+  return db.sqlQuery(query, params);
 };
