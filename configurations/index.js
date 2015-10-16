@@ -34,7 +34,7 @@ configurations.get = function() {
     return {
       logEnabled: row.log_enabled,
       privateKey: row.private_key,
-      verfyRegistration: row.verify_registration,
+      verifyRegistration: row.verify_registration,
       loginRequired: row.login_required,
       website: {
         title: row.website_title,
