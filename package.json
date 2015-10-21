@@ -30,7 +30,10 @@
   "dependencies": {
     "bcrypt": "^0.8.0",
     "bluebird": "^2.3.10",
+    "change-case": "^2.3.0",
     "db-migrate": "^0.8.0",
+    "deep-rename-keys": "^0.1.0",
+    "flat": "^1.6.0",
     "json": "^9.0.3",
     "lodash": "^2.4.1",
     "pg": "^3.6.2",
