@@ -8,20 +8,24 @@ var db = require(path.normalize(__dirname + '/../db'));
 var NotFoundError = Promise.OperationalError;
 var CreationError = Promise.OperationalError;
 var using = Promise.using;
+var _ = require('lodash');
+var flat = require('flat');
+var changeCase = require('change-case');
+var renameKeys = require('deep-rename-keys');
 
 /* returns object of public configurations */
 configurations.getPublic = function() {
-  var q = 'SELECT website_title, website_description, website_keywords, website_logo, website_favicon FROM configurations';
+  var q = 'SELECT "website.title", "website.description", "website.keywords", "website.logo", "website.favicon" FROM configurations';
   return db.sqlQuery(q)
-  .then(function(publicConfigurations) {
-    var row = publicConfigurations[0];
-    return {
-      title: row.website_title,
-      description: row.website_description,
-      keywords: row.website_keywords,
-      logo: row.website_logo,
-      favicon: row.website_favicon
-    };
+  .then(function(queryResults) {
+    var publicConfigurations = flat.unflatten(queryResults[0]);
+
+    if (_.isObject(publicConfigurations)) {
+      publicConfigurations = renameKeys(publicConfigurations, function(key) {
+        return changeCase.camel(key);
+      });
+    }
+    return publicConfigurations.website;
   });
 };
 
