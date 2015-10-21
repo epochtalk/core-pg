@@ -136,11 +136,11 @@ configurations.update = function(options) {
     if (images.local != undefined) {
       var local = images.local;
       if (local.dir != undefined) {
-        identifiers.push('"images.local_dir"');
+        identifiers.push('"images.local.dir"');
         params.push(local.dir);
       }
       if (local.path != undefined) {
-        identifiers.push('"images.local_path"');
+        identifiers.push('"images.local.path"');
         params.push(local.path);
       }
     }
