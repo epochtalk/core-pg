@@ -68,106 +68,106 @@ configurations.update = function(options) {
   if (options.website != undefined) {
     var website = options.website;
     if (website.title != undefined) {
-      identifiers.push('website_title');
+      identifiers.push('website.title');
       params.push(website.title);
     }
     if (website.description != undefined) {
-      identifiers.push('website_description');
+      identifiers.push('website.description');
       params.push(website.description);
     }
     if (website.keywords != undefined) {
-      identifiers.push('website_keywords');
+      identifiers.push('website.keywords');
       params.push(website.keywords);
     }
     if (website.logo != undefined) {
-      identifiers.push('website_logo');
+      identifiers.push('website.logo');
       params.push(website.logo);
     }
     if (website.favicon != undefined) {
-      identifiers.push('website_favicon');
+      identifiers.push('website.favicon');
       params.push(website.favicon);
     }
   }
   if (options.emailer != undefined) {
     var emailer = options.emailer;
     if (emailer.sender != undefined) {
-      identifiers.push('emailer_sender');
+      identifiers.push('emailer.sender');
       params.push(emailer.sender);
     }
     if (emailer.host != undefined) {
-      identifiers.push('emailer_host');
+      identifiers.push('emailer.host');
       params.push(emailer.host);
     }
     if (emailer.port != undefined) {
-      identifiers.push('emailer_port');
+      identifiers.push('emailer.port');
       params.push(emailer.port);
     }
     if (emailer.user != undefined) {
-      identifiers.push('emailer_user');
+      identifiers.push('emailer.user');
       params.push(emailer.user);
     }
     if (emailer.pass != undefined) {
-      identifiers.push('emailer_pass');
+      identifiers.push('emailer.pass');
       params.push(emailer.pass);
     }
     if (emailer.secure != undefined) {
-      identifiers.push('emailer_secure');
+      identifiers.push('emailer.secure');
       params.push(emailer.secure);
     }
   }
   if (options.images != undefined) {
     var images = options.images;
     if (images.storage != undefined) {
-      identifiers.push('images_storage');
+      identifiers.push('images.storage');
       params.push(images.storage);
     }
     if (images.maxSize != undefined) {
-      identifiers.push('images_max_size');
+      identifiers.push('images.max_size');
       params.push(images.maxSize);
     }
     if (images.expiration != undefined) {
-      identifiers.push('images_expiration');
+      identifiers.push('images.expiration');
       params.push(images.expiration);
     }
     if (images.interval != undefined) {
-      identifiers.push('images_interval');
+      identifiers.push('images.interval');
       params.push(images.interval);
     }
     if (images.local != undefined) {
       var local = images.local;
       if (local.dir != undefined) {
-        identifiers.push('images_local_dir');
+        identifiers.push('images.local_dir');
         params.push(local.dir);
       }
       if (local.path != undefined) {
-        identifiers.push('images_local_path');
+        identifiers.push('images.local_path');
         params.push(local.path);
       }
     }
     if (images.s3 != undefined) {
       var s3 = images.s3;
       if (s3.root != undefined) {
-        identifiers.push('images_s3_root');
+        identifiers.push('images.s3.root');
         params.push(s3.root);
       }
       if (s3.dir != undefined) {
-        identifiers.push('images_s3_dir');
+        identifiers.push('images.s3.dir');
         params.push(s3.dir);
       }
       if (s3.bucket != undefined) {
-        identifiers.push('images_s3_bucket');
+        identifiers.push('images.s3.bucket');
         params.push(s3.bucket);
       }
       if (s3.region != undefined) {
-        identifiers.push('images_s3_region');
+        identifiers.push('images.s3.region');
         params.push(s3.region);
       }
       if (s3.accessKey != undefined) {
-        identifiers.push('images_s3_access_key');
+        identifiers.push('images.s3.access_key');
         params.push(s3.accessKey);
       }
       if (s3.secretKey != undefined) {
-        identifiers.push('images_s3_secret_key');
+        identifiers.push('images.s3.secret_key');
         params.push(s3.secretKey);
       }
     }
@@ -176,7 +176,7 @@ configurations.update = function(options) {
   for (var i = 1 ; i <= identifiers.length ; i++) {
     dollars.push('$' + i);
   }
-  var identifiersString = '(' + identifiers.toString() + ')';
+  var identifiersString = '("' + identifiers.toString().replace(/,/g, '","') + '")';
   var dollarsString = '(' + dollars.toString() + ')';
   var query = 'UPDATE configurations SET ' + identifiersString + ' = ' + dollarsString + ';';
 
