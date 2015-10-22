@@ -1,11 +1,11 @@
 module.exports = core;
 var path = require('path');
-var config = require(path.join(__dirname, 'config'));
+var setup = require(path.join(__dirname, 'setup'));
 var pg = require('pg');
 var core = {};
 
 function core(opts) {
-  config.update(opts);
+  setup(opts);
 
   core.configurations = require(path.join(__dirname, 'configurations'));
   core.users = require(path.join(__dirname, 'users'));
