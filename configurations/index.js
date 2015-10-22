@@ -186,27 +186,27 @@ configurations.update = function(options) {
     if (images.s3 != undefined) {
       var s3 = images.s3;
       if (s3.root != undefined) {
-        identifiers.push('"images.s3.root"');
+        identifiers.push('"images.s_3.root"');
         params.push(s3.root);
       }
       if (s3.dir != undefined) {
-        identifiers.push('"images.s3.dir"');
+        identifiers.push('"images.s_3.dir"');
         params.push(s3.dir);
       }
       if (s3.bucket != undefined) {
-        identifiers.push('"images.s3.bucket"');
+        identifiers.push('"images.s_3.bucket"');
         params.push(s3.bucket);
       }
       if (s3.region != undefined) {
-        identifiers.push('"images.s3.region"');
+        identifiers.push('"images.s_3.region"');
         params.push(s3.region);
       }
       if (s3.accessKey != undefined) {
-        identifiers.push('"images.s3.access_key"');
+        identifiers.push('"images.s_3.access_key"');
         params.push(s3.accessKey);
       }
       if (s3.secretKey != undefined) {
-        identifiers.push('"images.s3.secret_key"');
+        identifiers.push('"images.s_3.secret_key"');
         params.push(s3.secretKey);
       }
     }
