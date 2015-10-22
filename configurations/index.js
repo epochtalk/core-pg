@@ -68,14 +68,19 @@ configurations.get = function() {
   var q = 'SELECT * FROM configurations';
   return db.sqlQuery(q)
   .then(function(queryResults) {
-    var privateConfigurations = flat.unflatten(queryResults[0]);
+    if (queryResults.length > 0) {
+      var privateConfigurations = flat.unflatten(queryResults[0]);
 
-    if (_.isObject(privateConfigurations)) {
-      privateConfigurations = renameKeys(privateConfigurations, function(key) {
-        return changeCase.camel(key);
-      });
+      if (_.isObject(privateConfigurations)) {
+        privateConfigurations = renameKeys(privateConfigurations, function(key) {
+          return changeCase.camel(key);
+        });
+      }
+      return privateConfigurations;
     }
-    return privateConfigurations;
+    else {
+      throw new NotFoundError('Configurations Not Found');
+    }
   });
 };
 
