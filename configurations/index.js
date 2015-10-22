@@ -13,6 +13,40 @@ var flat = require('flat');
 var changeCase = require('change-case');
 var renameKeys = require('deep-rename-keys');
 
+configurations.create = function(options) {
+  var q = 'INSERT INTO configurations ("log_enabled", "private_key", "verify_registration", "login_required", "website.title", "website.description", "website.keywords", "website.logo", "website.favicon", "emailer.sender", "emailer.host", "emailer.port", "emailer.user", "emailer.pass", "emailer.secure", "images.storage", "images.max_size", "images.expiration", "images.interval", "images.local.dir", "images.local.path", "images.s_3.root", "images.s_3.dir", "images.s_3.bucket", "images.s_3.region", "images.s_3.access_key", "images.s_3.secret_key") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27)';
+  params = [
+    options.logEnabled,
+    options.privateKey,
+    options.verifyRegistration,
+    options.loginRequired,
+    options.website.title,
+    options.website.description,
+    options.website.keywords,
+    options.website.logo,
+    options.website.favicon,
+    options.emailer.sender,
+    options.emailer.host,
+    options.emailer.port,
+    options.emailer.user,
+    options.emailer.pass,
+    options.emailer.secure,
+    options.images.storage,
+    options.images.maxSize,
+    options.images.expiration,
+    options.images.interval,
+    options.images.local.dir,
+    options.images.local.path,
+    options.images.s3.root,
+    options.images.s3.dir,
+    options.images.s3.bucket,
+    options.images.s3.region,
+    options.images.s3.accessKey,
+    options.images.s3.secretKey
+  ];
+  return db.sqlQuery(q, params);
+}
+
 /* returns object of public configurations */
 configurations.getPublic = function() {
   var q = 'SELECT "website.title", "website.description", "website.keywords", "website.logo", "website.favicon" FROM configurations';
