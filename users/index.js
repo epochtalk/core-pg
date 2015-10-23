@@ -12,7 +12,7 @@ var using = Promise.using;
 
 /* returns array of usernames matching searchStr */
 users.searchUsernames = function(searchStr, limit) {
-  var q = 'Select username FROM users WHERE username LIKE $1 ORDER BY username LIMIT $2';
+  var q = 'SELECT username FROM users WHERE username LIKE $1 ORDER BY username LIMIT $2';
   var params = [searchStr + '%', limit || 15];
   return db.sqlQuery(q, params)
   .map(function(user) { return user.username; });
@@ -110,26 +110,9 @@ users.page = function(opts) {
   .then(helper.slugify);
 };
 
-/* returns a limited set of admins depending on limit and page */
-users.pageAdmins = function(opts) {
-  var q = 'SELECT u.username, u.email, u.deleted, u.created_at, ru.user_id, array_agg(r.name ORDER BY r.name) as roles from roles_users ru JOIN roles r ON ((r.name = \'Administrator\' OR r.name = \'Super Administrator\') AND r.id = ru.role_id) LEFT JOIN users u ON(ru.user_id = u.id) GROUP BY ru.user_id, u.username, u.email, u.created_at, u.deleted ORDER BY';
-  opts = opts || {};
-  var limit = opts.limit || 25;
-  var page = opts.page || 1;
-  var sortField = opts.sortField || 'username';
-  // Invert order if sorting by roles, so super admin is sorted to the top
-  if (sortField === 'roles') { opts.sortDesc = !opts.sortDesc; }
-  var order = opts.sortDesc ? 'DESC' : 'ASC';
-  q = [q, sortField, order, 'LIMIT $1 OFFSET $2'].join(' ');
-  var offset = (page * limit) - limit;
-  var params = [limit, offset];
-  return db.sqlQuery(q, params)
-  .then(helper.slugify);
-};
-
 /* returns a limited set of moderators depending on limit and page */
 users.pageModerators = function(opts) {
-  var q = 'SELECT u.username, u.email, u.deleted, u.created_at, ru.user_id, array_agg(r.name ORDER BY r.name) as roles from roles_users ru JOIN roles r ON ((r.name = \'Moderator\' OR r.name = \'Global Moderator\') AND r.id = ru.role_id) LEFT JOIN users u ON(ru.user_id = u.id) GROUP BY ru.user_id, u.username, u.email, u.created_at, u.deleted ORDER BY';
+  var q = 'SELECT u.username, u.email, u.deleted, u.created_at, ru.user_id, array_agg(r.name ORDER BY r.name) as roles from roles_users ru JOIN roles r ON ((r.lookup = \'moderator\' OR r.lookup = \'globalModerator\') AND r.id = ru.role_id) LEFT JOIN users u ON(ru.user_id = u.id) GROUP BY ru.user_id, u.username, u.email, u.created_at, u.deleted ORDER BY';
   opts = opts || {};
   var limit = opts.limit || 25;
   var page = opts.page || 1;
@@ -160,19 +143,9 @@ users.count = function(opts) {
   });
 };
 
-/* returns total admins count */
-users.countAdmins = function() {
-  var q = 'SELECT COUNT(user_id) FROM (SELECT DISTINCT ru.user_id FROM roles_users ru JOIN roles r ON ((r.name = \'Administrator\' OR r.name = \'Super Administrator\') AND r.id = ru.role_id)) AS admins';
-  return db.sqlQuery(q)
-  .then(function(rows) {
-    if (rows.length) { return { count: Number(rows[0].count) }; }
-    else { return Promise.reject(); }
-  });
-};
-
 /* returns total mods count */
 users.countModerators = function() {
-  var q = 'SELECT COUNT(user_id) FROM (SELECT DISTINCT ru.user_id from roles_users ru JOIN roles r ON ((r.name = \'Moderator\' OR r.name = \'Global Moderator\') AND r.id = ru.role_id)) as mods';
+  var q = 'SELECT COUNT(user_id) FROM (SELECT DISTINCT ru.user_id from roles_users ru JOIN roles r ON ((r.lookup = \'moderator\' OR r.lookup = \'globalModerator\') AND r.id = ru.role_id)) as mods';
   return db.sqlQuery(q)
   .then(function(rows) {
     if (rows.length) { return { count: Number(rows[0].count) }; }
