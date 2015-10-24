@@ -1,0 +1,4 @@
+ALTER TABLE roles DROP COLUMN IF EXISTS lookup;
+ALTER TABLE roles DROP COLUMN IF EXISTS priority;
+DROP INDEX IF EXISTS index_roles_on_lookup;
+DELETE FROM roles;

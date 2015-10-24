@@ -12,99 +12,60 @@ var using = Promise.using;
 
 /* returns array of usernames matching searchStr */
 users.searchUsernames = function(searchStr, limit) {
-  var q = 'Select username FROM users WHERE username LIKE $1 ORDER BY username LIMIT $2';
+  var q = 'SELECT username FROM users WHERE username LIKE $1 ORDER BY username LIMIT $2';
   var params = [searchStr + '%', limit || 15];
   return db.sqlQuery(q, params)
   .map(function(user) { return user.username; });
 };
 
 /* returns user with added role(s) */
-users.addRoles = function(userId, roles) {
-  userId = helper.deslugify(userId);
-  var q = 'SELECT id, username, email, created_at, updated_at FROM users WHERE id = $1';
-  var params = [userId];
-  var updatedUser;
+users.addRoles = function(usernames, roleId) {
+  roleId = helper.deslugify(roleId);
+  var q = 'SELECT id, username, email, created_at, updated_at FROM users WHERE username = ANY($1::text[])';
+  var params = [ usernames ];
   return using(db.createTransaction(), function(client) {
     return client.queryAsync(q, params)
     .then(function(results) { // fetch user and ensure user exists
       var rows = results.rows;
-      if (rows.length > 0) {
-        updatedUser = rows[0];
-        return roles; // return role names to be mapped
-      }
-      else { return Promise.reject(); } // user doesnt exist
+      if (rows.length > 0) { return rows; } // return role names to be mapped
+      else { return Promise.reject(); } // users dont exist
     })
-    .map(function(role) { // lookup role id by name then return array of role ids
-      q = 'SELECT id FROM roles WHERE name = $1';
-      params = [role];
-      var savedRoleId;
+    .map(function(user) { // insert userid and roleid into roles_users if it doesnt exist already
+      q = 'INSERT INTO roles_users(role_id, user_id) SELECT $1, $2 WHERE NOT EXISTS (SELECT 1 FROM roles_users WHERE role_id = $1 AND user_id = $2);';
+      params = [roleId, user.id];
       return client.queryAsync(q, params)
-      .then(function(results) { // return role id
-      var rows = results.rows;
-      if (rows.length > 0) { return rows[0].id; }
-        else { return Promise.reject(); } // role id doesnt exist
-      })
-      .then(function(roleId) { // check if user already has role
-        savedRoleId = roleId;
-        q = 'SELECT user_id FROM roles_users WHERE user_id = $1 AND role_id = $2';
-        params = [userId, roleId];
+      .then(function() { // append roles to updated user and return
+        q = 'SELECT roles.* FROM roles_users, roles WHERE roles_users.user_id = $1 AND roles.id = roles_users.role_id';
+        params = [user.id];
         return client.queryAsync(q, params);
       })
       .then(function(results) {
-        var rows = results.rows;
-        if (rows.length > 0) { return; } // dont return role id if user already has role
-        else { return savedRoleId; } // return array of roles ids that user doesnt already have
+        user.roles = results.rows;
+        return user;
       });
-    })
-    .each(function(roleId) { // insert new row for each roleId returned by previous map function
-      q = 'INSERT INTO roles_users (role_id, user_id) VALUES ($1, $2);';
-      params = [roleId, userId];
-      return client.queryAsync(q, params);
-    })
-    .then(function() { // append roles to updated user and return
-      q = 'SELECT roles.* FROM roles_users, roles WHERE roles_users.user_id = $1 AND roles.id = roles_users.role_id';
-      params = [userId];
-      return client.queryAsync(q, params);
-    })
-    .then(function(results) {  // Append users roles
-      var rows = results.rows;
-      if (rows.length > 0) { updatedUser.roles = rows; }
-      else { updatedUser.roles = []; } // user has no roles
-      return updatedUser;
-    });
+    }).then(function(allUsers) { return allUsers; });
   })
   .then(helper.slugify);
 };
 
 /* returns user with removed role(s) */
-users.removeRoles = function(userId, roles) {
+users.removeRoles = function(userId, roleId) {
   userId = helper.deslugify(userId);
+  roleId = helper.deslugify(roleId);
   var q = 'SELECT id, username, email, created_at, updated_at FROM users WHERE id = $1';
-  var params = [userId];
+  var params = [ userId ];
   var updatedUser;
   return using(db.createTransaction(), function(client) {
     return client.queryAsync(q, params)
     .then(function(results) { // fetch user and ensure user exists
       var rows = results.rows;
-      if (rows.length > 0) {
-        updatedUser = rows[0];
-        return roles; // return roles to be mapped by next promise
-      }
+      if (rows.length > 0) { return rows[0]; } // return user
       else { return Promise.reject(); } // user doesnt exist
     })
-    .map(function(role) {
-      q = 'SELECT id FROM roles WHERE name = $1';
-      params = [role];
-      return client.queryAsync(q, params)
-      .then(function(results) {
-        var rows = results.rows;
-        if (rows.length > 0) { return rows[0].id; } // return role id
-        else { return Promise.reject(); } // role doesnt exist
-      });
-    })
-    .each(function(roleId) {
-      q = 'DELETE FROM roles_users WHERE user_id = $1 AND role_id = $2';
-      params = [userId, roleId];
+    .then(function(user) {
+      updatedUser = user;
+      q = 'DELETE FROM roles_users WHERE role_id = $1 AND user_id = $2';
+      params = [roleId, user.id];
       return client.queryAsync(q, params);
     })
     .then(function() { // append roles to updated user and return
@@ -112,10 +73,8 @@ users.removeRoles = function(userId, roles) {
       params = [userId];
       return client.queryAsync(q, params);
     })
-    .then(function(results) {  // Append users roles
-      var rows = results.rows;
-      if (rows.length > 0) { updatedUser.roles = rows; }
-      else { updatedUser.roles = []; } // user has no roles
+    .then(function(results) {
+      updatedUser.roles = results.rows;
       return updatedUser;
     });
   })
@@ -151,26 +110,9 @@ users.page = function(opts) {
   .then(helper.slugify);
 };
 
-/* returns a limited set of admins depending on limit and page */
-users.pageAdmins = function(opts) {
-  var q = 'SELECT u.username, u.email, u.deleted, u.created_at, ru.user_id, array_agg(r.name ORDER BY r.name) as roles from roles_users ru JOIN roles r ON ((r.name = \'Administrator\' OR r.name = \'Super Administrator\') AND r.id = ru.role_id) LEFT JOIN users u ON(ru.user_id = u.id) GROUP BY ru.user_id, u.username, u.email, u.created_at, u.deleted ORDER BY';
-  opts = opts || {};
-  var limit = opts.limit || 25;
-  var page = opts.page || 1;
-  var sortField = opts.sortField || 'username';
-  // Invert order if sorting by roles, so super admin is sorted to the top
-  if (sortField === 'roles') { opts.sortDesc = !opts.sortDesc; }
-  var order = opts.sortDesc ? 'DESC' : 'ASC';
-  q = [q, sortField, order, 'LIMIT $1 OFFSET $2'].join(' ');
-  var offset = (page * limit) - limit;
-  var params = [limit, offset];
-  return db.sqlQuery(q, params)
-  .then(helper.slugify);
-};
-
 /* returns a limited set of moderators depending on limit and page */
 users.pageModerators = function(opts) {
-  var q = 'SELECT u.username, u.email, u.deleted, u.created_at, ru.user_id, array_agg(r.name ORDER BY r.name) as roles from roles_users ru JOIN roles r ON ((r.name = \'Moderator\' OR r.name = \'Global Moderator\') AND r.id = ru.role_id) LEFT JOIN users u ON(ru.user_id = u.id) GROUP BY ru.user_id, u.username, u.email, u.created_at, u.deleted ORDER BY';
+  var q = 'SELECT u.username, u.email, u.deleted, u.created_at, ru.user_id, array_agg(r.name ORDER BY r.name) as roles from roles_users ru JOIN roles r ON ((r.lookup = \'moderator\' OR r.lookup = \'globalModerator\') AND r.id = ru.role_id) LEFT JOIN users u ON(ru.user_id = u.id) GROUP BY ru.user_id, u.username, u.email, u.created_at, u.deleted ORDER BY';
   opts = opts || {};
   var limit = opts.limit || 25;
   var page = opts.page || 1;
@@ -201,19 +143,9 @@ users.count = function(opts) {
   });
 };
 
-/* returns total admins count */
-users.countAdmins = function() {
-  var q = 'SELECT COUNT(user_id) FROM (SELECT DISTINCT ru.user_id FROM roles_users ru JOIN roles r ON ((r.name = \'Administrator\' OR r.name = \'Super Administrator\') AND r.id = ru.role_id)) AS admins';
-  return db.sqlQuery(q)
-  .then(function(rows) {
-    if (rows.length) { return { count: Number(rows[0].count) }; }
-    else { return Promise.reject(); }
-  });
-};
-
 /* returns total mods count */
 users.countModerators = function() {
-  var q = 'SELECT COUNT(user_id) FROM (SELECT DISTINCT ru.user_id from roles_users ru JOIN roles r ON ((r.name = \'Moderator\' OR r.name = \'Global Moderator\') AND r.id = ru.role_id)) as mods';
+  var q = 'SELECT COUNT(user_id) FROM (SELECT DISTINCT ru.user_id from roles_users ru JOIN roles r ON ((r.lookup = \'moderator\' OR r.lookup = \'globalModerator\') AND r.id = ru.role_id)) as mods';
   return db.sqlQuery(q)
   .then(function(rows) {
     if (rows.length) { return { count: Number(rows[0].count) }; }
@@ -234,26 +166,23 @@ users.userByEmail = function(email) {
 
 /* returns all values */
 users.userByUsername = function(username) {
-  var user;
-  // TODO: optimize calls using promise.join
+  // TODO: optimize calls by merge both queries
   var q = 'SELECT u.id, u.username, u.email, u.passhash, u.confirmation_token, u.reset_token, u.reset_expiration, u.deleted, u.created_at, u.updated_at, u.imported_at, p.avatar, p.position, p.signature, p.raw_signature, p.fields, p.post_count FROM users u LEFT JOIN users.profiles p ON u.id = p.user_id WHERE u.username = $1';
   var params = [username];
   return db.sqlQuery(q, params)
   .then(function(rows) {
-    if (rows.length > 0) { user = formatUser(rows[0]); }
+    if (rows.length > 0) { return formatUser(rows[0]); }
   })
-  .then(function() {
+  .then(function(user) {
     if (user) {
       var q = 'SELECT roles.* FROM roles_users, roles WHERE roles_users.user_id = $1 AND roles.id = roles_users.role_id';
       var params = [user.id];
       return db.sqlQuery(q, params)
-      .then(function(rows) {  // Append users roles
-        if (rows.length > 0) { user.roles = rows; }
-        else { user.roles = []; } // user has no roles
-      });
+      .then(function(rows) { user.roles = rows; })
+      .then(function() { return user; });
     }
   })
-  .then(function() { return helper.slugify(user); });
+  .then(helper.slugify);
 };
 
 /* returns the created row in users.bans */
@@ -357,15 +286,7 @@ users.create = function(user, isAdmin) {
       q = 'INSERT INTO roles_users(role_id, user_id) VALUES($1, $2)';
       if (isAdmin) {
         var superAdminRole = '8ab5ef49-c2ce-4421-9524-bb45f289d42c';
-        var adminRole = '06860e6f-9ac0-4c2a-8d9c-417343062fb8';
-        return client.queryAsync(q, [superAdminRole, user.id])
-        .then(function() {
-          return client.queryAsync(q, [adminRole, user.id]);
-        });
-      }
-      else {
-        var userRole = 'edcd8f77-ce34-4433-ba85-17f9b17a3b60';
-        return client.queryAsync(q, [userRole, user.id]);
+        return client.queryAsync(q, [superAdminRole, user.id]);
       }
     })
     .then(function() { return insertUserProfile(user, client); })
@@ -373,10 +294,7 @@ users.create = function(user, isAdmin) {
     .then(function() {
       q = 'SELECT roles.* FROM roles_users, roles WHERE roles_users.user_id = $1 AND roles.id = roles_users.role_id';
       return client.queryAsync(q, [user.id])
-      .then(function(results) {  // Append users roles
-        if (results.rows.length > 0) { user.roles = results.rows; }
-        else { throw new CreationError('User Roles Not Found'); }
-      });
+      .then(function(results) { user.roles = results.rows; });
     });
   })
   .then(function() { return helper.slugify(user); });
@@ -480,30 +398,21 @@ var updateUserProfile = function(user, client) {
 
 /* return all values */
 users.find = function(id) {
-  // TODO: fix indentation
+  // TODO: optimize calls by merge both queries
   id = helper.deslugify(id);
   var q = 'SELECT u.id, u.username, u.email, u.passhash, u.confirmation_token, u.reset_token, u.reset_expiration, u.deleted, u.created_at, u.updated_at, u.imported_at, p.avatar, p.position, p.signature, p.raw_signature, p.fields, p.post_count FROM users u LEFT JOIN users.profiles p ON u.id = p.user_id WHERE u.id = $1';
   var params = [id];
-  var user;
   return db.sqlQuery(q, params)
   .then(function(rows) {
-    if (rows.length > 0) {
-      user = rows[0];
-      var q = 'SELECT roles.* FROM roles_users, roles WHERE roles_users.user_id = $1 AND roles.id = roles_users.role_id';
-      var params = [user.id];
-      return db.sqlQuery(q, params)
-      .then(function(rows) {  // Append users roles
-        if (rows.length > 0) {
-          user.roles = rows;
-          return user;
-        }
-        else { // User has no roles
-          user.roles = [];
-          return user;
-        }
-      });
-    }
+    if (rows.length > 0) { return rows[0]; }
     else { throw new NotFoundError('User Not Found'); }
+  })
+  .then(function(user) {
+    var q = 'SELECT roles.* FROM roles_users, roles WHERE roles_users.user_id = $1 AND roles.id = roles_users.role_id';
+    var params = [user.id];
+    return db.sqlQuery(q, params)
+    .then(function(rows) { user.roles = rows; })
+    .then(function() { return user; });
   })
   .then(helper.slugify);
 };

@@ -93,7 +93,7 @@ posts.update = function(post) {
 
 posts.find = function(id) {
   id = helper.deslugify(id);
-  var q = 'SELECT p.id, p.thread_id, p.user_id, p.title, p.body, p.raw_body, p.position, p.deleted, p.created_at, p.updated_at, p.imported_at, u.username, u.deleted as user_deleted, up.signature, up.avatar FROM posts p LEFT JOIN users u ON p.user_id = u.id LEFT JOIN users.profiles up ON u.id = up.user_id WHERE p.id = $1';
+  var q = 'SELECT p.id, p.thread_id, t.board_id, p.user_id, p.title, p.body, p.raw_body, p.position, p.deleted, p.created_at, p.updated_at, p.imported_at, u.username, u.deleted as user_deleted, up.signature, up.avatar FROM posts p LEFT JOIN users u ON p.user_id = u.id LEFT JOIN users.profiles up ON u.id = up.user_id LEFT JOIN threads t ON p.thread_id = t.id WHERE p.id = $1';
   return db.sqlQuery(q, [id])
   .then(function(rows) {
     if (rows.length > 0) { return rows[0]; }
@@ -105,18 +105,16 @@ posts.find = function(id) {
 
 posts.byThread = function(threadId, opts) {
   threadId = helper.deslugify(threadId);
-  var columns = 'plist.id, post.thread_id, post.user_id, post.title, post.body, post.raw_body, post.position, post.deleted, post.created_at, post.updated_at, post.imported_at, post.username, post.user_deleted, post.signature, post.avatar, p2.role';
-  var q2 = 'SELECT p.thread_id, p.user_id, p.title, p.body, p.raw_body, p.position, p.deleted, p.created_at, p.updated_at, p.imported_at, u.username, u.deleted as user_deleted, up.signature, up.avatar FROM posts p ' +
+  var columns = 'plist.id, post.thread_id, post.board_id, post.user_id, post.title, post.body, post.raw_body, post.position, post.deleted, post.created_at, post.updated_at, post.imported_at, post.username, post.user_deleted, post.signature, post.avatar, p2.highlight_color, p2.role_name';
+  var q2 = 'SELECT p.thread_id, t.board_id, p.user_id, p.title, p.body, p.raw_body, p.position, p.deleted, p.created_at, p.updated_at, p.imported_at, u.username, u.deleted as user_deleted, up.signature, up.avatar FROM posts p ' +
     'LEFT JOIN users u ON p.user_id = u.id ' +
     'LEFT JOIN users.profiles up ON u.id = up.user_id ' +
+    'LEFT JOIN threads t ON p.thread_id = t.id ' +
     'WHERE p.id = plist.id';
-  var q3 = 'SELECT r.name AS role FROM roles_users ru ' +
+  var q3 = 'SELECT r.priority, r.highlight_color, r.name as role_name FROM roles_users ru ' +
     'LEFT JOIN roles r ON ru.role_id = r.id ' +
     'WHERE post.user_id = ru.user_id ' +
-    'ORDER BY CASE WHEN r.name = \'Administrator\' THEN \'1\' ' +
-    'WHEN r.name = \'Global Moderator\' THEN \'2\' ' +
-    'WHEN r.name = \'Moderator\' THEN \'3\' ' +
-    'ELSE r.name END ASC LIMIT 1';
+    'ORDER BY priority limit 1';
 
   opts = opts || {};
   var start = opts.start || 0;
@@ -140,13 +138,15 @@ var formatPost = function(post) {
     username: post.username,
     deleted: post.user_deleted,
     signature: post.signature,
-    role: post.role,
+    highlight_color: post.highlight_color,
+    role_name: post.role_name
   };
   delete post.user_id;
   delete post.username;
   delete post.user_deleted;
   delete post.signature;
-  delete post.role;
+  delete post.highlight_color;
+  delete post.role_name;
   return post;
 };
 
@@ -161,7 +161,7 @@ posts.pageByUserCount = function(username) {
 };
 
 posts.pageByUser = function(username, opts) {
-  var q = 'SELECT p.id, p.thread_id, p.user_id, p.title, p.raw_body, p.body, p.position, p.deleted, u.deleted as user_deleted, p.created_at, p.updated_at, p.imported_at, (SELECT p2.title FROM posts p2 WHERE p2.thread_id = p.thread_id ORDER BY p2.created_at LIMIT 1) as thread_title FROM posts p JOIN users u ON(p.user_id = u.id) WHERE u.username = $1 ORDER BY';
+  var q = 'SELECT p.id, p.thread_id, p.user_id, p.title, p.raw_body, p.body, p.position, p.deleted, u.deleted as user_deleted, p.created_at, p.updated_at, p.imported_at, b.id as board_id, exists (SELECT board_id FROM board_mapping WHERE board_id = b.id) as board_visible, (SELECT p2.title FROM posts p2 WHERE p2.thread_id = p.thread_id ORDER BY p2.created_at LIMIT 1) as thread_title FROM posts p LEFT JOIN users u ON p.user_id = u.id LEFT JOIN threads t ON p.thread_id = t.id LEFT JOIN boards b ON t.board_id = b.id WHERE u.username = $1 ORDER BY';
   opts = opts || {};
   var limit = opts.limit || 25;
   var page = opts.page || 1;
@@ -178,9 +178,6 @@ posts.pageByUser = function(username, opts) {
 posts.delete = function(id) {
   id = helper.deslugify(id);
   var post;
-  var thread;
-  var board;
-  var user;
   var q;
 
   return using(db.createTransaction(), function(client) {
@@ -207,9 +204,6 @@ posts.delete = function(id) {
 posts.undelete = function(id) {
   id = helper.deslugify(id);
   var post;
-  var thread;
-  var board;
-  var user;
   var q;
 
   return using(db.createTransaction(), function(client) {

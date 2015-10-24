@@ -30,8 +30,7 @@ boards.import = function(board) {
     // insert import board metadata
     .then(function() {
       q = 'INSERT INTO metadata.boards (board_id) VALUES ($1)';
-      params = [board.id];
-      return client.queryAsync(q, params);
+      return client.queryAsync(q, [board.id]);
     });
   })
   .then(function() { return helper.slugify(board); });
@@ -49,8 +48,7 @@ boards.create = function(board) {
     // insert new board metadata
     .then(function() {
       q = 'INSERT INTO metadata.boards (board_id) VALUES ($1)';
-      params = [board.id];
-      return client.queryAsync(q, params);
+      return client.queryAsync(q, [board.id]);
     });
   })
   .then(function() { return helper.slugify(board); });
@@ -61,8 +59,7 @@ boards.update = function(board) {
   var q, params;
   return using(db.createTransaction(), function(client) {
     q = 'SELECT * FROM boards WHERE id = $1 FOR UPDATE';
-    params = [board.id];
-    return client.queryAsync(q, params)
+    return client.queryAsync(q, [board.id])
     .then(function(results) {
       if (results.rows.length > 0) { return results.rows[0]; }
       else { throw new NotFoundError('Board Not Found'); }
@@ -80,29 +77,43 @@ boards.update = function(board) {
   .then(function() { return helper.slugify(board); });
 };
 
+boards.breadcrumb = function(boardId) {
+  boardId = helper.deslugify(boardId);
+  var q = 'SELECT b.id, b.name, bm.parent_id, bm.category_id FROM boards b LEFT JOIN board_mapping bm ON b.id = bm.board_id WHERE b.id = $1';
+  return db.sqlQuery(q, [boardId])
+  .then(function(rows) {
+    if (rows.length > 0) { return rows[0]; }
+    else { return {}; }
+  })
+  .then(helper.slugify);
+};
+
 boards.find = function(id) {
   id = helper.deslugify(id);
-  var q = 'SELECT b.id, b.name, b.description, b.created_at, b.thread_count, b.post_count, b.updated_at, b.imported_at, (SELECT bm.parent_id FROM board_mapping bm WHERE bm.board_id = b.id) as parent_id FROM boards b WHERE b.id = $1';
-  var params = [id];
-  return db.sqlQuery(q, params)
+
+  // get board with given id
+  var q = 'SELECT b.id, b.name, b.description, b.created_at, b.thread_count, b.post_count, b.updated_at, b.imported_at, (SELECT bm.parent_id FROM board_mapping bm WHERE bm.board_id = b.id) as parent_id, (SELECT json_agg(row_to_json((SELECT x FROM ( SELECT bm.user_id as id, u.username as username) x ))) as moderators from board_moderators bm LEFT JOIN users u ON bm.user_id = u.id WHERE bm.board_id = b.id) as moderators FROM boards b WHERE b.id = $1;';
+  return db.sqlQuery(q, [id])
   .then(function(rows) {
     if (rows.length > 0) { return rows[0]; }
     else { throw new NotFoundError('Board Not Found'); }
   })
-  .then(function(board) { // add board moderators
-    var q = 'SELECT bm.user_id as id, u.username from board_moderators bm LEFT JOIN users u ON bm.user_id = u.id WHERE bm.board_id = $1';
-    var params = [id];
-    return db.sqlQuery(q, params)
-    .then(function(rows) { board.moderators = rows;})
-    .then(function() { return board; });
-  })
-  // get child boards
+  // append child boards
   .then(function(board) {
-    // TODO: board moderators
-    return db.sqlQuery('SELECT * FROM ( SELECT b.id, b.name, b.description, b.thread_count, b.post_count, b.created_at, b.updated_at, b.imported_at, mb.last_post_username, mb.last_post_created_at, mb.last_thread_id, mb.last_thread_title, mb.last_post_position, bm.parent_id, bm.category_id, bm.view_order FROM board_mapping bm LEFT JOIN boards b ON bm.board_id = b.id LEFT JOIN metadata.boards mb ON b.id = mb.board_id ) blist LEFT JOIN LATERAL ( SELECT p.deleted as post_deleted, u.id as user_id, u.deleted as user_deleted FROM posts p LEFT JOIN users u ON p.user_id = u.id WHERE blist.last_thread_id = p.thread_id ORDER BY p.created_at DESC LIMIT 1 ) p ON true')
-    // handle deleted users
-    .then(function(boards) {
-      return boards.map(function(b) {
+    // get all boards (inefficient) TODO: make effiecient
+    return db.sqlQuery('SELECT * FROM ( SELECT b.id, b.name, b.description, b.thread_count, b.post_count, b.created_at, b.updated_at, b.imported_at, mb.last_post_username, mb.last_post_created_at, mb.last_thread_id, mb.last_thread_title, mb.last_post_position, bm.parent_id, bm.category_id, bm.view_order FROM board_mapping bm LEFT JOIN boards b ON bm.board_id = b.id LEFT JOIN metadata.boards mb ON b.id = mb.board_id ) blist LEFT JOIN LATERAL ( SELECT p.deleted as post_deleted, u.id as user_id, u.deleted as user_deleted FROM posts p LEFT JOIN users u ON p.user_id = u.id WHERE blist.last_thread_id = p.thread_id ORDER BY p.created_at DESC LIMIT 1 ) p ON true LEFT JOIN LATERAL (SELECT json_agg(row_to_json((SELECT x FROM ( SELECT bm.user_id as id, u.username as username) x ))) as moderators from board_moderators bm LEFT JOIN users u ON bm.user_id = u.id WHERE bm.board_id = blist.id) mods on true')
+    // append all children board from all boards
+    .then(function(boardMapping) {
+      // get all children boards for this board
+      board.children = _.filter(boardMapping, function(boardMap) {
+        return boardMap.parent_id === board.id;
+      });
+
+      // sort all children boards by view_order
+      board.children = _.sortBy(board.children, 'view_order');
+
+      // handle deleted content for all children boards
+      board.children.map(function(b) {
         if (b.post_deleted || b.user_deleted || !b.user_id) {
           b.last_post_username = 'deleted';
         }
@@ -115,13 +126,6 @@ boards.find = function(id) {
         }
         return b;
       });
-    })
-    // stitch child boards on
-    .then(function(boardMapping) {
-      board.children = _.filter(boardMapping, function(boardMap) {
-        return boardMap.parent_id === board.id;
-      });
-      board.children = _.sortBy(board.children, 'view_order');
 
       // recurse through category boards
       board.children.map(function(childBoard) {
@@ -172,7 +176,7 @@ boards.allCategories = function() {
   .then(function(dbCategories) { categories = dbCategories; })
   // get all board mappings
   .then(function() {
-    return db.sqlQuery('SELECT * FROM ( SELECT b.id, b.name, b.description, b.thread_count, b.post_count, b.created_at, b.updated_at, b.imported_at, mb.last_post_username, mb.last_post_created_at, mb.last_thread_id, mb.last_thread_title, mb.last_post_position, bm.parent_id, bm.category_id, bm.view_order FROM board_mapping bm LEFT JOIN boards b ON bm.board_id = b.id LEFT JOIN metadata.boards mb ON b.id = mb.board_id ) blist LEFT JOIN LATERAL ( SELECT p.deleted as post_deleted, u.id as user_id, u.deleted as user_deleted FROM posts p LEFT JOIN users u ON p.user_id = u.id WHERE blist.last_thread_id = p.thread_id ORDER BY p.created_at DESC LIMIT 1 ) p ON true');
+    return db.sqlQuery('SELECT * FROM ( SELECT b.id, b.name, b.description, b.thread_count, b.post_count, b.created_at, b.updated_at, b.imported_at, mb.last_post_username, mb.last_post_created_at, mb.last_thread_id, mb.last_thread_title, mb.last_post_position, bm.parent_id, bm.category_id, bm.view_order FROM board_mapping bm LEFT JOIN boards b ON bm.board_id = b.id LEFT JOIN metadata.boards mb ON b.id = mb.board_id ) blist LEFT JOIN LATERAL ( SELECT p.deleted as post_deleted, u.id as user_id, u.deleted as user_deleted FROM posts p LEFT JOIN users u ON p.user_id = u.id WHERE blist.last_thread_id = p.thread_id ORDER BY p.created_at DESC LIMIT 1 ) p ON true LEFT JOIN LATERAL (SELECT json_agg(row_to_json((SELECT x FROM ( SELECT bm.user_id as id, u.username as username) x ))) as moderators from board_moderators bm LEFT JOIN users u ON bm.user_id = u.id WHERE bm.board_id = blist.id) mods on true');
   })
   // handle deleted users
   .then(function(boards) {
@@ -256,7 +260,7 @@ boards.getBoardInBoardMapping = function(boardId) {
  */
 boards.delete = function(boardId){
   boardId = helper.deslugify(boardId);
-  var q, params;
+  var q;
 
   return using(db.createTransaction(), function(client) {
     // Remove board data from DB

@@ -76,6 +76,17 @@ var threadLastPost = function(thread) {
   });
 };
 
+threads.breadcrumb = function(threadId) {
+  threadId = helper.deslugify(threadId);
+  var q = 'SELECT t.board_id, (SELECT title FROM posts WHERE thread_id = t.id ORDER BY created_at LIMIT 1) as title FROM threads t WHERE t.id = $1';
+  return db.sqlQuery(q, [threadId])
+  .then(function(rows) {
+    if (rows.length > 0) { return rows[0]; }
+    else { return {}; }
+  })
+  .then(helper.slugify);
+};
+
 threads.find = function(id) {
   id = helper.deslugify(id);
   var columns = 't.id, t.board_id, t.locked, t.sticky, t.created_at, t.updated_at, t.post_count, p.user_id, p.title, p.username, p.user_deleted';
@@ -286,11 +297,9 @@ threads.getThreadOwner = function(threadId) {
  * post_count accordingly. It also updates the metadata.boards' last post
  * information.
  */
-threads.delete = function(threadId) {
+threads.purge = function(threadId) {
   threadId = helper.deslugify(threadId);
-  var thread;
-  var board;
-  var q, params;
+  var q;
 
   return using(db.createTransaction(), function(client) {
     // lock up thread and Meta
