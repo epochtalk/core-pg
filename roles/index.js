@@ -10,11 +10,6 @@ var using = Promise.using;
 roles.all = function() {
   var q = 'SELECT id, name, description, lookup, priority, highlight_color, permissions FROM roles ORDER BY priority';
   return db.sqlQuery(q)
-  .map(function(role) {
-    try { role.permissions = JSON.parse(role.permissions); }
-    catch(e) { role.permissions = role.permissions; }
-    return role;
-  })
   .then(helper.slugify);
 };
 
