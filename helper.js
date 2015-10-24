@@ -57,7 +57,7 @@ module.exports = {
 
 
 function slugTransform(input, slugMethod) {
-  if (!input) { return input; }
+  if (!input || input === '') { return undefined; }
 
   // concat everything into an array
   var isArray = false;
