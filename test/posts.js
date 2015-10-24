@@ -3,8 +3,7 @@ var Lab = require('lab');
 var lab = exports.lab = Lab.script();
 var expect = require('code').expect;
 var Promise = require('bluebird');
-var core = require(path.join(__dirname, '..'))({host: 'localhost', database: 'epoch_test'});
-var core = require(path.join(__dirname, '..'))();
+var db = require(path.join(__dirname, 'db'));
 var seed = require(path.join(__dirname, 'seed', 'populate'));
 var fixture = require(path.join(__dirname, 'fixtures', 'posts'));
 var NotFoundError = Promise.OperationalError;
@@ -27,7 +26,7 @@ lab.experiment('Posts', function() {
   });
   lab.test('should find a post by id', function(done) {
     Promise.map(runtime.posts, function(seededPost) {
-      return core.posts.find(seededPost.id)
+      return db.posts.find(seededPost.id)
       .then(function(post) {
         expectations(seededPost, post);
       })
@@ -40,7 +39,7 @@ lab.experiment('Posts', function() {
     });
   });
   lab.test('should fail to find a post by invalid id', function(done) {
-    return core.posts.find()
+    return db.posts.find()
     .then(function(post) {
       throw new Error('Should not have found a post');
     })
@@ -52,7 +51,7 @@ lab.experiment('Posts', function() {
   });
   lab.test('should find posts by thread', function(done) {
     return Promise.map(runtime.posts, function(seededPost) {
-      return core.posts.byThread(seededPost.thread_id)
+      return db.posts.byThread(seededPost.thread_id)
       .then(function(posts) {
         expect(posts.length).to.equal(1);
         expectations(seededPost, posts[0]);
@@ -66,7 +65,7 @@ lab.experiment('Posts', function() {
     });
   });
   lab.test('should not find posts by thread', function(done) {
-    return core.posts.byThread(runtime.threads[10].id)
+    return db.posts.byThread(runtime.threads[10].id)
     .then(function(posts) {
       expect(posts).to.be.an.array();
       expect(posts).to.have.length(0);
@@ -79,7 +78,7 @@ lab.experiment('Posts', function() {
     });
   });
   lab.test('should return no posts for an invalid thread', function(done) {
-    return core.posts.byThread()
+    return db.posts.byThread()
     .then(function(posts) {
       expect(posts).to.be.an.array();
       expect(posts).to.have.length(0);
@@ -93,7 +92,7 @@ lab.experiment('Posts', function() {
   });
   lab.test('should increment thread\'s post count', function(done) {
     return Promise.map(runtime.threads.slice(0, 9), function(seededThread) {
-      return core.threads.find(seededThread.id)
+      return db.threads.find(seededThread.id)
       .then(function(thread) {
         expect(thread.post_count).to.equal(1);
       })
@@ -107,12 +106,12 @@ lab.experiment('Posts', function() {
   });
   lab.test('should update boards\' posts counts', function(done) {
     Promise.map(runtime.posts, function(seededPost) {
-      return core.posts.find(seededPost.id)
+      return db.posts.find(seededPost.id)
       .then(function(post) {
-        return core.threads.find(post.thread_id);
+        return db.threads.find(post.thread_id);
       })
       .then(function(thread) {
-        return core.boards.find(thread.board_id);
+        return db.boards.find(thread.board_id);
       })
       .then(function(board) {
         expect(board.post_count).to.equal(3);

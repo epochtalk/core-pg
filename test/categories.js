@@ -3,7 +3,7 @@ var Lab = require('lab');
 var lab = exports.lab = Lab.script();
 var expect = require('code').expect;
 var Promise = require('bluebird');
-var core = require(path.join(__dirname, '..'))({host: 'localhost', database: 'epoch_test'});
+var db = require(path.join(__dirname, 'db'));
 var seed = require(path.join(__dirname, 'seed', 'populate'));
 var fixture = require(path.join(__dirname, 'fixtures', 'categories'));
 var NotFoundError = Promise.OperationalError;
@@ -24,7 +24,7 @@ lab.experiment('Categories', function() {
     });
   });
   lab.test('should return all categories', function(done) {
-    core.categories.all(function(categories) {
+    db.categories.all(function(categories) {
       expect(categories).to.be.an.array();
       expect(categories).to.have.length(runtime.categories.length);
     })
@@ -34,7 +34,7 @@ lab.experiment('Categories', function() {
   });
   lab.test('should find a category by id', function(done) {
     Promise.map(runtime.categories, function(seededCategory) {
-      return core.categories.find(seededCategory.id).then(function(category) {
+      return db.categories.find(seededCategory.id).then(function(category) {
         expectations(seededCategory, category);
       })
       .catch(function(err) {
@@ -46,7 +46,7 @@ lab.experiment('Categories', function() {
     });
   });
   lab.test('should fail to find a category by invalid id', function(done) {
-    return core.categories.find()
+    return db.categories.find()
     .then(function(user) {
       throw new Error('Should not have found a category');
     })

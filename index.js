@@ -1,14 +1,13 @@
 module.exports = core;
 var path = require('path');
-var config = require(path.join(__dirname, 'config'));
+var setup = require(path.join(__dirname, 'setup'));
 var pg = require('pg');
 var core = {};
 
 function core(opts) {
-  if (opts && (opts.cstring || (opts.host && opts.database))) {
-    config.update({ db: opts });
-  }
+  setup(opts);
 
+  core.configurations = require(path.join(__dirname, 'configurations'));
   core.users = require(path.join(__dirname, 'users'));
   core.categories = require(path.join(__dirname, 'categories'));
   core.boards = require(path.join(__dirname, 'boards'));

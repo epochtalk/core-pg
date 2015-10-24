@@ -3,7 +3,7 @@ var Lab = require('lab');
 var lab = exports.lab = Lab.script();
 var expect = require('code').expect;
 var Promise = require('bluebird');
-var core = require(path.join(__dirname, '..'))({host: 'localhost', database: 'epoch_test'});
+var db = require(path.join(__dirname, 'db'));
 var seed = require(path.join(__dirname, 'seed', 'populate'));
 var fixture = require(path.join(__dirname, 'fixtures', 'users'));
 var NotFoundError = Promise.OperationalError;
@@ -25,7 +25,7 @@ lab.experiment('Users', function() {
     });
   });
   lab.test('should fail to create a user with invalid parameters', function(done) {
-    return core.users.create({})
+    return db.users.create({})
     .then(function(user) {
       expect(user).to.not.exist();
       throw new Error('User creation should have failed');
@@ -36,7 +36,7 @@ lab.experiment('Users', function() {
   });
   lab.test('should return a user by username', function(done) {
     Promise.map(runtime.users, function(seededUser) {
-      return core.users.userByUsername(seededUser.username).then(function(user) {
+      return db.users.userByUsername(seededUser.username).then(function(user) {
         expectations(seededUser, user);
       })
       .catch(function(err) {
@@ -48,7 +48,7 @@ lab.experiment('Users', function() {
     });
   });
   lab.test('should not return a user by invalid username', function(done) {
-    return core.users.userByUsername().then(function(user) {
+    return db.users.userByUsername().then(function(user) {
       expect(user).to.not.exist();
     })
     .then(function() {
@@ -60,7 +60,7 @@ lab.experiment('Users', function() {
   });
   lab.test('should return a user by email', function(done) {
     Promise.map(runtime.users, function(seededUser) {
-      return core.users.userByEmail(seededUser.email).then(function(user) {
+      return db.users.userByEmail(seededUser.email).then(function(user) {
         expectations(seededUser, user);
       })
       .catch(function(err) {
@@ -72,7 +72,7 @@ lab.experiment('Users', function() {
     });
   });
   lab.test('should not return a user by invalid email', function(done) {
-    return core.users.userByEmail().then(function(user) {
+    return db.users.userByEmail().then(function(user) {
       expect(user).to.be.undefined();
     })
     .then(function() {
@@ -84,7 +84,7 @@ lab.experiment('Users', function() {
   });
   lab.test('should find a user by id', function(done) {
     Promise.map(runtime.users, function(seededUser) {
-      return core.users.find(seededUser.id).then(function(user) {
+      return db.users.find(seededUser.id).then(function(user) {
         expectations(seededUser, user);
       })
       .catch(function(err) {
@@ -96,7 +96,7 @@ lab.experiment('Users', function() {
     });
   });
   lab.test('should fail to find a user by invalid id', function(done) {
-    return core.users.find()
+    return db.users.find()
     .then(function(user) {
       throw new Error('Should not have found a user');
     })

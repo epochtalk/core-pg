@@ -1,5 +1,5 @@
 var path = require('path');
-var core = require(path.join(__dirname, '..', '..'))();
+var db = require(path.join(__dirname, '..', 'db'));
 var faker = require('faker');
 var Promise = require('bluebird');
 var fake = {};
@@ -11,14 +11,14 @@ fake.users = function() {
     email: faker.internet.email(),
     username: faker.internet.userName()
   };
-  return Promise.resolve(user).then(core.users.create);
+  return Promise.resolve(user).then(db.users.create);
 };
 
 fake.categories = function() {
   var category = {
     name: faker.company.bsAdjective()
   };
-  return Promise.resolve(category).then(core.categories.create)
+  return Promise.resolve(category).then(db.categories.create)
     .then(function(createdCategory) {
       // return name for runtime
       createdCategory.name = category.name;
@@ -31,7 +31,7 @@ fake.boards = function(options) {
     name: faker.company.bsNoun(),
     description: faker.company.bsBuzz() + ' ' + faker.company.bsAdjective() + ' ' + faker.company.bsNoun()
   };
-  return Promise.resolve(board).then(core.boards.create);
+  return Promise.resolve(board).then(db.boards.create);
 };
 
 fake.threads = function(options) {
@@ -39,7 +39,7 @@ fake.threads = function(options) {
   if (options) {
     if (options.board_id) thread.board_id = options.board_id;
   }
-  return Promise.resolve(thread).then(core.threads.create)
+  return Promise.resolve(thread).then(db.threads.create)
     .then(function(createdThread) {
       // return board_id for runtime
       createdThread.board_id = thread.board_id;
@@ -62,5 +62,5 @@ fake.posts = function(options) {
     if (options.thread_id) post.thread_id = options.thread_id;
     if (options.user_id) post.user_id = options.user_id;
   }
-  return Promise.resolve(post).then(core.posts.create);
+  return Promise.resolve(post).then(db.posts.create);
 };

@@ -3,7 +3,6 @@ var Lab = require('lab');
 var lab = exports.lab = Lab.script();
 var expect = require('code').expect;
 var Promise = require('bluebird');
-var core = require(path.join(__dirname, '..', '..'))();
 var seed = require(path.join(__dirname, '..', 'seed', 'populate'));
 var fixtures = {
   categories: require(path.join(__dirname, '..', 'fixtures', 'categories')),
