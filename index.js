@@ -19,6 +19,7 @@ function core(opts) {
   core.conversations = require(path.join(__dirname, 'conversations'));
   core.moderators = require(path.join(__dirname, 'moderators'));
   core.roles = require(path.join(__dirname, 'roles'));
+  core.watchlist = require(path.join(__dirname, 'watchlist'));
   core.close = function() { pg.end(); };
   return core;
 }
