@@ -62,20 +62,6 @@ threads.create = function(thread) {
   .then(function() { return helper.slugify(thread); });
 };
 
-var threadLastPost = function(thread) {
-  var q = 'SELECT p.created_at, p.deleted, u.username, u.deleted as user_deleted FROM posts p LEFT JOIN users u ON p.user_id = u.id WHERE p.thread_id = $1 ORDER BY p.created_at DESC LIMIT 1';
-  var params = [thread.id];
-  return db.sqlQuery(q, params)
-  .then(function(rows) {
-    if (rows.length > 0) {
-      thread.last_post_created_at = rows[0].created_at;
-      if (rows[0].deleted || rows[0].user_deleted) { thread.last_post_username = 'deleted'; }
-      else { thread.last_post_username = rows[0].username;}
-    }
-    return thread;
-  });
-};
-
 threads.breadcrumb = function(threadId) {
   threadId = helper.deslugify(threadId);
   var q = 'SELECT t.board_id, (SELECT title FROM posts WHERE thread_id = t.id ORDER BY created_at LIMIT 1) as title FROM threads t WHERE t.id = $1';
@@ -104,77 +90,79 @@ threads.find = function(id) {
   .then(helper.slugify);
 };
 
-threads.byBoard = function(boardId, opts) {
+threads.byBoard = function(boardId, userId, opts) {
   boardId = helper.deslugify(boardId);
-  var columns = 'tlist.id, t.locked, t.sticky, t.created_at, t.updated_at, t.views as view_count, t.post_count, p.title, p.user_id, p.username, p.user_deleted';
-  var q2 = 'SELECT t1.locked, t1.sticky, t1.post_count, t1.created_at, t1.updated_at, mt.views FROM threads t1 ' +
-    'LEFT JOIN metadata.threads mt ON tlist.id = mt.thread_id WHERE t1.id = tlist.id';
-  var q3 = 'SELECT p1.title, p1.user_id, u.username, u.deleted as user_deleted FROM posts p1 LEFT JOIN users u ON p1.user_id = u.id WHERE p1.thread_id = tlist.id ORDER BY p1.created_at LIMIT 1';
+  userId = helper.deslugify(userId || undefined);
 
   opts = opts || {};
-  var limit = opts.limit || 25;
-  var page = opts.page || 1;
-  var offset = (page * limit) - limit;
-  var reversed = 'DESC'; // default to DESC
+  opts.limit = opts.limit || 25;
+  opts.page = opts.page || 1;
+  opts.offset = (opts.page * opts.limit) - opts.limit;
+  opts.reversed = 'DESC';
+  opts.columns = 'tlist.id, t.locked, t.sticky, t.created_at, t.updated_at, t.views as view_count, t.post_count, p.title, p.user_id, p.username, p.user_deleted, t.time AS last_viewed, tv.id AS post_id, tv.position AS post_position, pl.last_post_id, pl.position AS last_post_position, pl.created_at AS last_post_created_at, pl.deleted AS last_post_deleted, pl.id AS last_post_user_id, pl.username AS last_post_username, pl.user_deleted AS last_post_user_deleted ';
+  opts.q2 = 'SELECT t1.locked, t1.sticky, t1.post_count, t1.created_at, t1.updated_at, mt.views, ' +
+    '(SELECT time FROM users.thread_views WHERE thread_id = tlist.id AND user_id = $2) ' +
+    'FROM threads t1 ' +
+    'LEFT JOIN metadata.threads mt ON tlist.id = mt.thread_id ' +
+    'WHERE t1.id = tlist.id';
+  opts.q3 = 'SELECT p1.title, p1.user_id, u.username, u.deleted as user_deleted FROM posts p1 LEFT JOIN users u ON p1.user_id = u.id WHERE p1.thread_id = tlist.id ORDER BY p1.created_at LIMIT 1';
+  opts.q4 = 'SELECT id, position FROM posts WHERE thread_id = tlist.id AND created_at >= t.time ORDER BY created_at LIMIT 1';
+  opts.q5 = 'SELECT p.id AS last_post_id, p.position, p.created_at, p.deleted, u.id, u.username, u.deleted as user_deleted FROM posts p LEFT JOIN users u ON p.user_id = u.id WHERE p.thread_id = tlist.id ORDER BY p.created_at DESC LIMIT 1';
 
-  // get total thread count for this board
+  var stickyThreads = getStickyThreads(boardId, userId, opts);
+  var normalThreads = getNormalThreads(boardId, userId, opts);
+
+  return Promise.join(stickyThreads, normalThreads, function(sticky, normal) {
+    return { normal: normal, sticky: sticky };
+  })
+  .then(helper.slugify);
+};
+
+var getNormalThreads = function(boardId, userId, opts) {
   var getBoardSQL = 'SELECT thread_count FROM boards WHERE id = $1';
-  var getBoardParams = [boardId];
-  return db.scalar(getBoardSQL, getBoardParams)
+  return db.scalar(getBoardSQL, [boardId])
   .then(function(result) {
     if (result) {
       // determine whether to start from the front or back
       var threadCount = result.thread_count;
-      if (offset > Math.floor(threadCount / 2)) {
-        reversed = '';
-        limit = threadCount <= offset + limit ? threadCount - offset : limit;
-        offset = threadCount <= offset + limit ? 0 : threadCount - offset - limit;
+      if (opts.offset > Math.floor(threadCount / 2)) {
+        opts.reversed = '';
+        opts.limit = threadCount <= opts.offset + opts.limit ? threadCount - opts.offset : opts.limit;
+        opts.offset = threadCount <= opts.offset + opts.limit ? 0 : threadCount - opts.offset - opts.limit;
       }
     }
   })
   // get all related threads
   .then(function() {
-    var q1 = 'SELECT id FROM threads WHERE board_id = $1 AND sticky = False ORDER BY updated_at ' + reversed + ' LIMIT $2 OFFSET $3';
-    var query = 'SELECT ' + columns + ' FROM ( ' + q1 + ' ) tlist LEFT JOIN LATERAL ( ' + q2 + ' ) t ON true LEFT JOIN LATERAL ( ' + q3 + ') p ON true';
-    var params = [boardId, limit, offset];
+    var query = 'SELECT ' + opts.columns + ' FROM ( SELECT id FROM threads WHERE board_id = $1 AND sticky = False ORDER BY updated_at ' + opts.reversed + ' LIMIT $3 OFFSET $4 ) tlist LEFT JOIN LATERAL ( ' + opts.q2 + ' ) t ON true LEFT JOIN LATERAL ( ' + opts.q3 + ' ) p ON true LEFT JOIN LATERAL ( ' + opts.q4 + ' ) tv ON true LEFT JOIN LATERAL ( ' + opts.q5 + ' ) pl ON true';
+    var params = [boardId, userId, opts.limit, opts.offset];
     return db.sqlQuery(query, params);
   })
   .then(function(threads) {
     // reverse ordering if backward search
-    if (!reversed) { threads.reverse(); }
+    if (!opts.reversed) { threads.reverse(); }
     // rearrange last post and user properties
     return Promise.map(threads, function(thread) {
-      return threadLastPost(thread).then(formatThread);
+      return formatThread(thread, userId);
     });
-  })
-  // handle sticky threads
-  .then(function(threads) {
-    if (page !== 1) { return {sticky: [], normal: threads}; }
-    var retVal = { normal: threads };
-    var stickyQ = 'SELECT id FROM threads WHERE board_id = $1 AND sticky = True ORDER BY updated_at DESC';
-    var query = 'SELECT ' + columns + ' FROM ( ' + stickyQ + ' ) tlist LEFT JOIN LATERAL ( ' + q2 + ' ) t ON true LEFT JOIN LATERAL ( ' + q3 + ') p ON true';
-    var params = [boardId];
-    return db.sqlQuery(query, params)
-    .then(function(stickyThreads) {
-      return Promise.map(stickyThreads, function(thread) {
-        return threadLastPost(thread).then(formatThread);
-      });
-    })
-    .then(function(stickyThreads) {
-      retVal.sticky = stickyThreads;
-      return retVal;
-    });
-  })
-  .then(helper.slugify);
+  });
 };
 
-var formatThread = function(thread) {
+var getStickyThreads = function(boardId, userId, opts) {
+  if (opts.page !== 1) { return []; }
+  var query = 'SELECT ' + opts.columns + ' FROM ( SELECT id FROM threads WHERE board_id = $1 AND sticky = True ORDER BY updated_at DESC ) tlist LEFT JOIN LATERAL ( ' + opts.q2 + ' ) t ON true LEFT JOIN LATERAL ( ' + opts.q3 + ' ) p ON true LEFT JOIN LATERAL ( ' + opts.q4 + ' ) tv ON true LEFT JOIN LATERAL (' + opts.q5 + ' ) pl ON true';
+  return db.sqlQuery(query, [boardId, userId])
+  .map(function(thread) { return formatThread(thread, userId); });
+};
+
+var formatThread = function(thread, userId) {
   // handle deleted user
   if (thread.user_deleted) {
     thread.user_id = '';
     thread.username = '';
   }
-  // formatting output
+
+  // format user output
   thread.user = {
     id: thread.user_id,
     username: thread.username,
@@ -183,6 +171,28 @@ var formatThread = function(thread) {
   delete thread.user_id;
   delete thread.username;
   delete thread.user_deleted;
+
+  // format last
+  if (userId && !thread.last_viewed) {
+    thread.has_new_post = true;
+    thread.latest_unread_position = 1;
+  }
+  else if (userId && userId !== thread.last_post_user_id && thread.last_viewed <= thread.last_post_created_at) {
+    thread.has_new_post = true;
+    thread.latest_unread_position = thread.post_position;
+    thread.latest_unread_post_id = thread.post_id;
+  }
+  delete thread.post_id;
+  delete thread.post_position;
+  delete thread.last_viewed;
+
+  // handle last post formatting
+  if (thread.last_post_deleted || thread.last_post_user_deleted) {
+    thread.last_post_username = 'deleted';
+  }
+  delete thread.last_post_user_id;
+  delete thread.last_post_deleted;
+  delete thread.last_post_user_deleted;
   return thread;
 };
 

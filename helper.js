@@ -4,6 +4,7 @@ var slugKeywords = [
   'id',
   'board_id',
   'thread_id',
+  'post_id',
   'user_id',
   'parent_id',
   'category_id',
@@ -20,6 +21,8 @@ var slugKeywords = [
   'conversation_id',
   'sender_id',
   'receiver_id',
+  'last_post_id',
+  'latest_unread_post_id'
 ];
 var slugArrayKeywords = ['children_ids', 'board_ids', 'copied_ids'];
 

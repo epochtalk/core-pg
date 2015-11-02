@@ -417,40 +417,17 @@ users.find = function(id) {
   .then(helper.slugify);
 };
 
-users.getUserThreadViews = function(userId) {
+users.putUserThreadViews = function(userId, threadId) {
   userId = helper.deslugify(userId);
-  // build userView key
-  var q = 'SELECT thread_id, time FROM users.thread_views WHERE user_id = $1';
-  var params = [userId];
-  return db.sqlQuery(q, params)
-  .then(function(rows) {
-    if (rows.length > 0) { return rows; }
-    else { return []; }
-  })
-  .then(function(rows) {
-    var userviews = {};
-    rows.forEach(function(row) {
-      userviews[helper.slugify(row.thread_id)] = row.time.getTime();
-    });
-    return userviews;
-  })
-  .then(helper.slugify);
-};
-
-users.putUserThreadViews = function(userId, userViewsArray) {
-  userId = helper.deslugify(userId);
+  threadId = helper.deslugify(threadId);
 
   return using(db.createTransaction(), function(client) {
-    // update each user view
-    return Promise.map(userViewsArray, function(view) {
-      view.threadId = helper.deslugify(view.threadId);
-      // query for existing user-thread row for user view
-      return userThreadViewExists(userId, view.threadId, client)
-      // update or insert user-thread row
-      .then(function(row) {
-        if (row) { updateUserThreadview(row, userId, view, client); }
-        else { insertUserThreadview(userId, view, client); }
-      });
+    // query for existing user-thread row for user view
+    return userThreadViewExists(userId, threadId, client)
+    // update or insert user-thread row
+    .then(function(row) {
+      if (row) { updateUserThreadview(row, userId, threadId, client); }
+      else { insertUserThreadview(userId, threadId, client); }
     });
   });
 };
@@ -465,35 +442,30 @@ var userThreadViewExists = function(userId, threadId, client) {
   });
 };
 
-var insertUserThreadview = function(userId, view, client) {
-  var q = 'INSERT INTO users.thread_views (user_id, thread_id, time) VALUES ($1, $2, $3)';
-  var params = [userId, view.threadId, new Date(view.timestamp)];
+var insertUserThreadview = function(userId, threadId, client) {
+  var q = 'INSERT INTO users.thread_views (user_id, thread_id, time) VALUES ($1, $2, now())';
+  var params = [userId, threadId];
   return client.queryAsync(q, params);
 };
 
-var updateUserThreadview = function(row, userId, view, client) {
-  if (row.time.getTime() >= view.timestamp) { return; }
-  var q = 'UPDATE users.thread_views SET time = $1 WHERE user_id = $2 AND thread_id = $3';
-  var params = [new Date(view.timestamp), userId, view.threadId];
+var updateUserThreadview = function(row, userId, threadId, client) {
+  var q = 'UPDATE users.thread_views SET time = now() WHERE user_id = $1 AND thread_id = $2';
+  var params = [userId, threadId];
   return client.queryAsync(q, params);
 };
 
 users.deactivate = function(userId) {
   userId = helper.deslugify(userId);
-  var q;
-
   return using(db.createTransaction(), function(client) {
-    q = 'UPDATE users SET deleted = True WHERE id = $1';
+    var q = 'UPDATE users SET deleted = True WHERE id = $1';
     return client.queryAsync(q, [userId]);
   });
 };
 
 users.reactivate = function(userId) {
   userId = helper.deslugify(userId);
-  var q;
-
   return using(db.createTransaction(), function(client) {
-    q = 'UPDATE users SET deleted = False WHERE id = $1';
+    var q = 'UPDATE users SET deleted = False WHERE id = $1';
     return client.queryAsync(q, [userId]);
   });
 };
