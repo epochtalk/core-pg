@@ -110,21 +110,6 @@ users.page = function(opts) {
   .then(helper.slugify);
 };
 
-/* returns a limited set of moderators depending on limit and page */
-users.pageModerators = function(opts) {
-  var q = 'SELECT u.username, u.email, u.deleted, u.created_at, ru.user_id, array_agg(r.name ORDER BY r.name) as roles from roles_users ru JOIN roles r ON ((r.lookup = \'moderator\' OR r.lookup = \'globalModerator\') AND r.id = ru.role_id) LEFT JOIN users u ON(ru.user_id = u.id) GROUP BY ru.user_id, u.username, u.email, u.created_at, u.deleted ORDER BY';
-  opts = opts || {};
-  var limit = opts.limit || 25;
-  var page = opts.page || 1;
-  var sortField = opts.sortField || 'username';
-  var order = opts.sortDesc ? 'DESC' : 'ASC';
-  q = [q, sortField, order, 'LIMIT $1 OFFSET $2'].join(' ');
-  var offset = (page * limit) - limit;
-  var params = [limit, offset];
-  return db.sqlQuery(q, params)
-  .then(helper.slugify);
-};
-
 /* returns total user count */
 users.count = function(opts) {
   var q = 'SELECT COUNT(u.id) FROM users u';
@@ -137,16 +122,6 @@ users.count = function(opts) {
     params = [opts.searchStr + '%'];
   }
   return db.sqlQuery(q, params)
-  .then(function(rows) {
-    if (rows.length) { return { count: Number(rows[0].count) }; }
-    else { return Promise.reject(); }
-  });
-};
-
-/* returns total mods count */
-users.countModerators = function() {
-  var q = 'SELECT COUNT(user_id) FROM (SELECT DISTINCT ru.user_id from roles_users ru JOIN roles r ON ((r.lookup = \'moderator\' OR r.lookup = \'globalModerator\') AND r.id = ru.role_id)) as mods';
-  return db.sqlQuery(q)
   .then(function(rows) {
     if (rows.length) { return { count: Number(rows[0].count) }; }
     else { return Promise.reject(); }
