@@ -45,7 +45,7 @@ configurations.create = function(options) {
     options.images.s3.secretKey
   ];
   return db.sqlQuery(q, params);
-}
+};
 
 /* returns object of public configurations */
 configurations.getPublic = function() {
