@@ -14,6 +14,7 @@ watchlist.unread = function(userId, opts) {
   opts.page = opts.page || 1;
   opts.offset = (opts.page * opts.limit) - opts.limit;
   opts.limit += 1; // hasMoreThreads check
+  opts.limit = opts.limit + opts.offset;
 
   return unreadThreads(userId, opts)
   .then(function(threads) {
