@@ -129,7 +129,7 @@ var getStickyThreads = function(boardId, userId, opts) {
   .map(function(thread) { return formatThread(thread, userId); });
 };
 
-threads.byRecent = function(user_id, opts) {
+threads.recent = function(user_id, opts) {
   userId = helper.deslugify(user_id || undefined);
 
   opts = opts || {};
