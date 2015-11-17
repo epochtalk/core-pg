@@ -2,7 +2,7 @@
 
 Run `db-migrate`
 
-`db-migrate create [database_name] --sql-file`
+`db-migrate create [migration_name] --sql-file`
 
 Copy one of the old migrations javascript files to migrations/[file].js and
 specify the up and down files you've just generated though db-migrate.

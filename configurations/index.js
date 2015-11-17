@@ -14,7 +14,7 @@ var changeCase = require('change-case');
 var renameKeys = require('deep-rename-keys');
 
 configurations.create = function(options) {
-  var q = 'INSERT INTO configurations ("log_enabled", "private_key", "verify_registration", "login_required", "website.title", "website.description", "website.keywords", "website.logo", "website.favicon", "emailer.sender", "emailer.host", "emailer.port", "emailer.user", "emailer.pass", "emailer.secure", "images.storage", "images.max_size", "images.expiration", "images.interval", "images.local.dir", "images.local.path", "images.s_3.root", "images.s_3.dir", "images.s_3.bucket", "images.s_3.region", "images.s_3.access_key", "images.s_3.secret_key", "rate_limiting.namespace", "rate_limiting.get.interval", "rate_limiting.get.max_in_interval", "rate_limiting.get.min_difference", "rate_limiting.post.interval", "rate_limiting.post.max_in_interval", "rate_limiting.post.min_difference", "rate_limiting.delete.interval", "rate_limiting.delete.max_in_interval", "rate_limiting.delete.min_difference") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27)';
+  var q = 'INSERT INTO configurations ("log_enabled", "private_key", "verify_registration", "login_required", "website.title", "website.description", "website.keywords", "website.logo", "website.favicon", "emailer.sender", "emailer.host", "emailer.port", "emailer.user", "emailer.pass", "emailer.secure", "images.storage", "images.max_size", "images.expiration", "images.interval", "images.local.dir", "images.local.path", "images.s_3.root", "images.s_3.dir", "images.s_3.bucket", "images.s_3.region", "images.s_3.access_key", "images.s_3.secret_key", "rate_limiting.namespace", "rate_limiting.get.interval", "rate_limiting.get.max_in_interval", "rate_limiting.get.min_difference", "rate_limiting.post.interval", "rate_limiting.post.max_in_interval", "rate_limiting.post.min_difference", "rate_limiting.put.interval", "rate_limiting.put.max_in_interval", "rate_limiting.put.min_difference", "rate_limiting.delete.interval", "rate_limiting.delete.max_in_interval", "rate_limiting.delete.min_difference") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27)';
   params = [
     options.logEnabled,
     options.privateKey,
@@ -50,12 +50,15 @@ configurations.create = function(options) {
     options.rateLimiting.post.interval,
     options.rateLimiting.post.maxInInterval,
     options.rateLimiting.post.minDifference,
+    options.rateLimiting.put.interval,
+    options.rateLimiting.put.maxInInterval,
+    options.rateLimiting.put.minDifference,
     options.rateLimiting.delete.interval,
     options.rateLimiting.delete.maxInInterval,
     options.rateLimiting.delete.minDifference
   ];
   return db.sqlQuery(q, params);
-}
+};
 
 /* returns object of public configurations */
 configurations.getPublic = function() {
@@ -253,6 +256,21 @@ configurations.update = function(options) {
       if (post.minDifference !== undefined) {
         identifiers.push('"rate_limiting.post.min_difference"');
         params.push(post.minDifference);
+      }
+    }
+    if (rateLimiting.put !== undefined) {
+      var put = rateLimiting.put;
+      if (put.interval !== undefined) {
+        identifiers.push('"rate_limiting.put.interval"');
+        params.push(put.interval);
+      }
+      if (put.maxInInterval !== undefined) {
+        identifiers.push('"rate_limiting.put.max_in_interval"');
+        params.push(put.maxInInterval);
+      }
+      if (put.minDifference !== undefined) {
+        identifiers.push('"rate_limiting.put.min_difference"');
+        params.push(put.minDifference);
       }
     }
     if (rateLimiting.delete !== undefined) {
