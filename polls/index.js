@@ -12,7 +12,7 @@ var using = Promise.using;
 polls.byThread = function(threadId) {
   threadId = helper.deslugify(threadId);
 
-  var q = 'SELECT p.id as poll_id, p.question, p.locked, ';
+  var q = 'SELECT p.id, p.question, p.locked, ';
   q += '(SELECT json_agg(row_to_json((SELECT x FROM ( ';
   q +=   'SELECT pa.id, pa.answer, ';
   q +=   '(SELECT COUNT(*) ';
@@ -74,8 +74,10 @@ polls.vote = function(pollId, answerId, userId) {
   answerId = helper.deslugify(answerId);
   userId = helper.deslugify(userId);
 
-  var q = 'INSERT INTO poll_reponses (poll_id, answer_id, user_id) VALUES ($1, $2, $3)';
-  return db.sqlQuery(q, [pollId, answerId, userId]);
+  var q = 'INSERT INTO poll_responses (poll_id, answer_id, user_id) VALUES ($1, $2, $3)';
+  return db.sqlQuery(q, [pollId, answerId, userId])
+  .then(function() { return { id: answerId }; })
+  .then(helper.slugify);
 };
 
 polls.hasVoted = function(threadId, userId) {
@@ -87,18 +89,13 @@ polls.hasVoted = function(threadId, userId) {
   .then(function(rows) { return rows[0].exists; });
 };
 
-polls.lock = function(pollId) {
+polls.lock = function(pollId, lockValue) {
   pollId = helper.deslugify(pollId);
 
-  var q = 'UPDATE polls SET locked = true WHERE id = $1';
-  return db.sqlQuery(q, [pollId]);
-};
-
-polls.unlock = function(pollId) {
-  pollId = helper.deslugify(pollId);
-
-  var q = 'UPDATE polls SET locked = false WHERE id = $1';
-  return db.sqlQuery(q, [pollId]);
+  var q = 'UPDATE polls SET locked = $2 WHERE id = $1';
+  return db.sqlQuery(q, [pollId, lockValue])
+  .then(function() { return { id: pollId, lockValue: lockValue }; })
+  .then(helper.slugify);
 };
 
 polls.isLocked = function(pollId) {
