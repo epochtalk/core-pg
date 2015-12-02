@@ -24,9 +24,9 @@ plugins.exists = function(pluginName) {
   });
 };
 
-plugins.add = function(plugin) {
+plugins.add = function(pluginName) {
   var q = 'INSERT INTO plugins (name) VALUES ($1)';
-  return db.sqlQuery(q, [plugin.name]);
+  return db.sqlQuery(q, [pluginName]);
 };
 
 plugins.remove = function(pluginId) {
