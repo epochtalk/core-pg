@@ -5,14 +5,13 @@ var path = require('path');
 var Promise = require('bluebird');
 var db = require(path.join(__dirname, '..', 'db'));
 var helper = require(path.join(__dirname, '..', 'helper'));
-var DeletionError = Promise.OperationalError;
 var CreationError = Promise.OperationalError;
 var using = Promise.using;
 
 polls.byThread = function(threadId) {
   threadId = helper.deslugify(threadId);
 
-  var q = 'SELECT p.id, p.question, p.locked, ';
+  var q = 'SELECT p.id, p.question, p.locked, p.max_answers, p.expiration, p.change_vote, p.display_mode, ';
   q += '(SELECT json_agg(row_to_json((SELECT x FROM ( ';
   q +=   'SELECT pa.id, pa.answer, ';
   q +=   '(SELECT COUNT(*) ';
@@ -32,22 +31,22 @@ polls.byThread = function(threadId) {
   .then(helper.slugify);
 };
 
-polls.create = function(threadId, pollQuestion, pollAnswers) {
+polls.create = function(threadId, poll) {
   threadId = helper.deslugify(threadId);
 
-  var q = 'INSERT INTO polls (thread_id, question) VALUES ($1, $2) RETURNING id';
-  return db.sqlQuery(q, [threadId, pollQuestion])
+  var q = 'INSERT INTO polls (thread_id, question, max_answers, expiration, change_vote, display_mode) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id';
+  return db.sqlQuery(q, [threadId, poll.question, poll.max_answers, poll.expiration || null, poll.change_vote, poll.display_mode])
   .then(function(rows) {
     if (rows.length > 0) { return rows[0]; }
     else { throw new CreationError('ERROR creating poll'); }
   })
-  .then(function(poll) {
+  .then(function(dbPoll) {
     var answerQ = 'INSERT INTO poll_answers (poll_id, answer) VALUES ';
-    var params = [poll.id];
+    var params = [dbPoll.id];
     var answerCount = 2;
     var first = true;
 
-    pollAnswers.forEach(function(answer) {
+    poll.answers.forEach(function(answer) {
       if (first) {
         answerQ += '($1, $' + answerCount + ')';
         first = false;
@@ -69,15 +68,24 @@ polls.exists = function(threadId) {
   .then(function(rows) { return rows[0].exists; });
 };
 
-polls.vote = function(pollId, answerId, userId) {
+polls.vote = function(pollId, answerIds, userId) {
   pollId = helper.deslugify(pollId);
-  answerId = helper.deslugify(answerId);
+  userId = helper.deslugify(userId);
+  answerIds = answerIds.map(function(answerId) { return helper.deslugify(answerId); });
+
+  return Promise.each(answerIds, function(answerId) {
+    q = 'INSERT INTO poll_responses (poll_id, answer_id, user_id) VALUES ($1, $2, $3)';
+    return db.sqlQuery(q, [pollId, answerId, userId]);
+  });
+};
+
+polls.removeVote = function(pollId, userId) {
+  pollId = helper.deslugify(pollId);
   userId = helper.deslugify(userId);
 
-  var q = 'INSERT INTO poll_responses (poll_id, answer_id, user_id) VALUES ($1, $2, $3)';
-  return db.sqlQuery(q, [pollId, answerId, userId])
-  .then(function() { return { id: answerId }; })
-  .then(helper.slugify);
+  // remove any old votes
+  var q = 'DELETE FROM poll_responses WHERE poll_id = $1 AND user_id = $2';
+  return db.sqlQuery(q, [pollId, userId]);
 };
 
 polls.hasVoted = function(threadId, userId) {
@@ -106,6 +114,41 @@ polls.isLocked = function(pollId) {
   .then(function(rows) {
     var retval = false;
     if (rows.length > 0) { retval = rows[0].locked; }
+    return retval;
+  });
+};
+
+polls.isRunning = function(pollId) {
+  pollId = helper.deslugify(pollId);
+
+  var q = 'SELECT expiration FROM polls WHERE id = $1';
+  return db.sqlQuery(q, [pollId])
+  .then(function(rows) {
+    var value = false;
+    if (rows.length > 0 && !rows[0].expiration) { value = true; }
+    else if (rows.length > 0 && rows[0].expiration && rows[0].expiration > Date.now()) { value = true; }
+    return value;
+  });
+};
+
+polls.maxAnswers = function(pollId) {
+  pollId = helper.deslugify(pollId);
+
+  var q = 'SELECT max_answers FROM polls WHERE id = $1';
+  return db.sqlQuery(q, [pollId])
+  .then(function(rows) {
+    if (rows.length > 0) { return rows[0].max_answers; }
+  });
+};
+
+polls.changeVote = function(pollId) {
+  pollId = helper.deslugify(pollId);
+
+  var q = 'SELECT change_vote FROM polls WHERE id = $1';
+  return db.sqlQuery(q, [pollId])
+  .then(function(rows) {
+    var retval = false;
+    if (rows.length > 0) { retval = rows[0].change_vote; }
     return retval;
   });
 };
