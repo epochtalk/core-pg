@@ -159,3 +159,11 @@ polls.changeVote = function(pollId) {
     return retval;
   });
 };
+
+polls.update = function(options) {
+  options.id = helper.deslugify(options.id);
+  var q = 'UPDATE polls SET (max_answers, change_vote, expiration, display_mode) = ($1, $2, $3, $4) WHERE id = $5';
+  var params = [options.max_answers, options.change_vote, options.expiration, options.display_mode, options.id];
+  return db.sqlQuery(q, params)
+  .then(function(rows) { return options; });
+};
