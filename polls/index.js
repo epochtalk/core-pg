@@ -141,6 +141,13 @@ polls.maxAnswers = function(pollId) {
   });
 };
 
+polls.answers = function(pollId) {
+  pollId = helper.deslugify(pollId);
+
+  var q = 'SELECT * FROM poll_answers WHERE poll_id = $1';
+  return db.sqlQuery(q, [pollId]);
+};
+
 polls.changeVote = function(pollId) {
   pollId = helper.deslugify(pollId);
 
