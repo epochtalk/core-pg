@@ -192,22 +192,22 @@ reports.pageUserReports = function(opts) {
 reports.userReportsCount = function(opts) {
   var q = 'SELECT count(ru.id) FROM administration.reports_users ru'; // no status or search
   var params;
-  if (opts && opts.status && opts.searchStr) { // status + search
+  if (opts && opts.filter && opts.searchStr) { // status + search
     q += ' JOIN administration.reports_statuses rs ON(rs.id = ru.status_id) JOIN users u ON(ru.offender_user_id = u.id) WHERE rs.status = $1 AND u.username LIKE $2';
-    params = [opts.status, opts.searchStr + '%'];
+    params = [opts.filter, opts.searchStr + '%'];
   }
-  else if (opts && opts.status && !opts.searchStr) { // status only
+  else if (opts && opts.filter && !opts.searchStr) { // status only
     q += ' JOIN administration.reports_statuses rs ON(rs.id = ru.status_id) WHERE rs.status = $1';
-    params = [opts.status];
+    params = [opts.filter];
   }
-  else if (opts && !opts.status && opts.searchStr) { // search only
+  else if (opts && !opts.filter && opts.searchStr) { // search only
     q += ' JOIN users u ON(ru.offender_user_id = u.id) WHERE u.username LIKE $1';
     params = [opts.searchStr + '%'];
   }
 
   return db.sqlQuery(q, params)
   .then(function(rows) {
-    if (rows.length) { return rows[0]; }
+    if (rows.length) { return Number(rows[0].count); }
     else { return Promise.reject(); }
   });
 };
@@ -223,18 +223,15 @@ reports.findUserReportNote = function(noteId) {
 reports.pageUserReportsNotes = function(reportId, opts) {
   reportId = helper.deslugify(reportId);
   var q = 'SELECT n.id, n.report_id, n.user_id, n.note, n.created_at, n.updated_at, (SELECT u.username FROM users u WHERE u.id = n.user_id), (SELECT p.avatar FROM users.profiles p WHERE p.user_id = n.user_id) FROM administration.reports_users_notes n WHERE n.report_id = $1 ORDER BY n.created_at';
-  // var limit = 10;
-  // var page = 1;
+  var limit = 10;
+  var page = 1;
   var order = 'ASC';
-  // if (opts && opts.limit) { limit = opts.limit; }
-  // if (opts && opts.page) { page = opts.page; }
+  if (opts && opts.limit) { limit = opts.limit; }
+  if (opts && opts.page) { page = opts.page; }
   if (opts && opts.sortDesc) { order = 'DESC'; }
-  // ignore limit and page for now
-  // q = [q, order, 'LIMIT $2 OFFSET $3'].join(' ');
-  q = [q, order].join(' ');
-  // var offset = (page * limit) - limit;
-  // var params = [reportId, limit, offset];
-  var params = [reportId];
+  q = [q, order, 'LIMIT $2 OFFSET $3'].join(' ');
+  var offset = (page * limit) - limit;
+  var params = [reportId, limit, offset];
   return db.sqlQuery(q, params)
   .then(helper.slugify);
 };
@@ -245,7 +242,7 @@ reports.userReportsNotesCount = function(reportId) {
   var params = [reportId];
   return db.sqlQuery(q, params)
   .then(function(rows) {
-    if (rows.length) { return rows[0]; }
+    if (rows.length) { return Number(rows[0].count); }
     else { return Promise.reject(); }
   });
 };
@@ -445,37 +442,37 @@ reports.postReportsCount = function(opts) {
   var q = 'SELECT count(rp.id) FROM administration.reports_posts rp';
   var params;
   if (opts && opts.modId) { opts.modId = helper.deslugify(opts.modId); } // deslugify modId
-  if (opts && opts.status && opts.searchStr && opts.modId) { // filter + search + moderated boards
+  if (opts && opts.filter && opts.searchStr && opts.modId) { // filter + search + moderated boards
     q += ' JOIN administration.reports_statuses rs ON(rs.id = rp.status_id) JOIN posts p ON(rp.offender_post_id = p.id) JOIN users o ON(p.user_id = o.id) WHERE rs.status = $1 AND o.username LIKE $2 AND (SELECT board_id FROM threads t WHERE p.thread_id = t.id) IN (SELECT board_id FROM board_moderators WHERE user_id = $3)';
-    params = [opts.status, opts.searchStr + '%', opts.modId];
+    params = [opts.filter, opts.searchStr + '%', opts.modId];
   }
-  else if (opts && opts.status && opts.searchStr && !opts.modId) { // filter + search
+  else if (opts && opts.filter && opts.searchStr && !opts.modId) { // filter + search
     q += ' JOIN administration.reports_statuses rs ON(rs.id = rp.status_id) JOIN posts p ON(rp.offender_post_id = p.id) JOIN users o ON(p.user_id = o.id) WHERE rs.status = $1 AND o.username LIKE $2';
-    params = [opts.status, opts.searchStr + '%'];
+    params = [opts.filter, opts.searchStr + '%'];
   }
-  else if (opts && opts.status && !opts.searchStr && opts.modId) { // filter + moderated boards
+  else if (opts && opts.filter && !opts.searchStr && opts.modId) { // filter + moderated boards
     q += ' JOIN administration.reports_statuses rs ON(rs.id = rp.status_id) JOIN posts p ON(rp.offender_post_id = p.id) WHERE rs.status = $1 AND (SELECT board_id FROM threads t WHERE p.thread_id = t.id) IN (SELECT board_id FROM board_moderators WHERE user_id = $2)';
-    params = [opts.status, opts.modId];
+    params = [opts.filter, opts.modId];
   }
-  else if (opts && !opts.status && opts.searchStr && opts.modId) { // search + moderated boards
+  else if (opts && !opts.filter && opts.searchStr && opts.modId) { // search + moderated boards
     q += ' JOIN posts p ON(rp.offender_post_id = p.id) JOIN users o ON(p.user_id = o.id) WHERE o.username LIKE $1 AND (SELECT board_id FROM threads t WHERE p.thread_id = t.id) IN (SELECT board_id FROM board_moderators WHERE user_id = $2)';
     params = [opts.searchStr + '%', opts.modId];
   }
-  else if (opts && !opts.status && !opts.searchStr && opts.modId) { // moderated boards only
+  else if (opts && !opts.filter && !opts.searchStr && opts.modId) { // moderated boards only
     q += ' JOIN posts p ON(rp.offender_post_id = p.id) WHERE (SELECT board_id FROM threads t WHERE p.thread_id = t.id) IN (SELECT board_id FROM board_moderators WHERE user_id = $1)';
     params = [opts.modId];
   }
-  else if (opts && opts.status && !opts.searchStr && !opts.modId) { // filter only
+  else if (opts && opts.filter && !opts.searchStr && !opts.modId) { // filter only
     q += ' JOIN administration.reports_statuses rs ON(rs.id = rp.status_id) WHERE rs.status = $1';
-    params = [opts.status];
+    params = [opts.filter];
   }
-  else if (opts && !opts.status && opts.searchStr && !opts.modId) { // search only
+  else if (opts && !opts.filter && opts.searchStr && !opts.modId) { // search only
     q += ' JOIN posts p ON(rp.offender_post_id = p.id) JOIN users o ON(p.user_id = o.id) WHERE o.username LIKE $1';
     params = [opts.searchStr + '%'];
   }
   return db.sqlQuery(q, params)
   .then(function(rows) {
-    if (rows.length) { return rows[0]; }
+    if (rows.length) { return Number(rows[0].count); }
     else { return Promise.reject(); }
   });
 };
@@ -491,18 +488,15 @@ reports.findPostReportNote = function(noteId) {
 reports.pagePostReportsNotes = function(reportId, opts) {
   reportId = helper.deslugify(reportId);
   var q = 'SELECT n.id, n.report_id, n.user_id, n.note, n.created_at, n.updated_at, (SELECT u.username FROM users u WHERE u.id = n.user_id), (SELECT p.avatar FROM users.profiles p WHERE p.user_id = n.user_id) FROM administration.reports_posts_notes n WHERE n.report_id = $1 ORDER BY n.created_at';
-  // var limit = 10;
-  // var page = 1;
+  var limit = 10;
+  var page = 1;
   var order = 'ASC';
-  // if (opts && opts.limit) { limit = opts.limit; }
-  // if (opts && opts.page) { page = opts.page; }
+  if (opts && opts.limit) { limit = opts.limit; }
+  if (opts && opts.page) { page = opts.page; }
   if (opts && opts.sortDesc) { order = 'DESC'; }
-  // ignore limit and page for now
-  // q = [q, order, 'LIMIT $2 OFFSET $3'].join(' ');
-  q = [q, order].join(' ');
-  // var offset = (page * limit) - limit;
-  // var params = [reportId, limit, offset];
-  var params = [reportId];
+  q = [q, order, 'LIMIT $2 OFFSET $3'].join(' ');
+  var offset = (page * limit) - limit;
+  var params = [reportId, limit, offset];
   return db.sqlQuery(q, params)
   .then(helper.slugify);
 };
@@ -513,7 +507,7 @@ reports.postReportsNotesCount = function(reportId) {
   var params = [reportId];
   return db.sqlQuery(q, params)
   .then(function(rows) {
-    if (rows.length) { return rows[0]; }
+    if (rows.length) { return Number(rows[0].count); }
     else { return Promise.reject(); }
   });
 };
@@ -695,21 +689,21 @@ reports.pageMessageReports = function(opts) {
 reports.messageReportsCount = function(opts) {
   var q = 'SELECT count(rm.id) FROM administration.reports_messages rm';
   var params;
-  if (opts && opts.status && opts.searchStr) { // filter + search
+  if (opts && opts.filter && opts.searchStr) { // filter + search
     q += ' JOIN administration.reports_statuses rs ON(rs.id = rm.status_id) JOIN private_messages pm ON(rm.offender_message_id = pm.id) JOIN users o ON(pm.sender_id = o.id) WHERE rs.status = $1 AND o.username LIKE $2';
-    params = [opts.status, opts.searchStr + '%'];
+    params = [opts.filter, opts.searchStr + '%'];
   }
-  else if (opts && opts.status && !opts.searchStr) { // filter only
+  else if (opts && opts.filter && !opts.searchStr) { // filter only
     q += ' JOIN administration.reports_statuses rs ON(rs.id = rm.status_id) WHERE rs.status = $1';
-    params = [opts.status];
+    params = [opts.filter];
   }
-  else if (opts && !opts.status && opts.searchStr) { // search only
+  else if (opts && !opts.filter && opts.searchStr) { // search only
     q += ' JOIN private_messages pm ON(rm.offender_message_id = pm.id) JOIN users o ON(pm.sender_id = o.id) WHERE o.username LIKE $1';
     params = [opts.searchStr + '%'];
   }
   return db.sqlQuery(q, params)
   .then(function(rows) {
-    if (rows.length) { return rows[0]; }
+    if (rows.length) { return Number(rows[0].count); }
     else { return Promise.reject(); }
   });
 };
@@ -725,10 +719,15 @@ reports.findMessageReportNote = function(noteId) {
 reports.pageMessageReportsNotes = function(reportId, opts) {
   reportId = helper.deslugify(reportId);
   var q = 'SELECT n.id, n.report_id, n.user_id, n.note, n.created_at, n.updated_at, (SELECT u.username FROM users u WHERE u.id = n.user_id), (SELECT p.avatar FROM users.profiles p WHERE p.user_id = n.user_id) FROM administration.reports_messages_notes n WHERE n.report_id = $1 ORDER BY n.created_at';
+  var limit = 10;
+  var page = 1;
   var order = 'ASC';
+  if (opts && opts.limit) { limit = opts.limit; }
+  if (opts && opts.page) { page = opts.page; }
   if (opts && opts.sortDesc) { order = 'DESC'; }
-  q = [q, order].join(' ');
-  var params = [reportId];
+  q = [q, order, 'LIMIT $2 OFFSET $3'].join(' ');
+  var offset = (page * limit) - limit;
+  var params = [reportId, limit, offset];
   return db.sqlQuery(q, params)
   .then(helper.slugify);
 };
@@ -739,7 +738,7 @@ reports.messageReportsNotesCount = function(reportId) {
   var params = [reportId];
   return db.sqlQuery(q, params)
   .then(function(rows) {
-    if (rows.length) { return rows[0]; }
+    if (rows.length) { return Number(rows[0].count); }
     else { return Promise.reject(); }
   });
 };
