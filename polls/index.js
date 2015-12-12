@@ -33,6 +33,7 @@ polls.byThread = function(threadId) {
 
 polls.create = function(threadId, poll) {
   threadId = helper.deslugify(threadId);
+  var pollId = '';
 
   var q = 'INSERT INTO polls (thread_id, question, max_answers, expiration, change_vote, display_mode) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id';
   return db.sqlQuery(q, [threadId, poll.question, poll.max_answers, poll.expiration || null, poll.change_vote, poll.display_mode])
@@ -41,6 +42,7 @@ polls.create = function(threadId, poll) {
     else { throw new CreationError('ERROR creating poll'); }
   })
   .then(function(dbPoll) {
+    pollId = dbPoll.id;
     var answerQ = 'INSERT INTO poll_answers (poll_id, answer) VALUES ';
     var params = [dbPoll.id];
     var answerCount = 2;
@@ -57,7 +59,9 @@ polls.create = function(threadId, poll) {
     });
 
     return db.sqlQuery(answerQ, params);
-  });
+  })
+  .then(function() { return { id: pollId }; })
+  .then(helper.slugify);
 };
 
 polls.exists = function(threadId) {
@@ -165,5 +169,6 @@ polls.update = function(options) {
   var q = 'UPDATE polls SET (max_answers, change_vote, expiration, display_mode) = ($1, $2, $3, $4) WHERE id = $5';
   var params = [options.max_answers, options.change_vote, options.expiration, options.display_mode, options.id];
   return db.sqlQuery(q, params)
-  .then(function(rows) { return options; });
+  .then(function(rows) { return options; })
+  .then(helper.slugify);
 };
