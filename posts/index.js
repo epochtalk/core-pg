@@ -194,10 +194,12 @@ posts.delete = function(id) {
     })
     // set post deleted flag
     .then(function() {
+      post.deleted = true;
       q = 'UPDATE posts SET deleted = TRUE WHERE id = $1';
       return client.queryAsync(q, [id]);
     })
-    .then(function() { return post; });
+    .then(function() { return post; })
+    .then(helper.slugify);
   });
 };
 
@@ -220,10 +222,12 @@ posts.undelete = function(id) {
     })
     // set post deleted flag
     .then(function() {
+      post.deleted = false;
       q = 'UPDATE posts SET deleted = False WHERE id = $1';
       return client.queryAsync(q, [id]);
     })
-    .then(function() { return post; });
+    .then(function() { return post; })
+    .then(helper.slugify);
   });
 };
 
