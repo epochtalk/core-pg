@@ -83,9 +83,10 @@ posts.update = function(post) {
       post.thread_id = post.thread_id || oldPost.thread_id;
     })
     .then(function() {
-      q = 'UPDATE posts SET title = $1, body = $2, raw_body = $3, thread_id = $4, updated_at = now() WHERE id = $5';
+      q = 'UPDATE posts SET title = $1, body = $2, raw_body = $3, thread_id = $4, updated_at = now() WHERE id = $5 RETURNING updated_at';
       params = [post.title, post.body, post.raw_body, post.thread_id, post.id];
-      return client.queryAsync(q, params);
+      return client.queryAsync(q, params)
+      .then(function(results) { post.updated_at = results.rows[0].updated_at; });
     });
   })
   .then(function() { return helper.slugify(post); });
