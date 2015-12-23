@@ -108,7 +108,7 @@ function unreadThreads(userId, opts) {
   q +=       'WHERE wt.user_id = $1 ';
   q +=       'AND t.updated_at IS NOT NULL ';
   q +=       'AND (t.updated_at >= tv.time OR tv.time IS NULL) ';
-  q +=       'ORDER BY updated_at desc limit $2 ';
+  q +=       'ORDER BY updated_at DESC LIMIT $2 ';
   q +=     ') t ';
   q +=     'UNION ';
   q +=     'SELECT i.id, i.updated_at FROM ( ';
