@@ -73,13 +73,12 @@ polls.exists = function(threadId) {
 };
 
 polls.vote = function(pollId, answerIds, userId) {
-  pollId = helper.deslugify(pollId);
   userId = helper.deslugify(userId);
   answerIds = answerIds.map(function(answerId) { return helper.deslugify(answerId); });
 
   return Promise.each(answerIds, function(answerId) {
-    q = 'INSERT INTO poll_responses (poll_id, answer_id, user_id) VALUES ($1, $2, $3)';
-    return db.sqlQuery(q, [pollId, answerId, userId]);
+    q = 'INSERT INTO poll_responses (answer_id, user_id) VALUES ($1, $2)';
+    return db.sqlQuery(q, [answerId, userId]);
   });
 };
 
