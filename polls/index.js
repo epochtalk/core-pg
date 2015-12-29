@@ -72,14 +72,13 @@ polls.exists = function(threadId) {
   .then(function(rows) { return rows[0].exists; });
 };
 
-polls.vote = function(pollId, answerIds, userId) {
-  pollId = helper.deslugify(pollId);
+polls.vote = function(answerIds, userId) {
   userId = helper.deslugify(userId);
   answerIds = answerIds.map(function(answerId) { return helper.deslugify(answerId); });
 
   return Promise.each(answerIds, function(answerId) {
-    q = 'INSERT INTO poll_responses (poll_id, answer_id, user_id) VALUES ($1, $2, $3)';
-    return db.sqlQuery(q, [pollId, answerId, userId]);
+    q = 'INSERT INTO poll_responses (answer_id, user_id) VALUES ($1, $2)';
+    return db.sqlQuery(q, [answerId, userId]);
   });
 };
 
@@ -88,7 +87,7 @@ polls.removeVote = function(pollId, userId) {
   userId = helper.deslugify(userId);
 
   // remove any old votes
-  var q = 'DELETE FROM poll_responses WHERE poll_id = $1 AND user_id = $2';
+  var q = 'DELETE FROM poll_responses WHERE answer_id IN (SELECT id FROM poll_answers WHERE poll_id = $1) AND user_id = $2';
   return db.sqlQuery(q, [pollId, userId]);
 };
 
@@ -96,7 +95,7 @@ polls.hasVoted = function(threadId, userId) {
   threadId = helper.deslugify(threadId);
   userId = helper.deslugify(userId);
 
-  var q = 'SELECT EXISTS ( SELECT 1 FROM poll_responses pr LEFT JOIN polls p ON p.id = pr.poll_id WHERE p.thread_id = $1 AND pr.user_id = $2)';
+  var q = 'SELECT EXISTS (SELECT 1 FROM poll_responses pr, poll_answers pa, polls p WHERE p.id = pa.poll_id AND pr.answer_id = pa.id AND p.thread_id = $1 AND pr.user_id = $2)';
   return db.sqlQuery(q, [threadId, userId])
   .then(function(rows) { return rows[0].exists; });
 };
