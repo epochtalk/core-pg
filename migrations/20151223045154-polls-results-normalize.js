@@ -7,8 +7,6 @@ exports.up = function(db, callback) {
   var filePath = path.join(__dirname + '/sqls/20151223045154-polls-results-normalize-up.sql');
   fs.readFile(filePath, {encoding: 'utf-8'}, function(err,data){
     if (err) return callback(err);
-      console.log('received data: ' + data);
-
     db.runSql(data, function(err) {
       if (err) return callback(err);
       callback();
@@ -20,8 +18,6 @@ exports.down = function(db, callback) {
   var filePath = path.join(__dirname + '/sqls/20151223045154-polls-results-normalize-down.sql');
   fs.readFile(filePath, {encoding: 'utf-8'}, function(err,data){
     if (err) return callback(err);
-      console.log('received data: ' + data);
-
     db.runSql(data, function(err) {
       if (err) return callback(err);
       callback();

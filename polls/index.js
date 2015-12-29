@@ -87,7 +87,7 @@ polls.removeVote = function(pollId, userId) {
   userId = helper.deslugify(userId);
 
   // remove any old votes
-  var q = 'DELETE FROM poll_responses WHERE poll_id = $1 AND user_id = $2';
+  var q = 'DELETE FROM poll_responses WHERE answer_id IN (SELECT id FROM poll_answers WHERE poll_id = $1) AND user_id = $2';
   return db.sqlQuery(q, [pollId, userId]);
 };
 
@@ -95,7 +95,7 @@ polls.hasVoted = function(threadId, userId) {
   threadId = helper.deslugify(threadId);
   userId = helper.deslugify(userId);
 
-  var q = 'SELECT EXISTS ( SELECT 1 FROM poll_responses pr LEFT JOIN polls p ON p.id = pr.poll_id WHERE p.thread_id = $1 AND pr.user_id = $2)';
+  var q = 'SELECT EXISTS (SELECT 1 FROM poll_responses pr, poll_answers pa, polls p WHERE p.id = pa.poll_id AND pr.answer_id = pa.id AND p.thread_id = $1 AND pr.user_id = $2)';
   return db.sqlQuery(q, [threadId, userId])
   .then(function(rows) { return rows[0].exists; });
 };
