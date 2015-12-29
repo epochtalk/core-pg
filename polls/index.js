@@ -72,7 +72,7 @@ polls.exists = function(threadId) {
   .then(function(rows) { return rows[0].exists; });
 };
 
-polls.vote = function(pollId, answerIds, userId) {
+polls.vote = function(answerIds, userId) {
   userId = helper.deslugify(userId);
   answerIds = answerIds.map(function(answerId) { return helper.deslugify(answerId); });
 
