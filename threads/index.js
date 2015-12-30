@@ -49,8 +49,8 @@ threads.create = function(thread) {
   thread = helper.deslugify(thread);
   var q, params;
   return using(db.createTransaction(), function(client) {
-    q = 'INSERT INTO threads(board_id, locked, sticky, created_at) VALUES ($1, $2, $3, now()) RETURNING id';
-    params = [thread.board_id, thread.locked, thread.sticky];
+    q = 'INSERT INTO threads(board_id, locked, sticky, moderated, created_at) VALUES ($1, $2, $3, $4, now()) RETURNING id';
+    params = [thread.board_id, thread.locked, thread.sticky, thread.moderated];
     return client.queryAsync(q, params)
     .then(function(results) { thread.id = results.rows[0].id; })
     // insert thread metadata
@@ -75,8 +75,8 @@ threads.breadcrumb = function(threadId) {
 
 threads.find = function(id) {
   id = helper.deslugify(id);
-  var columns = 't.id, t.board_id, t.locked, t.sticky, t.created_at, t.updated_at, t.post_count, p.user_id, p.title, p.username, p.user_deleted';
-  var q1 = 'SELECT id, board_id, locked, sticky, post_count, created_at, updated_at FROM threads WHERE id = $1';
+  var columns = 't.id, t.board_id, t.locked, t.sticky, t.moderated, t.created_at, t.updated_at, t.post_count, p.user_id, p.title, p.username, p.user_deleted';
+  var q1 = 'SELECT id, board_id, locked, sticky, moderated, post_count, created_at, updated_at FROM threads WHERE id = $1';
   var q2 = 'SELECT p1.user_id, p1.title, u.username, u.deleted as user_deleted FROM posts p1 LEFT JOIN users u on p1.user_id = u.id WHERE p1.thread_id = t.id ORDER BY p1.created_at limit 1';
   var query = 'SELECT ' + columns + ' FROM ( ' + q1 + ') t LEFT JOIN LATERAL ( ' + q2 + ' ) p ON true';
 
@@ -99,8 +99,8 @@ threads.byBoard = function(boardId, userId, opts) {
   opts.page = opts.page || 1;
   opts.offset = (opts.page * opts.limit) - opts.limit;
   opts.reversed = 'DESC';
-  opts.columns = 'tlist.id, t.locked, t.sticky, t.poll, t.created_at, t.updated_at, t.views as view_count, t.post_count, p.title, p.user_id, p.username, p.user_deleted, t.time AS last_viewed, tv.id AS post_id, tv.position AS post_position, pl.last_post_id, pl.position AS last_post_position, pl.created_at AS last_post_created_at, pl.deleted AS last_post_deleted, pl.id AS last_post_user_id, pl.username AS last_post_username, pl.user_deleted AS last_post_user_deleted ';
-  opts.q2 = 'SELECT t1.locked, t1.sticky, t1.post_count, t1.created_at, t1.updated_at, mt.views, ' +
+  opts.columns = 'tlist.id, t.locked, t.sticky, t.moderated, t.poll, t.created_at, t.updated_at, t.views as view_count, t.post_count, p.title, p.user_id, p.username, p.user_deleted, t.time AS last_viewed, tv.id AS post_id, tv.position AS post_position, pl.last_post_id, pl.position AS last_post_position, pl.created_at AS last_post_created_at, pl.deleted AS last_post_deleted, pl.id AS last_post_user_id, pl.username AS last_post_username, pl.user_deleted AS last_post_user_deleted ';
+  opts.q2 = 'SELECT t1.locked, t1.sticky, t1.moderated, t1.post_count, t1.created_at, t1.updated_at, mt.views, ' +
     '(SELECT EXISTS ( SELECT 1 FROM polls WHERE thread_id = tlist.id )) as poll, ' +
     '(SELECT time FROM users.thread_views WHERE thread_id = tlist.id AND user_id = $2) ' +
     'FROM threads t1 ' +
