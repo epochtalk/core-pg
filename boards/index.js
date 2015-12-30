@@ -171,9 +171,10 @@ boards.updateCategories = function(boardMapping) {
   });
 };
 
-boards.allCategories = function(userPriority) {
+boards.allCategories = function(userPriority, opts) {
   // get all categories
   var categories;
+  opts = opts || {};
   return db.sqlQuery('SELECT * FROM categories')
   .then(function(dbCategories) { categories = dbCategories; })
   // get all board mappings
@@ -204,11 +205,15 @@ boards.allCategories = function(userPriority) {
         return board.category_id === category.id;
       });
       category.boards = _.sortBy(category.boards, 'view_order');
-      // remove boards not matching user priority
-      category.boards = _.filter(category.boards, function(board) {
-        if (board.viewable_by !== 0 && !board.viewable_by) { return true; }
-        return userPriority <= board.viewable_by ;
-      });
+
+      // Filter out private boards
+      if (opts.hidePrivate) {
+        // remove boards not matching user priority
+        category.boards = _.filter(category.boards, function(board) {
+          if (board.viewable_by !== 0 && !board.viewable_by) { return true; }
+          return userPriority <= board.viewable_by;
+        });
+      }
 
       // recurse through category boards
       category.boards.map(function(board) {
@@ -223,10 +228,12 @@ boards.allCategories = function(userPriority) {
   .then(function() { categories = _.sortBy(categories, 'view_order'); })
   // remove categories not matching user priority
   .then(function() {
-    categories = _.filter(categories, function(category) {
-      if (category.viewable_by !== 0 && !category.viewable_by) { return true; }
-      return userPriority <= category.viewable_by ;
-    });
+    if (opts.hidePrivate) {
+      categories = _.filter(categories, function(category) {
+        if (category.viewable_by !== 0 && !category.viewable_by) { return true; }
+        return userPriority <= category.viewable_by;
+      });
+    }
   })
   .then(function() { return helper.slugify(categories); });
 };
