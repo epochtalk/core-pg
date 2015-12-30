@@ -18,33 +18,6 @@ var using = Promise.using;
  * trigger to update the board's post_count when metadata.threads's post_count is
  * changed. It also updates the board's last post information.
  */
-threads.import = function(thread) {
-  // no created_at or updated_at needed, will be set by first post
-  thread.id = helper.intToUUID(thread.smf.ID_TOPIC);
-  thread.board_id = helper.intToUUID(thread.smf.ID_BOARD);
-  thread.locked = thread.locked || false;
-  thread.sticky = thread.sticky || false;
-  var q, params;
-  return using(db.createTransaction(), function(client) {
-    q = 'INSERT INTO threads(id, board_id, locked, sticky, imported_at) VALUES($1, $2, $3, $4, now()) RETURNING id';
-    params = [thread.id, thread.board_id, thread.locked, thread.sticky];
-    return client.queryAsync(q, params)
-    // insert thread metadata
-    .then(function() {
-      q = 'INSERT INTO metadata.threads (thread_id, views) VALUES($1, $2);';
-      params = [thread.id, thread.view_count];
-      return client.queryAsync(q, params);
-    });
-  })
-  .then(function() { return helper.slugify(thread); });
-};
-
-/**
- * This has a trigger attached to the threads table that will increment the
- * board's thread count on each new thread. The metadata.threads table also has a
- * trigger to update the board's post_count when metadata.threads's post_count is
- * changed. It also updates the board's last post information.
- */
 threads.create = function(thread) {
   thread = helper.deslugify(thread);
   var q, params;

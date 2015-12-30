@@ -202,45 +202,6 @@ users.unban = function(userId) {
   .then(helper.slugify);
 };
 
-/* returns only imported user id */
-users.import = function(user) {
-  var q, params;
-  var timestamp = Date.now();
-  user.created_at = new Date(user.created_at) || timestamp;
-  user.updated_at = new Date(user.updated_at) || timestamp;
-  user.id = helper.intToUUID(user.smf.ID_MEMBER);
-
-  return using(db.createTransaction(), function(client) {
-    // insert user row
-    q = 'INSERT INTO users(id, email, username, created_at, updated_at, imported_at) VALUES($1, $2, $3, $4, $5, now()) RETURNING id';
-    params = [user.id, user.email, user.username, user.created_at, user.updated_at];
-    return client.queryAsync(q, params)
-    .then(function(results) {
-      if (results.rows.length > 0) { return results.rows[0]; }
-      else { throw new CreationError('User Cound Not Be Imported'); }
-    })
-    // insert user profile
-    .then(function() {
-      var profile = {};
-      profile.id = user.id;
-      profile.avatar = user.avatar || null;
-      profile.position = user.position || null;
-      profile.signature = user.signature || null;
-      profile.raw_signature = user.raw_signature || null;
-      profile.fields = {};
-      profile.fields.name = user.name || null;
-      profile.fields.website = user.website || null;
-      profile.fields.btcAddress = user.btcAddress || null;
-      profile.fields.gender = user.gender || null;
-      profile.fields.dob = user.dob || null;
-      profile.fields.language = user.lanugage || null;
-      profile.fields.location = user.location || null;
-      return insertUserProfile(profile, client);
-    });
-  })
-  .then(function() { return helper.slugify(user); });
-};
-
 /* returns values including email, confirm token, and roles */
 users.create = function(user, isAdmin) {
   var q, params, passhash;

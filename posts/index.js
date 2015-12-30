@@ -10,44 +10,6 @@ var DeletionError = Promise.OperationalError;
 var CreationError = Promise.OperationalError;
 var using = Promise.using;
 
-posts.import = function(post) {
-  // check if poster exists
-  var q, params;
-  var timestamp = Date.now();
-  post.created_at = new Date(post.created_at) || timestamp;
-  post.updated_at = new Date(post.updated_at) || timestamp;
-  post.user_id = helper.intToUUID(post.smf.ID_MEMBER);
-  return using(db.createTransaction(), function(client) {
-    q = 'SELECT id FROM users WHERE id = $1';
-    params = [post.user_id];
-    return client.queryAsync(q, params)
-    // create user if it does not exists
-    .then(function(results) {
-      if (!results.rows[0]) {
-        q = 'INSERT INTO users(id, username, email, imported_at) VALUES ($1, $2, $3, now())';
-        params = [post.user_id, post.smf.posterName, post.smf.posterName + '@noemail.org.'];
-        return client.queryAsync(q, params); // users.profiles not required
-      }
-    })
-    // insert post
-    .then(function() {
-      post.id = helper.intToUUID(post.smf.ID_MSG);
-      post.thread_id = helper.intToUUID(post.smf.ID_TOPIC);
-      var q = 'INSERT INTO posts(id, thread_id, user_id, title, body, raw_body, created_at, updated_at, imported_at) VALUES($1, $2, $3, $4, $5, $6, $7, $8, now()) RETURNING id, created_at';
-      var params = [post.id, post.thread_id, post.user_id || null, post.title, post.body, post.raw_body, post.created_at, post.updated_at];
-      client.queryAsync(q, params)
-      .then(function(results) {
-        if (results.rows.length > 0) {
-          post.id = results.rows[0].id;
-          post.created_at = results.rows[0].created_at;
-        }
-        else { throw new CreationError('Post Could Not Be Saved'); }
-      });
-    });
-  })
-  .then(function() { return helper.slugify(post); });
-};
-
 posts.create = function(post) {
   post = helper.deslugify(post);
   var q, params;

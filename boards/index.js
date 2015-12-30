@@ -16,26 +16,6 @@ boards.all = function() {
   .then(helper.slugify);
 };
 
-boards.import = function(board) {
-  var timestamp = Date.now();
-  board.created_at = new Date(board.created_at) || timestamp;
-  board.updated_at = new Date(board.updated_at) || timestamp;
-  board.id = helper.intToUUID(board.smf.ID_BOARD);
-  var q, params;
-  return using(db.createTransaction(), function(client) {
-    // insert import board
-    q = 'INSERT INTO boards(id, name, description, created_at, updated_at, imported_at) VALUES($1, $2, $3, $4, $5, now())';
-    params = [board.id, board.name, board.description, board.created_at, board.updated_at];
-    return client.queryAsync(q, params)
-    // insert import board metadata
-    .then(function() {
-      q = 'INSERT INTO metadata.boards (board_id) VALUES ($1)';
-      return client.queryAsync(q, [board.id]);
-    });
-  })
-  .then(function() { return helper.slugify(board); });
-};
-
 boards.create = function(board) {
   board = helper.deslugify(board);
   var q, params;

@@ -30,21 +30,6 @@ categories.create = function(category) {
   .then(helper.slugify);
 };
 
-categories.import = function(category) {
-  var catUUID = helper.intToUUID(category.smf.ID_CAT);
-  var q = 'INSERT INTO categories(id, name, imported_at) VALUES($1, $2, now()) RETURNING id, imported_at';
-  var params = [catUUID, category.name];
-  return db.sqlQuery(q, params)
-  .then(function(rows) {
-    return {
-      id: rows[0].id,
-      name: category.name,
-      imported_at: rows[0].imported_at
-    };
-  })
-  .then(helper.slugify);
-};
-
 categories.find = function(id) {
   id = helper.deslugify(id);
   var q = 'SELECT id, name, view_order, viewable_by, imported_at FROM categories WHERE id = $1';
