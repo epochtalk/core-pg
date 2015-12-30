@@ -11,19 +11,20 @@ var NotFoundError = Promise.OperationalError;
 var using = Promise.using;
 
 categories.all = function() {
-  var q = 'SELECT id, name, view_order, imported_at from categories';
+  var q = 'SELECT id, name, view_order, viewable_by, imported_at from categories';
   return db.sqlQuery(q)
   .then(helper.slugify);
 };
 
 categories.create = function(category) {
-  var q = 'INSERT INTO categories(name) VALUES($1) RETURNING id';
-  var params = [category.name];
+  var q = 'INSERT INTO categories(name, viewable_by) VALUES($1, $2) RETURNING id';
+  var params = [category.name, category.viewable_by];
   return db.sqlQuery(q, params)
   .then(function(rows) {
     return {
       id: rows[0].id,
-      name: category.name
+      name: category.name,
+      viewable_by: category.viewable_by
     };
   })
   .then(helper.slugify);
@@ -46,7 +47,7 @@ categories.import = function(category) {
 
 categories.find = function(id) {
   id = helper.deslugify(id);
-  var q = 'SELECT id, name, view_order, imported_at FROM categories WHERE id = $1';
+  var q = 'SELECT id, name, view_order, viewable_by, imported_at FROM categories WHERE id = $1';
   var params = [id];
   return db.sqlQuery(q, params)
   .then(function(rows) {
