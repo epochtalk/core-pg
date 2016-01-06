@@ -217,6 +217,14 @@ boards.allCategories = function() {
   .then(function() { return helper.slugify(categories); });
 };
 
+boards.byCategory = function(categoryId, userId) {
+  categoryId = helper.deslugify(categoryId);
+  userId = helper.deslugify(userId || undefined);
+
+  return db.sqlQuery('SELECT b.id, b.name, b.description, b.created_at, b.updated_at, b.imported_at FROM boards b, board_mapping bm WHERE bm.category_id = $1 AND b.id = bm.board_id', [categoryId])
+  .then(helper.slugify);
+};
+
 function boardStitching(boardMapping, currentBoard) {
   var hasChildren = _.find(boardMapping, function(board) {
     return board.parent_id === currentBoard.id;
