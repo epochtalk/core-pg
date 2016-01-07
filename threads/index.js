@@ -129,7 +129,7 @@ var getStickyThreads = function(boardId, userId, opts) {
   .map(function(thread) { return formatThread(thread, userId); });
 };
 
-threads.recent = function(userId, opts) {
+threads.recent = function(userId, priority, opts) {
   userId = helper.deslugify(userId);
 
   opts = opts || {};
@@ -150,8 +150,8 @@ threads.recent = function(userId, opts) {
   opts.q5 = 'SELECT p.id AS last_post_id, p.position, p.created_at, p.deleted, u.id, u.username, u.deleted as user_deleted FROM posts p LEFT JOIN users u ON p.user_id = u.id WHERE p.thread_id = tlist.id ORDER BY p.created_at DESC LIMIT 1';
 
   // get all related threads
-  var query = 'SELECT ' + opts.columns + ' FROM ( SELECT t.id FROM threads t WHERE EXISTS ( SELECT 1 FROM board_mapping bm WHERE bm.board_id = t.board_id ) AND t.updated_at IS NOT NULL ORDER BY t.updated_at DESC LIMIT $2 OFFSET $3 ) tlist LEFT JOIN LATERAL ( ' + opts.q2 + ' ) t ON true LEFT JOIN LATERAL ( ' + opts.q3 + ' ) p ON true LEFT JOIN LATERAL ( ' + opts.q4 + ' ) tv ON true LEFT JOIN LATERAL ( ' + opts.q5 + ' ) pl ON true';
-  var params = [userId, opts.limit, opts.offset];
+  var query = 'SELECT ' + opts.columns + ' FROM ( SELECT t.id FROM threads t WHERE EXISTS ( SELECT 1 FROM boards b WHERE b.id = t.board_id AND (b.viewable_by IS NULL OR b.viewable_by >= $2) ) AND t.updated_at IS NOT NULL ORDER BY t.updated_at DESC LIMIT $3 OFFSET $4 ) tlist LEFT JOIN LATERAL ( ' + opts.q2 + ' ) t ON true LEFT JOIN LATERAL ( ' + opts.q3 + ' ) p ON true LEFT JOIN LATERAL ( ' + opts.q4 + ' ) tv ON true LEFT JOIN LATERAL ( ' + opts.q5 + ' ) pl ON true';
+  var params = [userId, priority, opts.limit, opts.offset];
   return db.sqlQuery(query, params)
   .then(function(threads) {
     return Promise.map(threads, function(thread) { return formatThread(thread); });
