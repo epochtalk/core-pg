@@ -68,6 +68,19 @@ users.removeRoles = function(userId, roleId) {
       params = [roleId, user.id];
       return client.queryAsync(q, params);
     })
+    .then(function() {
+      q = 'SELECT lookup FROM roles WHERE id = $1';
+      return client.queryAsync(q, [roleId]);
+    })
+    .then(function(results) {
+      var rows = results.rows;
+      // Remove ban from users.ban table if the role being removed is the banned role
+      if (rows.length && rows[0].lookup === 'banned') {
+        q = 'UPDATE users.bans SET expiration = now(), updated_at = now() WHERE user_id = $1';
+        return client.queryAsync(q, [userId]);
+      }
+      return;
+    })
     .then(function() { // append roles to updated user and return
       q = 'SELECT roles.* FROM roles_users, roles WHERE roles_users.user_id = $1 AND roles.id = roles_users.role_id';
       params = [userId];
@@ -165,6 +178,7 @@ users.ban = function(userId, expiration) {
   userId = helper.deslugify(userId);
   var q = 'SELECT id FROM users.bans WHERE user_id = $1';
   var params = [userId];
+  var returnObj;
   expiration = expiration ? expiration : new Date(8640000000000000); // permanent ban
   return using(db.createTransaction(), function(client) {
     return client.queryAsync(q, params)
@@ -182,8 +196,34 @@ users.ban = function(userId, expiration) {
     })
     .then(function(results) {
       var rows = results.rows;
-      if (rows.length > 0) { return rows[0]; }
+      if (rows.length > 0) {
+        returnObj = rows[0];
+        return;
+      }
       else { return Promise.reject(); }
+    })
+    .then(function() { // lookup the banned role id to add to user
+      q = 'SELECT id FROM roles where lookup = $1';
+      return client.queryAsync(q, ['banned']);
+    })
+    .then(function(results) {
+      var rows = results.rows;
+      if (rows.length > 0) { return rows[0].id; }
+      else { return Promise.reject(); }
+    })
+    .then(function(bannedRoleId) {
+      q = 'INSERT INTO roles_users(role_id, user_id) SELECT $1, $2 WHERE NOT EXISTS (SELECT 1 FROM roles_users WHERE role_id = $1 AND user_id = $2);';
+      params = [bannedRoleId, userId];
+      return client.queryAsync(q, params)
+      .then(function() { // append roles to updated user and return
+        q = 'SELECT roles.* FROM roles_users, roles WHERE roles_users.user_id = $1 AND roles.id = roles_users.role_id';
+        params = [userId];
+        return client.queryAsync(q, params);
+      })
+      .then(function(results) {
+        returnObj.roles = results.rows;
+        return returnObj;
+      });
     });
   })
   .then(helper.slugify);
@@ -194,10 +234,40 @@ users.unban = function(userId) {
   userId = helper.deslugify(userId);
   var q = 'UPDATE users.bans SET expiration = now(), updated_at = now() WHERE user_id = $1 RETURNING id, user_id, expiration, created_at, updated_at';
   var params = [userId];
-  return db.sqlQuery(q, params)
-  .then(function(rows) {
-    if (rows.length) { return rows[0]; }
-    else { return Promise.reject(); }
+  var returnObj;
+  return using(db.createTransaction(), function(client) {
+    return client.queryAsync(q, params)
+    .then(function(results) {
+      var rows = results.rows;
+      if (rows.length > 0) {
+        returnObj = rows[0];
+        return;
+      }
+      else { return Promise.reject(); }
+    })
+    .then(function() { // lookup the banned role id
+      q = 'SELECT id FROM roles where lookup = $1';
+      return client.queryAsync(q, ['banned']);
+    })
+    .then(function(results) {
+      var rows = results.rows;
+      if (rows.length > 0) { return rows[0].id; }
+      else { return Promise.reject(); }
+    })
+    .then(function(bannedRoleId) {
+      q = 'DELETE FROM roles_users WHERE role_id = $1 AND user_id = $2';
+      params = [bannedRoleId, userId];
+      return client.queryAsync(q, params);
+    })
+    .then(function() { // append roles to updated user and return
+      q = 'SELECT roles.* FROM roles_users, roles WHERE roles_users.user_id = $1 AND roles.id = roles_users.role_id';
+      params = [userId];
+      return client.queryAsync(q, params);
+    })
+    .then(function(results) {
+      returnObj.roles = results.rows;
+      return returnObj;
+    });
   })
   .then(helper.slugify);
 };
