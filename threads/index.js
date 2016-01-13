@@ -18,39 +18,12 @@ var using = Promise.using;
  * trigger to update the board's post_count when metadata.threads's post_count is
  * changed. It also updates the board's last post information.
  */
-threads.import = function(thread) {
-  // no created_at or updated_at needed, will be set by first post
-  thread.id = helper.intToUUID(thread.smf.ID_TOPIC);
-  thread.board_id = helper.intToUUID(thread.smf.ID_BOARD);
-  thread.locked = thread.locked || false;
-  thread.sticky = thread.sticky || false;
-  var q, params;
-  return using(db.createTransaction(), function(client) {
-    q = 'INSERT INTO threads(id, board_id, locked, sticky, imported_at) VALUES($1, $2, $3, $4, now()) RETURNING id';
-    params = [thread.id, thread.board_id, thread.locked, thread.sticky];
-    return client.queryAsync(q, params)
-    // insert thread metadata
-    .then(function() {
-      q = 'INSERT INTO metadata.threads (thread_id, views) VALUES($1, $2);';
-      params = [thread.id, thread.view_count];
-      return client.queryAsync(q, params);
-    });
-  })
-  .then(function() { return helper.slugify(thread); });
-};
-
-/**
- * This has a trigger attached to the threads table that will increment the
- * board's thread count on each new thread. The metadata.threads table also has a
- * trigger to update the board's post_count when metadata.threads's post_count is
- * changed. It also updates the board's last post information.
- */
 threads.create = function(thread) {
   thread = helper.deslugify(thread);
   var q, params;
   return using(db.createTransaction(), function(client) {
-    q = 'INSERT INTO threads(board_id, locked, sticky, created_at) VALUES ($1, $2, $3, now()) RETURNING id';
-    params = [thread.board_id, thread.locked, thread.sticky];
+    q = 'INSERT INTO threads(board_id, locked, sticky, moderated, created_at) VALUES ($1, $2, $3, $4, now()) RETURNING id';
+    params = [thread.board_id, thread.locked, thread.sticky, thread.moderated];
     return client.queryAsync(q, params)
     .then(function(results) { thread.id = results.rows[0].id; })
     // insert thread metadata
@@ -75,8 +48,8 @@ threads.breadcrumb = function(threadId) {
 
 threads.find = function(id) {
   id = helper.deslugify(id);
-  var columns = 't.id, t.board_id, t.locked, t.sticky, t.created_at, t.updated_at, t.post_count, p.user_id, p.title, p.username, p.user_deleted';
-  var q1 = 'SELECT id, board_id, locked, sticky, post_count, created_at, updated_at FROM threads WHERE id = $1';
+  var columns = 't.id, t.board_id, t.locked, t.sticky, t.moderated, t.created_at, t.updated_at, t.post_count, p.user_id, p.title, p.username, p.user_deleted';
+  var q1 = 'SELECT id, board_id, locked, sticky, moderated, post_count, created_at, updated_at FROM threads WHERE id = $1';
   var q2 = 'SELECT p1.user_id, p1.title, u.username, u.deleted as user_deleted FROM posts p1 LEFT JOIN users u on p1.user_id = u.id WHERE p1.thread_id = t.id ORDER BY p1.created_at limit 1';
   var query = 'SELECT ' + columns + ' FROM ( ' + q1 + ') t LEFT JOIN LATERAL ( ' + q2 + ' ) p ON true';
 
@@ -99,8 +72,9 @@ threads.byBoard = function(boardId, userId, opts) {
   opts.page = opts.page || 1;
   opts.offset = (opts.page * opts.limit) - opts.limit;
   opts.reversed = 'DESC';
-  opts.columns = 'tlist.id, t.locked, t.sticky, t.created_at, t.updated_at, t.views as view_count, t.post_count, p.title, p.user_id, p.username, p.user_deleted, t.time AS last_viewed, tv.id AS post_id, tv.position AS post_position, pl.last_post_id, pl.position AS last_post_position, pl.created_at AS last_post_created_at, pl.deleted AS last_post_deleted, pl.id AS last_post_user_id, pl.username AS last_post_username, pl.user_deleted AS last_post_user_deleted ';
-  opts.q2 = 'SELECT t1.locked, t1.sticky, t1.post_count, t1.created_at, t1.updated_at, mt.views, ' +
+  opts.columns = 'tlist.id, t.locked, t.sticky, t.moderated, t.poll, t.created_at, t.updated_at, t.views as view_count, t.post_count, p.title, p.user_id, p.username, p.user_deleted, t.time AS last_viewed, tv.id AS post_id, tv.position AS post_position, pl.last_post_id, pl.position AS last_post_position, pl.created_at AS last_post_created_at, pl.deleted AS last_post_deleted, pl.id AS last_post_user_id, pl.username AS last_post_username, pl.user_deleted AS last_post_user_deleted ';
+  opts.q2 = 'SELECT t1.locked, t1.sticky, t1.moderated, t1.post_count, t1.created_at, t1.updated_at, mt.views, ' +
+    '(SELECT EXISTS ( SELECT 1 FROM polls WHERE thread_id = tlist.id )) as poll, ' +
     '(SELECT time FROM users.thread_views WHERE thread_id = tlist.id AND user_id = $2) ' +
     'FROM threads t1 ' +
     'LEFT JOIN metadata.threads mt ON tlist.id = mt.thread_id ' +
@@ -153,6 +127,36 @@ var getStickyThreads = function(boardId, userId, opts) {
   var query = 'SELECT ' + opts.columns + ' FROM ( SELECT id FROM threads WHERE board_id = $1 AND sticky = True ORDER BY updated_at DESC ) tlist LEFT JOIN LATERAL ( ' + opts.q2 + ' ) t ON true LEFT JOIN LATERAL ( ' + opts.q3 + ' ) p ON true LEFT JOIN LATERAL ( ' + opts.q4 + ' ) tv ON true LEFT JOIN LATERAL (' + opts.q5 + ' ) pl ON true';
   return db.sqlQuery(query, [boardId, userId])
   .map(function(thread) { return formatThread(thread, userId); });
+};
+
+threads.recent = function(userId, priority, opts) {
+  userId = helper.deslugify(userId);
+
+  opts = opts || {};
+  opts.limit = opts.limit || 25;
+  opts.page = opts.page || 1;
+  opts.offset = (opts.page * opts.limit) - opts.limit;
+  opts.columns = 'tlist.id, t.locked, t.sticky, t.moderated, t.poll, t.board_name, t.board_id, t.created_at, t.updated_at, t.views as view_count, t.post_count, p.title, p.user_id, p.username, p.user_deleted, t.time AS last_viewed, tv.id AS post_id, tv.position AS post_position, pl.last_post_id, pl.position AS last_post_position, pl.created_at AS last_post_created_at, pl.deleted AS last_post_deleted, pl.id AS last_post_user_id, pl.username AS last_post_username, pl.user_deleted AS last_post_user_deleted ';
+  opts.q2 = 'SELECT t1.locked, t1.sticky, t1.moderated, t1.post_count, t1.created_at, t1.updated_at, mt.views, ' +
+    '(SELECT EXISTS ( SELECT 1 FROM polls WHERE thread_id = tlist.id )) as poll, ' +
+    '(SELECT time FROM users.thread_views WHERE thread_id = tlist.id AND user_id = $1), ' +
+    '(SELECT b.name FROM boards b WHERE b.id = t1.board_id) as board_name, ' +
+    '(SELECT b.id FROM boards b WHERE b.id = t1.board_id) as board_id ' +
+    'FROM threads t1 ' +
+    'LEFT JOIN metadata.threads mt ON tlist.id = mt.thread_id ' +
+    'WHERE t1.id = tlist.id';
+  opts.q3 = 'SELECT p1.title, p1.user_id, u.username, u.deleted as user_deleted FROM posts p1 LEFT JOIN users u ON p1.user_id = u.id WHERE p1.thread_id = tlist.id ORDER BY p1.created_at LIMIT 1';
+  opts.q4 = 'SELECT id, position FROM posts WHERE thread_id = tlist.id AND created_at >= t.time ORDER BY created_at LIMIT 1';
+  opts.q5 = 'SELECT p.id AS last_post_id, p.position, p.created_at, p.deleted, u.id, u.username, u.deleted as user_deleted FROM posts p LEFT JOIN users u ON p.user_id = u.id WHERE p.thread_id = tlist.id ORDER BY p.created_at DESC LIMIT 1';
+
+  // get all related threads
+  var query = 'SELECT ' + opts.columns + ' FROM ( SELECT t.id FROM threads t WHERE EXISTS ( SELECT 1 FROM boards b WHERE b.id = t.board_id AND (b.viewable_by IS NULL OR b.viewable_by >= $2) ) AND t.updated_at IS NOT NULL ORDER BY t.updated_at DESC LIMIT $3 OFFSET $4 ) tlist LEFT JOIN LATERAL ( ' + opts.q2 + ' ) t ON true LEFT JOIN LATERAL ( ' + opts.q3 + ' ) p ON true LEFT JOIN LATERAL ( ' + opts.q4 + ' ) tv ON true LEFT JOIN LATERAL ( ' + opts.q5 + ' ) pl ON true';
+  var params = [userId, priority, opts.limit, opts.offset];
+  return db.sqlQuery(query, params)
+  .then(function(threads) {
+    return Promise.map(threads, function(thread) { return formatThread(thread); });
+  })
+  .then(helper.slugify);
 };
 
 var formatThread = function(thread, userId) {
@@ -280,15 +284,46 @@ threads.getThreadFirstPost = function(threadId) {
   .then(helper.slugify);
 };
 
-threads.getThreadsBoardInBoardMapping = function(threadId) {
+threads.getThreadsBoardInBoardMapping = function(threadId, userPriority) {
   threadId = helper.deslugify(threadId);
-  var q = 'SELECT bm.* FROM threads t LEFT JOIN board_mapping bm ON t.board_id = bm.board_id WHERE t.id = $1';
+  var q = 'SELECT board_id FROM threads WHERE id = $1';
   return db.sqlQuery(q, [threadId])
   .then(function(rows) {
-    if (rows.length > 0 ) { return rows[0]; }
-    else { return; }
+    if (rows.length > 0 ) { return rows[0].board_id; }
+    else { throw new NotFoundError(); }
   })
-  .then(helper.slugify);
+  .then(function(boardId) {
+    var q = 'WITH RECURSIVE find_parent(board_id, parent_id, category_id) AS ( ';
+    q += 'SELECT bm.board_id, bm.parent_id, bm.category_id ';
+    q += 'FROM board_mapping bm where board_id = $1 ';
+    q += 'UNION ';
+    q += 'SELECT bm.board_id, bm.parent_id, bm.category_id ';
+    q += 'FROM board_mapping bm, find_parent fp ';
+    q += 'WHERE bm.board_id = fp.parent_id ';
+    q += ') ';
+    q += 'SELECT fp.board_id, fp.parent_id, fp.category_id, b.viewable_by as board_viewable, c.viewable_by as cat_viewable ';
+    q += 'FROM find_parent fp ';
+    q += 'LEFT JOIN boards b on fp.board_id = b.id ';
+    q += 'LEFT JOIN categories c on fp.category_id = c.id';
+    return db.sqlQuery(q, [boardId])
+    .then(function(rows) {
+      if (rows.length < 1) { return false; }
+
+      var boardVisible = false;
+      var catVisible = false;
+      var board_viewable = rows[0].board_viewable;
+      var cat_viewable = rows[rows.length - 1].cat_viewable;
+
+      if (board_viewable !== 0 && !board_viewable) { boardVisible = true; }
+      else if (userPriority <= board_viewable) { boardVisible = true; }
+
+      if (cat_viewable !== 0 && !cat_viewable) { catVisible = true; }
+      else if (userPriority <= cat_viewable) { catVisible = true; }
+
+      return boardVisible && catVisible;
+    });
+  })
+  .error(function() { return false; });
 };
 
 threads.getThreadOwner = function(threadId) {

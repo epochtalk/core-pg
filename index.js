@@ -23,6 +23,7 @@ function core(opts) {
   core.watchlist = require(path.join(__dirname, 'watchlist'));
   core.plugins = require(path.join(__dirname, 'plugins'));
   core.helpers = _.merge(require(path.join(__dirname, 'db')), require(path.join(__dirname, 'helper')));
+  core.polls = require(path.join(__dirname, 'polls'));
   core.close = function() { pg.end(); };
   return core;
 }

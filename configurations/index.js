@@ -14,7 +14,7 @@ var changeCase = require('change-case');
 var renameKeys = require('deep-rename-keys');
 
 configurations.create = function(options) {
-  var q = 'INSERT INTO configurations ("log_enabled", "private_key", "verify_registration", "login_required", "website.title", "website.description", "website.keywords", "website.logo", "website.favicon", "emailer.sender", "emailer.host", "emailer.port", "emailer.user", "emailer.pass", "emailer.secure", "images.storage", "images.max_size", "images.expiration", "images.interval", "images.local.dir", "images.local.path", "images.s_3.root", "images.s_3.dir", "images.s_3.bucket", "images.s_3.region", "images.s_3.access_key", "images.s_3.secret_key") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27)';
+  var q = 'INSERT INTO configurations ("log_enabled", "private_key", "verify_registration", "login_required", "website.title", "website.description", "website.keywords", "website.logo", "website.favicon", "emailer.sender", "emailer.host", "emailer.port", "emailer.user", "emailer.pass", "emailer.secure", "images.storage", "images.max_size", "images.expiration", "images.interval", "images.local.dir", "images.local.path", "images.s_3.root", "images.s_3.dir", "images.s_3.bucket", "images.s_3.region", "images.s_3.access_key", "images.s_3.secret_key", "rate_limiting.namespace", "rate_limiting.get.interval", "rate_limiting.get.max_in_interval", "rate_limiting.get.min_difference", "rate_limiting.post.interval", "rate_limiting.post.max_in_interval", "rate_limiting.post.min_difference", "rate_limiting.put.interval", "rate_limiting.put.max_in_interval", "rate_limiting.put.min_difference", "rate_limiting.delete.interval", "rate_limiting.delete.max_in_interval", "rate_limiting.delete.min_difference") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40)';
   params = [
     options.logEnabled,
     options.privateKey,
@@ -42,7 +42,20 @@ configurations.create = function(options) {
     options.images.s3.bucket,
     options.images.s3.region,
     options.images.s3.accessKey,
-    options.images.s3.secretKey
+    options.images.s3.secretKey,
+    options.rateLimiting.namespace,
+    options.rateLimiting.get.interval,
+    options.rateLimiting.get.maxInInterval,
+    options.rateLimiting.get.minDifference,
+    options.rateLimiting.post.interval,
+    options.rateLimiting.post.maxInInterval,
+    options.rateLimiting.post.minDifference,
+    options.rateLimiting.put.interval,
+    options.rateLimiting.put.maxInInterval,
+    options.rateLimiting.put.minDifference,
+    options.rateLimiting.delete.interval,
+    options.rateLimiting.delete.maxInInterval,
+    options.rateLimiting.delete.minDifference
   ];
   return db.sqlQuery(q, params);
 };
@@ -78,9 +91,7 @@ configurations.get = function() {
       }
       return privateConfigurations;
     }
-    else {
-      throw new NotFoundError('Configurations Not Found');
-    }
+    else { throw new NotFoundError('Configurations Not Found'); }
   });
 };
 
@@ -88,133 +99,198 @@ configurations.get = function() {
 configurations.update = function(options) {
   var identifiers = [];
   var params = [];
-  if (options.logEnabled != undefined) {
+  if (options.logEnabled !== undefined) {
     identifiers.push('"log_enabled"');
     params.push(options.logEnabled);
   }
-  if (options.privateKey != undefined) {
+  if (options.privateKey !== undefined) {
     identifiers.push('"private_key"');
     params.push(options.privateKey);
   }
-  if (options.verifyRegistration != undefined) {
+  if (options.verifyRegistration !== undefined) {
     identifiers.push('"verify_registration"');
     params.push(options.verifyRegistration);
   }
-  if (options.loginRequired != undefined) {
+  if (options.loginRequired !== undefined) {
     identifiers.push('"login_required"');
     params.push(options.loginRequired);
   }
-  if (options.website != undefined) {
+  if (options.website !== undefined) {
     var website = options.website;
-    if (website.title != undefined) {
+    if (website.title !== undefined) {
       identifiers.push('"website.title"');
       params.push(website.title);
     }
-    if (website.description != undefined) {
+    if (website.description !== undefined) {
       identifiers.push('"website.description"');
       params.push(website.description);
     }
-    if (website.keywords != undefined) {
+    if (website.keywords !== undefined) {
       identifiers.push('"website.keywords"');
       params.push(website.keywords);
     }
-    if (website.logo != undefined) {
+    if (website.logo !== undefined) {
       identifiers.push('"website.logo"');
       params.push(website.logo);
     }
-    if (website.favicon != undefined) {
+    if (website.favicon !== undefined) {
       identifiers.push('"website.favicon"');
       params.push(website.favicon);
     }
   }
-  if (options.emailer != undefined) {
+  if (options.emailer !== undefined) {
     var emailer = options.emailer;
-    if (emailer.sender != undefined) {
+    if (emailer.sender !== undefined) {
       identifiers.push('"emailer.sender"');
       params.push(emailer.sender);
     }
-    if (emailer.host != undefined) {
+    if (emailer.host !== undefined) {
       identifiers.push('"emailer.host"');
       params.push(emailer.host);
     }
-    if (emailer.port != undefined) {
+    if (emailer.port !== undefined) {
       identifiers.push('"emailer.port"');
       params.push(emailer.port);
     }
-    if (emailer.user != undefined) {
+    if (emailer.user !== undefined) {
       identifiers.push('"emailer.user"');
       params.push(emailer.user);
     }
-    if (emailer.pass != undefined) {
+    if (emailer.pass !== undefined) {
       identifiers.push('"emailer.pass"');
       params.push(emailer.pass);
     }
-    if (emailer.secure != undefined) {
+    if (emailer.secure !== undefined) {
       identifiers.push('"emailer.secure"');
       params.push(emailer.secure);
     }
   }
-  if (options.images != undefined) {
+  if (options.images !== undefined) {
     var images = options.images;
-    if (images.storage != undefined) {
+    if (images.storage !== undefined) {
       identifiers.push('"images.storage"');
       params.push(images.storage);
     }
-    if (images.maxSize != undefined) {
+    if (images.maxSize !== undefined) {
       identifiers.push('"images.max_size"');
       params.push(images.maxSize);
     }
-    if (images.expiration != undefined) {
+    if (images.expiration !== undefined) {
       identifiers.push('"images.expiration"');
       params.push(images.expiration);
     }
-    if (images.interval != undefined) {
+    if (images.interval !== undefined) {
       identifiers.push('"images.interval"');
       params.push(images.interval);
     }
-    if (images.local != undefined) {
+    if (images.local !== undefined) {
       var local = images.local;
-      if (local.dir != undefined) {
+      if (local.dir !== undefined) {
         identifiers.push('"images.local.dir"');
         params.push(local.dir);
       }
-      if (local.path != undefined) {
+      if (local.path !== undefined) {
         identifiers.push('"images.local.path"');
         params.push(local.path);
       }
     }
-    if (images.s3 != undefined) {
+    if (images.s3 !== undefined) {
       var s3 = images.s3;
-      if (s3.root != undefined) {
+      if (s3.root !== undefined) {
         identifiers.push('"images.s_3.root"');
         params.push(s3.root);
       }
-      if (s3.dir != undefined) {
+      if (s3.dir !== undefined) {
         identifiers.push('"images.s_3.dir"');
         params.push(s3.dir);
       }
-      if (s3.bucket != undefined) {
+      if (s3.bucket !== undefined) {
         identifiers.push('"images.s_3.bucket"');
         params.push(s3.bucket);
       }
-      if (s3.region != undefined) {
+      if (s3.region !== undefined) {
         identifiers.push('"images.s_3.region"');
         params.push(s3.region);
       }
-      if (s3.accessKey != undefined) {
+      if (s3.accessKey !== undefined) {
         identifiers.push('"images.s_3.access_key"');
         params.push(s3.accessKey);
       }
-      if (s3.secretKey != undefined) {
+      if (s3.secretKey !== undefined) {
         identifiers.push('"images.s_3.secret_key"');
         params.push(s3.secretKey);
       }
     }
   }
-  var dollars = [];
-  for (var i = 1 ; i <= identifiers.length ; i++) {
-    dollars.push('$' + i);
+  if (options.rateLimiting !== undefined) {
+    var rateLimiting = options.rateLimiting;
+    if (rateLimiting.namespace !== undefined) {
+      identifiers.push('"rate_limiting.namespace"');
+      params.push(rateLimiting.namespace);
+    }
+    if (rateLimiting.get !== undefined) {
+      var get = rateLimiting.get;
+      if (get.interval !== undefined) {
+        identifiers.push('"rate_limiting.get.interval"');
+        params.push(get.interval);
+      }
+      if (get.maxInInterval !== undefined) {
+        identifiers.push('"rate_limiting.get.max_in_interval"');
+        params.push(get.maxInInterval);
+      }
+      if (get.minDifference !== undefined) {
+        identifiers.push('"rate_limiting.get.min_difference"');
+        params.push(get.minDifference);
+      }
+    }
+    if (rateLimiting.post !== undefined) {
+      var post = rateLimiting.post;
+      if (post.interval !== undefined) {
+        identifiers.push('"rate_limiting.post.interval"');
+        params.push(post.interval);
+      }
+      if (post.maxInInterval !== undefined) {
+        identifiers.push('"rate_limiting.post.max_in_interval"');
+        params.push(post.maxInInterval);
+      }
+      if (post.minDifference !== undefined) {
+        identifiers.push('"rate_limiting.post.min_difference"');
+        params.push(post.minDifference);
+      }
+    }
+    if (rateLimiting.put !== undefined) {
+      var put = rateLimiting.put;
+      if (put.interval !== undefined) {
+        identifiers.push('"rate_limiting.put.interval"');
+        params.push(put.interval);
+      }
+      if (put.maxInInterval !== undefined) {
+        identifiers.push('"rate_limiting.put.max_in_interval"');
+        params.push(put.maxInInterval);
+      }
+      if (put.minDifference !== undefined) {
+        identifiers.push('"rate_limiting.put.min_difference"');
+        params.push(put.minDifference);
+      }
+    }
+    if (rateLimiting.delete !== undefined) {
+      var deleted = rateLimiting.delete;
+      if (deleted.interval !== undefined) {
+        identifiers.push('"rate_limiting.delete.interval"');
+        params.push(deleted.interval);
+      }
+      if (deleted.maxInInterval !== undefined) {
+        identifiers.push('"rate_limiting.delete.max_in_interval"');
+        params.push(deleted.maxInInterval);
+      }
+      if (deleted.minDifference !== undefined) {
+        identifiers.push('"rate_limiting.delete.min_difference"');
+        params.push(deleted.minDifference);
+      }
+    }
   }
+  var dollars = [];
+  for (var i = 1 ; i <= identifiers.length ; i++) { dollars.push('$' + i); }
   var identifiersString = '(' + identifiers.toString() + ')';
   var dollarsString = '(' + dollars.toString() + ')';
   var query = 'UPDATE configurations SET ' + identifiersString + ' = ' + dollarsString + ';';

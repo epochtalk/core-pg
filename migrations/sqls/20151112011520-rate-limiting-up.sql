@@ -1,0 +1,13 @@
+ALTER TABLE configurations ADD COLUMN "rate_limiting.namespace" character varying(255) DEFAULT 'ept:' NOT NULL;
+ALTER TABLE configurations ADD COLUMN "rate_limiting.get.interval" integer DEFAULT 1000 NOT NULL;
+ALTER TABLE configurations ADD COLUMN "rate_limiting.get.max_in_interval" integer DEFAULT 10 NOT NULL;
+ALTER TABLE configurations ADD COLUMN "rate_limiting.get.min_difference" integer DEFAULT 100 NOT NULL;
+ALTER TABLE configurations ADD COLUMN "rate_limiting.post.interval" integer DEFAULT 1000 NOT NULL;
+ALTER TABLE configurations ADD COLUMN "rate_limiting.post.max_in_interval" integer DEFAULT 2 NOT NULL;
+ALTER TABLE configurations ADD COLUMN "rate_limiting.post.min_difference" integer DEFAULT 500 NOT NULL;
+ALTER TABLE configurations ADD COLUMN "rate_limiting.put.interval" integer DEFAULT 1000 NOT NULL;
+ALTER TABLE configurations ADD COLUMN "rate_limiting.put.max_in_interval" integer DEFAULT 2 NOT NULL;
+ALTER TABLE configurations ADD COLUMN "rate_limiting.put.min_difference" integer DEFAULT 500 NOT NULL;
+ALTER TABLE configurations ADD COLUMN "rate_limiting.delete.interval" integer DEFAULT 1000 NOT NULL;
+ALTER TABLE configurations ADD COLUMN "rate_limiting.delete.max_in_interval" integer DEFAULT 2 NOT NULL;
+ALTER TABLE configurations ADD COLUMN "rate_limiting.delete.min_difference" integer DEFAULT 500 NOT NULL;

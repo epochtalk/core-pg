@@ -10,44 +10,6 @@ var DeletionError = Promise.OperationalError;
 var CreationError = Promise.OperationalError;
 var using = Promise.using;
 
-posts.import = function(post) {
-  // check if poster exists
-  var q, params;
-  var timestamp = Date.now();
-  post.created_at = new Date(post.created_at) || timestamp;
-  post.updated_at = new Date(post.updated_at) || timestamp;
-  post.user_id = helper.intToUUID(post.smf.ID_MEMBER);
-  return using(db.createTransaction(), function(client) {
-    q = 'SELECT id FROM users WHERE id = $1';
-    params = [post.user_id];
-    return client.queryAsync(q, params)
-    // create user if it does not exists
-    .then(function(results) {
-      if (!results.rows[0]) {
-        q = 'INSERT INTO users(id, username, email, imported_at) VALUES ($1, $2, $3, now())';
-        params = [post.user_id, post.smf.posterName, post.smf.posterName + '@noemail.org.'];
-        return client.queryAsync(q, params); // users.profiles not required
-      }
-    })
-    // insert post
-    .then(function() {
-      post.id = helper.intToUUID(post.smf.ID_MSG);
-      post.thread_id = helper.intToUUID(post.smf.ID_TOPIC);
-      var q = 'INSERT INTO posts(id, thread_id, user_id, title, body, raw_body, created_at, updated_at, imported_at) VALUES($1, $2, $3, $4, $5, $6, $7, $8, now()) RETURNING id, created_at';
-      var params = [post.id, post.thread_id, post.user_id || null, post.title, post.body, post.raw_body, post.created_at, post.updated_at];
-      client.queryAsync(q, params)
-      .then(function(results) {
-        if (results.rows.length > 0) {
-          post.id = results.rows[0].id;
-          post.created_at = results.rows[0].created_at;
-        }
-        else { throw new CreationError('Post Could Not Be Saved'); }
-      });
-    });
-  })
-  .then(function() { return helper.slugify(post); });
-};
-
 posts.create = function(post) {
   post = helper.deslugify(post);
   var q, params;
@@ -83,9 +45,10 @@ posts.update = function(post) {
       post.thread_id = post.thread_id || oldPost.thread_id;
     })
     .then(function() {
-      q = 'UPDATE posts SET title = $1, body = $2, raw_body = $3, thread_id = $4, updated_at = now() WHERE id = $5';
+      q = 'UPDATE posts SET title = $1, body = $2, raw_body = $3, thread_id = $4, updated_at = now() WHERE id = $5 RETURNING updated_at';
       params = [post.title, post.body, post.raw_body, post.thread_id, post.id];
-      return client.queryAsync(q, params);
+      return client.queryAsync(q, params)
+      .then(function(results) { post.updated_at = results.rows[0].updated_at; });
     });
   })
   .then(function() { return helper.slugify(post); });
@@ -151,7 +114,9 @@ var formatPost = function(post) {
 };
 
 posts.pageByUserCount = function(username) {
-  var q = 'SELECT p.post_count as count FROM users.profiles p JOIN users u ON(p.user_id = u.id) WHERE u.username = $1';
+  var q = 'SELECT p.post_count as count ' +
+  'FROM users.profiles p JOIN users u ON(p.user_id = u.id) ' +
+  'WHERE u.username = $1';
   var params = [username];
   return db.sqlQuery(q, params)
   .then(function(rows) {
@@ -160,16 +125,22 @@ posts.pageByUserCount = function(username) {
   });
 };
 
-posts.pageByUser = function(username, opts) {
-  var q = 'SELECT p.id, p.thread_id, p.user_id, p.title, p.raw_body, p.body, p.position, p.deleted, u.deleted as user_deleted, p.created_at, p.updated_at, p.imported_at, b.id as board_id, exists (SELECT board_id FROM board_mapping WHERE board_id = b.id) as board_visible, (SELECT p2.title FROM posts p2 WHERE p2.thread_id = p.thread_id ORDER BY p2.created_at LIMIT 1) as thread_title FROM posts p LEFT JOIN users u ON p.user_id = u.id LEFT JOIN threads t ON p.thread_id = t.id LEFT JOIN boards b ON t.board_id = b.id WHERE u.username = $1 ORDER BY';
+posts.pageByUser = function(username, priority, opts) {
+  var q = 'SELECT p.id, p.thread_id, p.user_id, p.raw_body, p.body, p.position, p.deleted, u.deleted as user_deleted, p.created_at, p.updated_at, p.imported_at, b.id as board_id, ' + 'EXISTS (SELECT 1 FROM boards WHERE board_id = b.id AND (b.viewable_by >= $2 OR b.viewable_by IS NULL)) as board_visible, ' +
+    '(SELECT p2.title FROM posts p2 WHERE p2.thread_id = p.thread_id ORDER BY p2.created_at LIMIT 1) as thread_title ' +
+    'FROM posts p ' +
+    'LEFT JOIN users u ON p.user_id = u.id ' +
+    'LEFT JOIN threads t ON p.thread_id = t.id ' +
+    'LEFT JOIN boards b ON t.board_id = b.id ' +
+    'WHERE u.username = $1 ORDER BY';
   opts = opts || {};
   var limit = opts.limit || 25;
   var page = opts.page || 1;
   var sortField = opts.sortField || 'created_at';
   var order = opts.sortDesc ? 'DESC' : 'ASC';
   var offset = (page * limit) - limit;
-  q = [q, sortField, order, 'LIMIT $2 OFFSET $3'].join(' ');
-  var params = [username, limit, offset];
+  q = [q, sortField, order, 'LIMIT $3 OFFSET $4'].join(' ');
+  var params = [username, priority, limit, offset];
   return db.sqlQuery(q, params)
   .map(formatPost)
   .then(helper.slugify);
@@ -194,10 +165,12 @@ posts.delete = function(id) {
     })
     // set post deleted flag
     .then(function() {
+      post.deleted = true;
       q = 'UPDATE posts SET deleted = TRUE WHERE id = $1';
       return client.queryAsync(q, [id]);
     })
-    .then(function() { return post; });
+    .then(function() { return post; })
+    .then(helper.slugify);
   });
 };
 
@@ -220,10 +193,12 @@ posts.undelete = function(id) {
     })
     // set post deleted flag
     .then(function() {
+      post.deleted = false;
       q = 'UPDATE posts SET deleted = False WHERE id = $1';
       return client.queryAsync(q, [id]);
     })
-    .then(function() { return post; });
+    .then(function() { return post; })
+    .then(helper.slugify);
   });
 };
 
@@ -253,15 +228,46 @@ posts.getPostsThread = function(postId) {
   .then(helper.slugify);
 };
 
-posts.getPostsBoardInBoardMapping = function(postId) {
+posts.getPostsBoardInBoardMapping = function(postId, userPriority) {
   postId = helper.deslugify(postId);
-  var q = 'SELECT bm.* FROM posts p LEFT JOIN threads t ON p.thread_id = t.id LEFT JOIN board_mapping bm ON t.board_id = bm.board_id WHERE p.id = $1';
+  var q = 'SELECT t.board_id FROM posts p LEFT JOIN threads t ON p.thread_id = t.id WHERE p.id = $1';
   return db.sqlQuery(q, [postId])
   .then(function(rows) {
-    if (rows.length > 0 ) { return rows[0]; }
-    else { return; }
+    if (rows.length > 0 ) { return rows[0].board_id; }
+    else { throw new NotFoundError(); }
   })
-  .then(helper.slugify);
+  .then(function(boardId) {
+    var q = 'WITH RECURSIVE find_parent(board_id, parent_id, category_id) AS ( ';
+    q += 'SELECT bm.board_id, bm.parent_id, bm.category_id ';
+    q += 'FROM board_mapping bm where board_id = $1 ';
+    q += 'UNION ';
+    q += 'SELECT bm.board_id, bm.parent_id, bm.category_id ';
+    q += 'FROM board_mapping bm, find_parent fp ';
+    q += 'WHERE bm.board_id = fp.parent_id ';
+    q += ') ';
+    q += 'SELECT fp.board_id, fp.parent_id, fp.category_id, b.viewable_by as board_viewable, c.viewable_by as cat_viewable ';
+    q += 'FROM find_parent fp ';
+    q += 'LEFT JOIN boards b on fp.board_id = b.id ';
+    q += 'LEFT JOIN categories c on fp.category_id = c.id';
+    return db.sqlQuery(q, [boardId])
+    .then(function(rows) {
+      if (rows.length < 1) { return false; }
+
+      var boardVisible = false;
+      var catVisible = false;
+      var board_viewable = rows[0].board_viewable;
+      var cat_viewable = rows[rows.length - 1].cat_viewable;
+
+      if (board_viewable !== 0 && !board_viewable) { boardVisible = true; }
+      else if (userPriority <= board_viewable) { boardVisible = true; }
+
+      if (cat_viewable !== 0 && !cat_viewable) { catVisible = true; }
+      else if (userPriority <= cat_viewable) { catVisible = true; }
+
+      return boardVisible && catVisible;
+    });
+  })
+  .error(function() { return false; });
 };
 
 posts.getThreadFirstPost = function(postId) {
@@ -277,7 +283,38 @@ posts.getThreadFirstPost = function(postId) {
   })
   .then(function(rows) {
     if (rows.length > 0 ) { return rows[0]; }
-    else { throw new NotFoundError('Thread Not Found'); }
+    else { throw new NotFoundError('First Post Not Found'); }
   })
   .then(helper.slugify);
+};
+
+posts.isPostsThreadModerated = function(postId) {
+  postId = helper.deslugify(postId);
+  var q = 'SELECT t.moderated FROM posts p LEFT JOIN threads t ON p.thread_id = t.id WHERE p.id = $1';
+  return db.sqlQuery(q, [postId])
+  .then(function(rows) {
+    if (rows.length > 0 ) { return rows[0]; }
+    else { throw new NotFoundError('Thread Not Found'); }
+  })
+  .then(function(thread) { return thread.moderated; });
+};
+
+posts.isPostsThreadOwner = function(postId, userId) {
+  postId = helper.deslugify(postId);
+  userId = helper.deslugify(userId);
+
+  var q = 'SELECT thread_id FROM posts WHERE id = $1';
+  return db.sqlQuery(q, [postId])
+  .then(function(rows) {
+    if (rows.length > 0) {
+      q = 'SELECT * FROM posts WHERE thread_id = $1 ORDER BY created_at LIMIT 1';
+      return db.sqlQuery(q, [rows[0].thread_id]);
+    }
+    else { throw new NotFoundError('Post Not Found'); }
+  })
+  .then(function(rows) {
+    if (rows.length > 0 ) { return rows[0]; }
+    else { throw new NotFoundError('First Post Not Found'); }
+  })
+  .then(function(post) { return post.user_id === userId; });
 };
