@@ -420,6 +420,15 @@ users.find = function(id) {
     .then(function(rows) { user.roles = rows; })
     .then(function() { return user; });
   })
+  .then(function(user) { // default to user role if user has no roles
+    if(user.roles && !user.roles.length) {
+      var q = 'SELECT roles.* FROM roles WHERE lookup = \'user\'';
+      return db.scalar(q)
+      .then(function (rows) { user.roles = rows; })
+      .then(function() { return user; });
+    }
+    return user;
+  })
   .then(helper.slugify);
 };
 
