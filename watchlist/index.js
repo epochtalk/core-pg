@@ -147,7 +147,7 @@ function unreadThreads(userId, opts) {
   q +=   'WHERE p.thread_id = tlist.id ';
   q +=   'ORDER BY p.created_at DESC LIMIT 1 ';
   q += ') pl ON true';
-  return db.sqlQuery(q, [userId, opts.limit, opts.offset]).tap(console.log);
+  return db.sqlQuery(q, [userId, opts.limit, opts.offset]);
 }
 
 function formatThread(thread, userId) {
