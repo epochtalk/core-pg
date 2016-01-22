@@ -115,7 +115,7 @@ function unreadThreads(userId, opts) {
   q +=       'SELECT board_id ';
   q +=       'FROM users.watch_boards ';
   q +=       'WHERE user_id = $1 ';
-  q +=     ') b LEFT JOIN LATERAL ( ';
+  q +=     ') b JOIN LATERAL ( ';
   q +=       'SELECT id, updated_at ';
   q +=       'FROM threads t ';
   q +=       'LEFT JOIN users.thread_views tv ON t.id = tv.thread_id AND tv.user_id = $1 ';
@@ -147,7 +147,7 @@ function unreadThreads(userId, opts) {
   q +=   'WHERE p.thread_id = tlist.id ';
   q +=   'ORDER BY p.created_at DESC LIMIT 1 ';
   q += ') pl ON true';
-  return db.sqlQuery(q, [userId, opts.limit, opts.offset]);
+  return db.sqlQuery(q, [userId, opts.limit, opts.offset]).tap(console.log);
 }
 
 function formatThread(thread, userId) {
