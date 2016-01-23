@@ -56,7 +56,7 @@ posts.update = function(post) {
 
 posts.find = function(id) {
   id = helper.deslugify(id);
-  var q = 'SELECT p.id, p.thread_id, t.board_id, p.user_id, p.title, p.body, p.raw_body, p.position, p.deleted, p.created_at, p.updated_at, p.imported_at, u.username, u.deleted as user_deleted, up.signature, up.avatar FROM posts p LEFT JOIN users u ON p.user_id = u.id LEFT JOIN users.profiles up ON u.id = up.user_id LEFT JOIN threads t ON p.thread_id = t.id WHERE p.id = $1';
+  var q = 'SELECT p.id, p.thread_id, t.board_id, p.user_id, p.title, p.body, p.raw_body, p.position, p.deleted, p.created_at, p.updated_at, p.imported_at, u.username, u.deleted as user_deleted, up.signature, up.avatar, up.fields->\'name\' as name FROM posts p LEFT JOIN users u ON p.user_id = u.id LEFT JOIN users.profiles up ON u.id = up.user_id LEFT JOIN threads t ON p.thread_id = t.id WHERE p.id = $1';
   return db.sqlQuery(q, [id])
   .then(function(rows) {
     if (rows.length > 0) { return rows[0]; }
@@ -68,8 +68,8 @@ posts.find = function(id) {
 
 posts.byThread = function(threadId, opts) {
   threadId = helper.deslugify(threadId);
-  var columns = 'plist.id, post.thread_id, post.board_id, post.user_id, post.title, post.body, post.raw_body, post.position, post.deleted, post.created_at, post.updated_at, post.imported_at, post.username, post.user_deleted, post.signature, post.avatar, p2.highlight_color, p2.role_name';
-  var q2 = 'SELECT p.thread_id, t.board_id, p.user_id, p.title, p.body, p.raw_body, p.position, p.deleted, p.created_at, p.updated_at, p.imported_at, u.username, u.deleted as user_deleted, up.signature, up.avatar FROM posts p ' +
+  var columns = 'plist.id, post.thread_id, post.board_id, post.user_id, post.title, post.body, post.raw_body, post.position, post.deleted, post.created_at, post.updated_at, post.imported_at, post.username, post.user_deleted, post.signature, post.avatar, post.name, p2.highlight_color, p2.role_name';
+  var q2 = 'SELECT p.thread_id, t.board_id, p.user_id, p.title, p.body, p.raw_body, p.position, p.deleted, p.created_at, p.updated_at, p.imported_at, u.username, u.deleted as user_deleted, up.signature, up.avatar, up.fields->\'name\' as name FROM posts p ' +
     'LEFT JOIN users u ON p.user_id = u.id ' +
     'LEFT JOIN users.profiles up ON u.id = up.user_id ' +
     'LEFT JOIN threads t ON p.thread_id = t.id ' +
@@ -98,6 +98,7 @@ posts.byThread = function(threadId, opts) {
 var formatPost = function(post) {
   post.user = {
     id: post.user_id,
+    name: post.name,
     username: post.username,
     deleted: post.user_deleted,
     signature: post.signature,
@@ -106,6 +107,7 @@ var formatPost = function(post) {
   };
   delete post.user_id;
   delete post.username;
+  delete post.name;
   delete post.user_deleted;
   delete post.signature;
   delete post.highlight_color;
