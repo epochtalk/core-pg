@@ -428,7 +428,7 @@ threads.getThreadsBoardInBoardMapping = function(threadId, userPriority) {
 
 threads.getThreadOwner = function(threadId) {
   threadId = helper.deslugify(threadId);
-  var q = 'SELECT user_id FROM posts WHERE thread_id = $1 ORDER BY created_at DESC LIMIT 1';
+  var q = 'SELECT user_id FROM posts WHERE thread_id = $1 ORDER BY created_at LIMIT 1';
   return db.sqlQuery(q, [threadId])
   .then(function(rows) {
     if (rows.length > 0) { return rows[0]; }
