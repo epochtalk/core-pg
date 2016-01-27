@@ -1,15 +1,12 @@
 var threads = {};
 module.exports = threads;
 
-var pg = require('pg');
 var path = require('path');
 var Promise = require('bluebird');
 var db = require(path.join(__dirname, '..', 'db'));
-var config = require(path.join(__dirname, '..', 'config'));
 var helper = require(path.join(__dirname, '..', 'helper'));
 var NotFoundError = Promise.OperationalError;
 var MoveError = Promise.OperationalError;
-var DeletionError = Promise.OperationalError;
 var using = Promise.using;
 
 /**

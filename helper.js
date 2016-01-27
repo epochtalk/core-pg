@@ -77,11 +77,11 @@ function slugTransform(input, slugMethod) {
       if (!input[key]) { return input[key]; }
 
       // check if key is candidate for (de)slugification
-      if (_.contains(slugKeywords, key)) {
+      if (_.includes(slugKeywords, key)) {
         // (de)slugify
         input[key] = slugMethod(input[key]);
       }
-      else if (_.contains(slugArrayKeywords, key)) {
+      else if (_.includes(slugArrayKeywords, key)) {
         input[key] = input[key].map(function(item) { return slugMethod(item); });
       }
       else if (_.isPlainObject(input[key]) || _.isArray(input[key])) {

@@ -1,13 +1,18 @@
 var db = {};
 module.exports = db;
-var path = require('path');
 var pg = require('pg');
+var path = require('path');
 var Promise = require('bluebird');
 var config = require(path.join(__dirname, 'config'));
 Promise.promisifyAll(pg);
 
 db.sqlQuery = function(q, params) {
-  return pg.connectAsync(config.conString)
+  return new Promise(function(resolve, reject) {
+    pg.connect(config.conString, function(err, client, done) {
+      if (err) { return reject(err); }
+      else { return resolve([client, done]); }
+    });
+  })
   .spread(function(client, done) {
     return client.queryAsync(q, params)
     .then(function(result) { return result.rows; })
@@ -16,7 +21,12 @@ db.sqlQuery = function(q, params) {
 };
 
 db.scalar = function(q, params) {
-  return pg.connectAsync(config.conString)
+  return new Promise(function(resolve, reject) {
+    pg.connect(config.conString, function(err, client, done) {
+      if (err) { return reject(err); }
+      else { return resolve([client, done]); }
+    });
+  })
   .spread(function(client, done) {
     return client.queryAsync(q, params)
     .then(function(result) {
@@ -30,7 +40,12 @@ db.scalar = function(q, params) {
 
 db.createTransaction = function() {
   var close;
-  return pg.connectAsync(config.conString)
+  return new Promise(function(resolve, reject) {
+    pg.connect(config.conString, function(err, client, done) {
+      if (err) { return reject(err); }
+      else { return resolve([client, done]); }
+    });
+  })
   .spread(function(client, done) {
     close = done;
     return client.queryAsync('BEGIN')

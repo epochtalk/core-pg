@@ -1,12 +1,10 @@
 var boards = {};
 module.exports = boards;
 
-var pg = require('pg');
 var _ = require('lodash');
 var path = require('path');
 var Promise = require('bluebird');
 var db = require(path.join(__dirname, '..', 'db'));
-var config = require(path.join(__dirname, '..', 'config'));
 var helper = require(path.join(__dirname, '..', 'helper'));
 var NotFoundError = Promise.OperationalError;
 var using = Promise.using;
