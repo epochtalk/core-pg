@@ -49,7 +49,7 @@ fake.threads = function(options) {
 
 fake.posts = function(options) {
   var body = '';
-  var length = faker.helpers.randomNumber(7) + 1;
+  var length = faker.random.number(7) + 1;
   for(var i = 0; i < length; i++) {
     body += faker.hacker.phrase() + '\n';
   }
