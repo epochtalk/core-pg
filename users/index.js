@@ -514,8 +514,9 @@ users.delete = function(userId) {
     })
     // delete user
     .then(function() {
-      q = 'DELETE FROM users WHERE id = $1';
-      return client.queryAsync(q, [userId]);
+      q = 'DELETE FROM users WHERE id = $1 RETURNING username, email';
+      return client.queryAsync(q, [userId])
+      .then(function(results) { return results.rows[0]; });
     });
   });
 };

@@ -66,7 +66,7 @@ messages.latest = function(userId, opts) {
 messages.delete = function(id) {
   id = helper.deslugify(id);
   var conversationId = '';
-
+  var result = { id: id };
   return using(db.createTransaction(), function(client) {
     // Check if message exists
     var q = 'SELECT conversation_id from private_messages WHERE id = $1 FOR UPDATE';
@@ -77,11 +77,14 @@ messages.delete = function(id) {
     })
     // delete the private message
     .then(function() {
-      q = 'DELETE FROM private_messages WHERE id = $1';
+      q = 'DELETE FROM private_messages WHERE id = $1 RETURNING sender_id, receiver_id';
       return client.queryAsync(q, [id]);
     })
     // clean up conversation if no more messages
-    .then(function() {
+    .then(function(results) {
+      var row = results.rows[0];
+      result.sender_id = row.sender_id;
+      result.receiver_id = row.receiver_id;
       q = 'SELECT id FROM private_messages WHERE conversation_id = $1';
       return client.queryAsync(q, [conversationId])
       .then(function(results) {
@@ -90,8 +93,10 @@ messages.delete = function(id) {
           client.queryAsync(q, [conversationId]);
         }
       });
-    });
-  });
+    })
+    .then(function() { return result; });
+  })
+  .then(helper.slugify);
 };
 
 messages.findUser = function(username, limit) {
