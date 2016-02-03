@@ -22,3 +22,13 @@ notifications.create = function(notification) {
   })
   .then(function() { return helper.slugify(notification); });
 };
+
+notifications.count = function(userId) {
+  userId = helper.deslugify(userId);
+
+  // count notifications received by user
+  // (results > 11) should be interpreted as 10+
+  var q = 'SELECT * FROM notifications WHERE receiver_id = $1 LIMIT 11';
+  return db.sqlQuery(q, [userId])
+  .then(function(rows) { return rows.length; });
+};
