@@ -64,3 +64,12 @@ fake.posts = function(options) {
   }
   return Promise.resolve(post).then(db.posts.create);
 };
+
+fake.notifications = function(options) {
+  var notification = {
+    sender_id: options.sender_id,
+    receiver_id: options.receiver_id,
+    data: {}
+  };
+  return Promise.resolve(notification).then(db.notifications.create);
+}
