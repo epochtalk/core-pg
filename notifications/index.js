@@ -1,6 +1,7 @@
 var notifications = {};
 module.exports = notifications;
 
+var _ = require('lodash');
 var path = require('path');
 var Promise = require('bluebird');
 var db = require(path.join(__dirname, '..', 'db'));
@@ -21,6 +22,21 @@ notifications.create = function(notification) {
     });
   })
   .then(function() { return helper.slugify(notification); });
+};
+
+// get the latest notifications for a user
+notifications.latest = function(userId, opts) {
+  userId = helper.deslugify(userId);
+
+  var query = 'SELECT * FROM notifications WHERE receiver_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3';
+
+  var limit = _.get(opts, 'limit', 15);
+  var page = _.get(opts, 'page', 1);
+  var offset = (page * limit) - limit;
+
+  var params = [userId, limit, offset];
+  return db.sqlQuery(query, params)
+  .then(helper.slugify);
 };
 
 notifications.count = function(userId) {
