@@ -107,9 +107,18 @@ lab.experiment('Notifications', function() {
         expect(notifications).to.exist;
         expect(notifications).to.have.length(18);
       })
-      .then(function() {
-        return db.notifications.latest(user.id, { limit: 20, page: 2 });
-      })
+      .catch(function(err) {
+        throw err;
+      });
+    })
+    .then(function() {
+      done();
+    });
+  });
+  lab.test('should not return notifications for empty limited page', function(done) {
+    Promise.resolve(runtime.users[0]).then(function(user) {
+      // this is the default paging limit
+      return db.notifications.latest(user.id, { limit: 20, page: 2 })
       .then(function(notifications) {
         expect(notifications).to.not.exist;
         expect(notifications).to.have.length(0);
