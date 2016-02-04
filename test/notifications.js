@@ -61,10 +61,18 @@ lab.experiment('Notifications', function() {
         expect(notifications).to.exist;
         expect(notifications).to.have.length(3);
       })
-      .then(function() {
-        // this is page of notifications does not exist
-        return db.notifications.latest(user.id, { page: 3 });
-      })
+      .catch(function(err) {
+        throw err;
+      });
+    })
+    .then(function() {
+      done();
+    });
+  });
+  lab.test('should not return notifications for a user for empty page', function(done) {
+    Promise.resolve(runtime.users[0]).then(function(user) {
+      // this is the default paging limit
+      return db.notifications.latest(user.id, { page: 3 })
       .then(function(notifications) {
         expect(notifications).to.not.exist;
         expect(notifications).to.have.length(0);
