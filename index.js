@@ -22,6 +22,7 @@ function core(opts) {
   core.roles = require(path.join(__dirname, 'roles'));
   core.watchlist = require(path.join(__dirname, 'watchlist'));
   core.polls = require(path.join(__dirname, 'polls'));
+  core.notifications = require(path.join(__dirname, 'notifications'));
   core.close = function() { pg.end(); };
   return core;
 }
