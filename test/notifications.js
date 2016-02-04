@@ -138,4 +138,45 @@ lab.experiment('Notifications', function() {
       done();
     });
   });
+  lab.test('should return user notifications count', function(done) {
+    Promise.resolve(runtime.users[0]).then(function(user) {
+      return db.notifications.count(user.id)
+      .then(function(count) {
+        expect(count).to.exist;
+        expect(count).to.equal(11);
+      })
+      .catch(function(err) {
+        throw err;
+      });
+    })
+    .then(function() {
+      return runtime.users[1];
+    })
+    .then(function(user) {
+      return db.notifications.count(user.id)
+      .then(function(count) {
+        expect(count).to.exist;
+        expect(count).to.equal(11);
+      })
+      .catch(function(err) {
+        throw err;
+      });
+    })
+    .then(function() {
+      return runtime.users[2];
+    })
+    .then(function(user) {
+      return db.notifications.count(user.id)
+      .then(function(count) {
+        expect(count).to.exist;
+        expect(count).to.equal(3);
+      })
+      .catch(function(err) {
+        throw err;
+      });
+    })
+    .then(function() {
+      done();
+    });
+  });
 });
