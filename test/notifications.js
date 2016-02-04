@@ -37,4 +37,44 @@ lab.experiment('Notifications', function() {
       done();
     });
   });
+  lab.test('should return default paged notifications for a user', function(done) {
+    Promise.resolve(runtime.users[0]).then(function(user) {
+      // this is the default paging limit
+      return db.notifications.latest(user.id)
+      .then(function(notifications) {
+        expect(notifications).to.exist;
+        expect(notifications).to.have.length(15);
+      })
+      .then(function() {
+        // this is the first page of notifications
+        return db.notifications.latest(user.id, { page: 1 });
+      })
+      .then(function(notifications) {
+        expect(notifications).to.exist;
+        expect(notifications).to.have.length(15);
+      })
+      .then(function() {
+        // this is the second page of notifications
+        return db.notifications.latest(user.id, { page: 2 });
+      })
+      .then(function(notifications) {
+        expect(notifications).to.exist;
+        expect(notifications).to.have.length(3);
+      })
+      .then(function() {
+        // this is page of notifications does not exist
+        return db.notifications.latest(user.id, { page: 3 });
+      })
+      .then(function(notifications) {
+        expect(notifications).to.not.exist;
+        expect(notifications).to.have.length(0);
+      })
+      .catch(function(err) {
+        throw err;
+      });
+    })
+    .then(function() {
+      done();
+    });
+  });
 });
