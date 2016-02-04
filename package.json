@@ -15,6 +15,7 @@
     "test-boards": "NODE_ENV=test npm run db-drop && NODE_ENV=test npm run db-create && npm run test-migrate && NODE_ENV=test node_modules/.bin/lab test/boards.js --flat -v",
     "test-threads": "NODE_ENV=test npm run db-drop && NODE_ENV=test npm run db-create && npm run test-migrate && NODE_ENV=test node_modules/.bin/lab test/threads.js --flat -v",
     "test-posts": "NODE_ENV=test npm run db-drop && NODE_ENV=test npm run db-create && npm run test-migrate && NODE_ENV=test node_modules/.bin/lab test/posts.js --flat -v",
+    "test-notifications": "NODE_ENV=test npm run db-drop && NODE_ENV=test npm run db-create && npm run test-migrate && NODE_ENV=test node_modules/.bin/lab test/notifications.js --flat -v",
     "test": "npm run test-categories && npm run test-users && npm run test-boards && npm run test-threads && npm run test-posts"
   },
   "repository": {
