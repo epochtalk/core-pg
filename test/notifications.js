@@ -77,4 +77,48 @@ lab.experiment('Notifications', function() {
       done();
     });
   });
+  lab.test('should return limited paged notifications for a user', function(done) {
+    Promise.resolve(runtime.users[0]).then(function(user) {
+      // this is the default paging limit
+      return db.notifications.latest(user.id, { limit: 1 })
+      .then(function(notifications) {
+        expect(notifications).to.exist;
+        expect(notifications).to.have.length(1);
+      })
+      .then(function() {
+        return db.notifications.latest(user.id, { limit: 10, page: 2 });
+      })
+      .then(function(notifications) {
+        expect(notifications).to.exist;
+        expect(notifications).to.have.length(8);
+      })
+      .then(function() {
+        return db.notifications.latest(user.id, { limit: 20 });
+      })
+      .then(function(notifications) {
+        expect(notifications).to.exist;
+        expect(notifications).to.have.length(18);
+      })
+      .then(function() {
+        return db.notifications.latest(user.id, { limit: 20, page: 2 });
+      })
+      .then(function(notifications) {
+        expect(notifications).to.not.exist;
+        expect(notifications).to.have.length(0);
+      })
+      .then(function() {
+        return db.notifications.latest(user.id, { limit: 1, page: 19 });
+      })
+      .then(function(notifications) {
+        expect(notifications).to.not.exist;
+        expect(notifications).to.have.length(0);
+      })
+      .catch(function(err) {
+        throw err;
+      });
+    })
+    .then(function() {
+      done();
+    });
+  });
 });
