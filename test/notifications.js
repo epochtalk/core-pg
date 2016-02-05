@@ -7,6 +7,7 @@ var db = require(path.join(__dirname, 'db'));
 var seed = require(path.join(__dirname, 'seed', 'populate'));
 var fixture = require(path.join(__dirname, 'fixtures', 'notifications'));
 var NotFoundError = Promise.OperationalError;
+var CreationError = Promise.OperationalError;
 
 lab.experiment('Notifications', function() {
   var runtime;
@@ -22,6 +23,48 @@ lab.experiment('Notifications', function() {
     .then(function() {
       done();
     });
+  });
+  lab.test('should create a notification for a user', function(done) {
+    return db.notifications.create({ sender_id: runtime.users[3].id, receiver_id: runtime.users[3].id })
+    .then(function(notification) {
+      expect(notification).to.exist;
+      expect(notification.id).to.exist;
+      expect(notification.created_at).to.be.a.date();
+      expect(notification.viewed).to.be.false();
+    })
+    .then(function() {
+      done();
+    })
+    .catch(function(err) {
+      throw err;
+    });
+  });
+  lab.test('should not create a notification for invalid user', function(done) {
+    return Promise.resolve().then(function() {
+      db.notifications.create({ sender_id: 'garbage_id', receiver_id: runtime.users[3].id })
+      .catch(function(err) {
+        expect(err).to.be.instanceof(CreationError);
+      });
+    })
+    .then(function() {
+      db.notifications.create({ sender_id: runtime.users[3].id, receiver_id: 'garbage_id' })
+      .catch(function(err) {
+        expect(err).to.be.instanceof(CreationError);
+      });
+    })
+    .then(function() {
+      db.notifications.create({ sender_id: 'garbage_id', receiver_id: 'garbage_id' })
+      .catch(function(err) {
+        expect(err).to.be.instanceof(CreationError);
+      });
+    })
+    .then(function() {
+      db.notifications.create()
+      .catch(function(err) {
+        expect(err).to.be.instanceof(CreationError);
+      });
+    })
+    .then(done);
   });
   lab.test('should return notifications for a user', function(done) {
     Promise.map(runtime.users, function(user) {

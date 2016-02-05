@@ -7,11 +7,12 @@ var Promise = require('bluebird');
 var db = require(path.join(__dirname, '..', 'db'));
 var helper = require(path.join(__dirname, '..', 'helper'));
 var using = Promise.using;
+var CreationError = Promise.OperationalError;
 
 notifications.create = function(notification) {
   notification = helper.deslugify(notification);
   var q = 'INSERT INTO notifications(sender_id, receiver_id, data, created_at) VALUES ($1, $2, $3, now()) RETURNING id, created_at, viewed';
-  var params = [notification.sender_id, notification.receiver_id, notification.data];
+  var params = [_.get(notification, 'sender_id'), _.get(notification, 'receiver_id'), _.get(notification, 'data')];
   return using(db.createTransaction(), function(client) {
     return client.queryAsync(q, params)
     .then(function(results) {
