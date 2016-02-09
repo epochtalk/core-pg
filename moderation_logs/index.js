@@ -1,11 +1,11 @@
-var moderationLog = {};
-module.exports = moderationLog;
+var moderationLogs = {};
+module.exports = moderationLogs;
 
 var path = require('path');
 var db = require(path.join(__dirname, '..', 'db'));
 var helper = require(path.join(__dirname, '..', 'helper'));
 
-moderationLog.create = function(modLog) {
+moderationLogs.create = function(modLog) {
   modLog = helper.deslugify(modLog);
   var q = 'INSERT INTO moderation_log (mod_username, mod_id, mod_ip, action_api_url, action_api_method, action_obj, action_taken_at, action_type, action_display_text, action_display_url) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)';
   var params = [
@@ -23,7 +23,7 @@ moderationLog.create = function(modLog) {
   return db.sqlQuery(q, params);
 };
 
-moderationLog.page = function(opts) {
+moderationLogs.page = function(opts) {
   // Defaults for limit and page
   var limit = 25;
   var page = 1;
