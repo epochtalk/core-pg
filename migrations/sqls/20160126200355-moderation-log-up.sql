@@ -32,7 +32,6 @@ CREATE TYPE moderation_action_type AS ENUM (
   'threads.title',
   'threads.sticky',
   'threads.createPoll',
-  'threads.viewed',
   'threads.lock',
   'threads.move',
   'threads.lockPoll',
@@ -50,7 +49,6 @@ CREATE TYPE moderation_action_type AS ENUM (
 );
 
 CREATE TABLE moderation_log (
-  position SERIAL PRIMARY KEY,
   mod_username character varying(50) NOT NULL,
   mod_id uuid,
   mod_ip character varying(255),
@@ -63,7 +61,6 @@ CREATE TABLE moderation_log (
   action_display_url text
 );
 
-CREATE UNIQUE INDEX index_moderation_log_on_position ON moderation_log USING btree (position);
 CREATE INDEX index_moderation_log_on_mod_username ON moderation_log USING btree (mod_username);
 CREATE INDEX index_moderation_log_on_mod_id ON moderation_log USING btree (mod_id);
 CREATE INDEX index_moderation_log_on_mod_ip ON moderation_log USING btree (mod_ip);
