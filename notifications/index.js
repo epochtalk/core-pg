@@ -26,8 +26,8 @@ notifications.create = function(notification) {
 };
 
 // get the latest notifications for a user
-notifications.latest = function(userId, opts) {
-  userId = helper.deslugify(userId);
+notifications.latest = function(user_id, opts) {
+  var receiver_id = helper.deslugify(user_id);
 
   var query = 'SELECT * FROM notifications WHERE receiver_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3';
 
@@ -35,17 +35,17 @@ notifications.latest = function(userId, opts) {
   var page = _.get(opts, 'page', 1);
   var offset = (page * limit) - limit;
 
-  var params = [userId, limit, offset];
+  var params = [receiver_id, limit, offset];
   return db.sqlQuery(query, params)
   .then(helper.slugify);
 };
 
-notifications.count = function(userId) {
-  userId = helper.deslugify(userId);
+notifications.count = function(user_id) {
+  var receiver_id = helper.deslugify(user_id);
 
   // count notifications received by user
   // (results > 11) should be interpreted as 10+
   var q = 'SELECT * FROM notifications WHERE receiver_id = $1 LIMIT 11';
-  return db.sqlQuery(q, [userId])
+  return db.sqlQuery(q, [receiver_id])
   .then(function(rows) { return rows.length; });
 };
