@@ -319,7 +319,7 @@ threads.move = function(threadId, newBoardId) {
   threadId = helper.deslugify(threadId);
   newBoardId = helper.deslugify(newBoardId);
   var q, params;
-  var thread, threadMeta;
+  var thread;
   var oldBoard, newBoard;
   return using(db.createTransaction(), function(client) {
     // lock thread/Meta row
@@ -366,8 +366,16 @@ threads.move = function(threadId, newBoardId) {
       params = [newBoardId, threadId];
       q = 'UPDATE threads SET board_id = $1 WHERE id = $2';
       return client.queryAsync(q, params);
+    })
+    // Return old board's id and name for reference
+    .then(function() {
+      return {
+        old_board_name: oldBoard.name,
+        old_board_id: oldBoard.id
+      };
     });
-  }); // Promise disposer called at this point
+  })
+  .then(helper.slugify); // Promise disposer called at this point
 };
 
 threads.getThreadFirstPost = function(threadId) {
@@ -441,13 +449,27 @@ threads.getThreadOwner = function(threadId) {
  */
 threads.purge = function(threadId) {
   threadId = helper.deslugify(threadId);
+  var result = { thread_id: threadId };
   var q;
 
   return using(db.createTransaction(), function(client) {
-    // lock up thread and Meta
-    q = 'DELETE FROM threads WHERE id = $1';
-    return client.queryAsync(q, [threadId]);
-  });
+    q = 'SELECT user_id, title FROM posts where thread_id = $1 ORDER BY created_at ASC LIMIT 1';
+    return client.queryAsync(q, [threadId])
+    .then(function(results) {
+      var row = results.rows[0];
+      result.title = row.title;
+      result.user_id = row.user_id;
+      // lock up thread and Meta
+      q = 'DELETE FROM threads WHERE id = $1 returning board_id';
+      return client.queryAsync(q, [threadId]);
+    })
+    .then(function(results) {
+      var row = results.rows[0];
+      result.board_id = row.board_id;
+      return result;
+    });
+  })
+  .then(helper.slugify);
 };
 
 threads.watching = function(threadId, userId) {

@@ -294,10 +294,17 @@ boards.delete = function(boardId){
       return client.queryAsync(q, [boardId]);
     })
     .then(function() {
-      q = 'DELETE FROM boards WHERE id = $1';
+      q = 'DELETE FROM boards WHERE id = $1 RETURNING name';
       return client.queryAsync(q, [boardId]);
+    })
+    .then(function(results) {
+      return {
+        name: results.rows[0].name,
+        id: boardId
+      };
     });
-  });
+  })
+  .then(helper.slugify);
 };
 
 boards.watching = function(boardId, userId) {

@@ -214,9 +214,11 @@ posts.purge = function(id) {
    * board's last post information.
    */
   return using(db.createTransaction(), function(client) {
-    var q = 'DELETE FROM posts WHERE id = $1';
-    return client.queryAsync(q, [id]);
-  });
+    var q = 'DELETE FROM posts WHERE id = $1 RETURNING user_id, thread_id';
+    return client.queryAsync(q, [id])
+    .then(function(results) { return results.rows[0]; });
+  })
+  .then(helper.slugify);
 };
 
 posts.getPostsThread = function(postId) {
