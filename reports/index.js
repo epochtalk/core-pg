@@ -435,7 +435,6 @@ reports.pagePostReports = function(opts) {
     params = [limit, offset];
   }
   return db.sqlQuery(q, params)
-  .catch(console.log)
   .then(helper.slugify);
 };
 
