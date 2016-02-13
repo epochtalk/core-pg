@@ -185,8 +185,8 @@ lab.experiment('Notifications', function() {
     Promise.resolve(runtime.users[0]).then(function(user) {
       return db.notifications.count(user.id)
       .then(function(count) {
-        expect(count).to.exist;
-        expect(count).to.equal(11);
+        expect(count.message).to.exist;
+        expect(count.message).to.equal(11);
       })
       .catch(function(err) {
         throw err;
@@ -198,8 +198,8 @@ lab.experiment('Notifications', function() {
     .then(function(user) {
       return db.notifications.count(user.id)
       .then(function(count) {
-        expect(count).to.exist;
-        expect(count).to.equal(11);
+        expect(count.message).to.exist;
+        expect(count.message).to.equal(11);
       })
       .catch(function(err) {
         throw err;
@@ -211,8 +211,8 @@ lab.experiment('Notifications', function() {
     .then(function(user) {
       return db.notifications.count(user.id)
       .then(function(count) {
-        expect(count).to.exist;
-        expect(count).to.equal(3);
+        expect(count.message).to.exist;
+        expect(count.message).to.equal(3);
       })
       .catch(function(err) {
         throw err;
