@@ -272,6 +272,26 @@ users.unban = function(userId) {
   .then(helper.slugify);
 };
 
+users.banFromBoards = function(userId, boardIds) {
+  var deslugifiedBoardIds = boardIds.map(function(boardId) { return helper.deslugify(boardId); });
+  var deslugifiedUserId = helper.deslugify(userId);
+  var q = 'INSERT INTO users.board_bans(user_id, board_id) VALUES($1, $2)';
+  return Promise.each(deslugifiedBoardIds, function(boardId) {
+    var params = [ deslugifiedUserId, boardId ];
+    return db.sqlQuery(q, params);
+  })
+  .then(function() { return { user_id: userId, board_ids: boardIds }; });
+};
+
+users.unbanFromBoards = function(userId, boardIds) {
+  var deslugifiedBoardIds = boardIds.map(function(boardId) { return helper.deslugify(boardId); });
+  var deslugifiedUserId = helper.deslugify(userId);
+  var q = 'DELETE FROM users.board_bans WHERE user_id = $1 AND board_id = ANY($2) RETURNING user_id, board_id';
+  var params = [ deslugifiedUserId, deslugifiedBoardIds ];
+  return db.sqlQuery(q, params)
+  .then(function() { return { user_id: userId, board_ids: boardIds }; });
+};
+
 /* returns values including email, confirm token, and roles */
 users.create = function(user, isAdmin) {
   var q, params, passhash;
