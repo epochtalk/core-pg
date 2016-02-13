@@ -40,7 +40,7 @@ notifications.latest = function(user_id, opts) {
   .then(helper.slugify);
 };
 
-notifications.count = function(user_id) {
+notifications.counts = function(user_id) {
   var receiver_id = helper.deslugify(user_id);
   var getNotificationsCount = function(type) {
     // count notifications received by user
