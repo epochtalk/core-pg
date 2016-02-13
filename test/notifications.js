@@ -190,12 +190,12 @@ lab.experiment('Notifications', function() {
       done();
     });
   });
-  lab.test('should return user notifications count', function(done) {
+  lab.test('should return user notifications counts', function(done) {
     Promise.resolve(runtime.users[0]).then(function(user) {
-      return db.notifications.count(user.id)
-      .then(function(count) {
-        expect(count.message).to.exist;
-        expect(count.message).to.equal(11);
+      return db.notifications.counts(user.id)
+      .then(function(counts) {
+        expect(counts.message).to.exist;
+        expect(counts.message).to.equal(11);
       })
       .catch(function(err) {
         throw err;
@@ -205,10 +205,10 @@ lab.experiment('Notifications', function() {
       return runtime.users[1];
     })
     .then(function(user) {
-      return db.notifications.count(user.id)
-      .then(function(count) {
-        expect(count.message).to.exist;
-        expect(count.message).to.equal(11);
+      return db.notifications.counts(user.id)
+      .then(function(counts) {
+        expect(counts.message).to.exist;
+        expect(counts.message).to.equal(11);
       })
       .catch(function(err) {
         throw err;
@@ -218,10 +218,10 @@ lab.experiment('Notifications', function() {
       return runtime.users[2];
     })
     .then(function(user) {
-      return db.notifications.count(user.id)
-      .then(function(count) {
-        expect(count.message).to.exist;
-        expect(count.message).to.equal(3);
+      return db.notifications.counts(user.id)
+      .then(function(counts) {
+        expect(counts.message).to.exist;
+        expect(counts.message).to.equal(3);
       })
       .catch(function(err) {
         throw err;
