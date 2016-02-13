@@ -67,6 +67,7 @@ fake.posts = function(options) {
 
 fake.notifications = function(options) {
   var notification = {
+    type: options.type,
     sender_id: options.sender_id,
     receiver_id: options.receiver_id,
     data: {}
