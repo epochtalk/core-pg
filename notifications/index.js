@@ -42,10 +42,25 @@ notifications.latest = function(user_id, opts) {
 
 notifications.count = function(user_id) {
   var receiver_id = helper.deslugify(user_id);
+  var getNotificationsCount = function(type) {
+    // count notifications received by user
+    // (results > 11) should be interpreted as 10+
+    var q = 'SELECT * FROM notifications WHERE receiver_id = $1 AND type = $2 LIMIT 11';
+    return db.sqlQuery(q, [receiver_id, type])
+    .then(function(rows) { return rows.length; });
+  };
+  var getOtherNotificationsCount = function(types) {
+    // count notifications received by user
+    // (results > 11) should be interpreted as 10+
+    var q = 'SELECT * FROM notifications WHERE receiver_id = $1 AND type != ANY ($2) LIMIT 11';
+    return db.sqlQuery(q, [receiver_id, types])
+    .then(function(rows) { return rows.length; });
+  };
 
-  // count notifications received by user
-  // (results > 11) should be interpreted as 10+
-  var q = 'SELECT * FROM notifications WHERE receiver_id = $1 LIMIT 11';
-  return db.sqlQuery(q, [receiver_id])
-  .then(function(rows) { return rows.length; });
+  return Promise.join(getNotificationsCount('message'), getOtherNotificationsCount(['message']), function(messageNotificationsCount, otherNotificationsCount) {
+    return {
+      message: messageNotificationsCount,
+      other: otherNotificationsCount
+    };
+  });
 };
