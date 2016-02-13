@@ -25,7 +25,7 @@ lab.experiment('Notifications', function() {
     });
   });
   lab.test('should create a notification for a user', function(done) {
-    return db.notifications.create({ sender_id: runtime.users[3].id, receiver_id: runtime.users[3].id })
+    return db.notifications.create({ sender_id: runtime.users[3].id, receiver_id: runtime.users[3].id, type: 'test' })
     .then(function(notification) {
       expect(notification).to.exist;
       expect(notification.id).to.exist;
@@ -39,26 +39,35 @@ lab.experiment('Notifications', function() {
       throw err;
     });
   });
-  lab.test('should not create a notification for invalid user', function(done) {
+  lab.test('should not create a notification for invalid sender_id', function(done) {
     return Promise.resolve().then(function() {
-      db.notifications.create({ sender_id: 'garbage_id', receiver_id: runtime.users[3].id })
+      db.notifications.create({ sender_id: 'garbage_id', receiver_id: runtime.users[3].id, type: 'test' })
       .catch(function(err) {
         expect(err).to.be.instanceof(CreationError);
       });
     })
-    .then(function() {
-      db.notifications.create({ sender_id: runtime.users[3].id, receiver_id: 'garbage_id' })
+    .then(done);
+  });
+  lab.test('should not create a notification for invalid receiver_id', function(done) {
+    return Promise.resolve().then(function() {
+      db.notifications.create({ sender_id: runtime.users[3].id, receiver_id: 'garbage_id', type: 'test' })
       .catch(function(err) {
         expect(err).to.be.instanceof(CreationError);
       });
     })
-    .then(function() {
-      db.notifications.create({ sender_id: 'garbage_id', receiver_id: 'garbage_id' })
+    .then(done);
+  });
+  lab.test('should not create a notification without type', function(done) {
+    return Promise.resolve().then(function() {
+      db.notifications.create({ sender_id: runtime.users[3].id, receiver_id: runtime.users[3].id })
       .catch(function(err) {
         expect(err).to.be.instanceof(CreationError);
       });
     })
-    .then(function() {
+    .then(done);
+  });
+  lab.test('should not create a notification without options', function(done) {
+    return Promise.resolve().then(function() {
       db.notifications.create()
       .catch(function(err) {
         expect(err).to.be.instanceof(CreationError);
