@@ -9,7 +9,7 @@ module.exports = function(fixture) {
   return Promise.each(fixture.run, function(dataType) {
     return Promise.each(fixture.data[dataType], function(options) {
       return Promise.reduce(Object.keys(options), function(current, field) {
-        current[field] = Bro(runtime).iCanHaz(options[field]);
+        current[field] = Bro(runtime).iCanHaz(options[field]) || options[field];
         return current;
       }, {})
       .then(function(options) {
