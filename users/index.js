@@ -292,6 +292,25 @@ users.unbanFromBoards = function(userId, boardIds) {
   .then(function() { return { user_id: userId, board_ids: boardIds }; });
 };
 
+users.isNotBannedFromBoard = function(userId, opts) {
+  var q = 'SELECT user_id FROM users.board_bans WHERE user_id = $1 AND board_id = ';
+  var params = [ helper.deslugify(userId) ];
+  if (opts.boardId) {
+    q += '$2';
+    params.push(helper.deslugify(opts.boardId));
+  }
+  else if (opts.threadId) {
+    q += '(SELECT t.board_id FROM threads t WHERE id = $2)';
+    params.push(helper.deslugify(opts.threadId));
+  }
+  else if (opts.postId) {
+    q += '(SELECT t.board_id FROM posts p JOIN threads t ON p.thread_id = t.id WHERE p.id = $2)';
+    params.push(helper.deslugify(opts.postId));
+  }
+  return db.sqlQuery(q, params)
+  .then(function(rows) { return rows.length < 1; });
+};
+
 /* returns values including email, confirm token, and roles */
 users.create = function(user, isAdmin) {
   var q, params, passhash;
