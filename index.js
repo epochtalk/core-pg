@@ -23,6 +23,8 @@ function core(opts) {
   core.watchlist = require(path.join(__dirname, 'watchlist'));
   core.polls = require(path.join(__dirname, 'polls'));
   core.moderationLogs = require(path.join(__dirname, 'moderation_logs'));
+  core.helper = require(path.join(__dirname, 'helper'));
+  core.db = require(path.join(__dirname, 'db'));
   core.close = function() { pg.end(); };
   return core;
 }
