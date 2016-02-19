@@ -50,10 +50,10 @@ notifications.counts = function(user_id) {
     return db.sqlQuery(q, [receiver_id, type])
     .then(postProcessCount);
   };
-  var getOtherNotificationsCount = function(types) {
+  var getOtherNotificationsCount = function(otherThanTypes) {
     // count notifications received by user
     var q = 'SELECT * FROM notifications WHERE receiver_id = $1 AND type != ANY ($2) LIMIT 11';
-    return db.sqlQuery(q, [receiver_id, types])
+    return db.sqlQuery(q, [receiver_id, otherThanTypes])
     .then(postProcessCount);
   };
 
