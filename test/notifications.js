@@ -195,7 +195,7 @@ lab.experiment('Notifications', function() {
       return db.notifications.counts(user.id)
       .then(function(counts) {
         expect(counts.message).to.exist;
-        expect(counts.message).to.equal(11);
+        expect(counts.message).to.equal('10+');
       })
       .catch(function(err) {
         throw err;
@@ -208,7 +208,7 @@ lab.experiment('Notifications', function() {
       return db.notifications.counts(user.id)
       .then(function(counts) {
         expect(counts.message).to.exist;
-        expect(counts.message).to.equal(11);
+        expect(counts.message).to.equal('10+');
       })
       .catch(function(err) {
         throw err;

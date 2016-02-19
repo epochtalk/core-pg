@@ -41,20 +41,20 @@ notifications.latest = function(user_id, opts) {
 };
 
 notifications.counts = function(user_id) {
+  // (results > 11) should be interpreted as 10+
+  var postProcessCount = function(rows) { return rows.length > 10 ? '10+' : rows.length; }
   var receiver_id = helper.deslugify(user_id);
   var getNotificationsCount = function(type) {
     // count notifications received by user
-    // (results > 11) should be interpreted as 10+
     var q = 'SELECT * FROM notifications WHERE receiver_id = $1 AND type = $2 LIMIT 11';
     return db.sqlQuery(q, [receiver_id, type])
-    .then(function(rows) { return rows.length; });
+    .then(postProcessCount);
   };
   var getOtherNotificationsCount = function(types) {
     // count notifications received by user
-    // (results > 11) should be interpreted as 10+
     var q = 'SELECT * FROM notifications WHERE receiver_id = $1 AND type != ANY ($2) LIMIT 11';
     return db.sqlQuery(q, [receiver_id, types])
-    .then(function(rows) { return rows.length; });
+    .then(postProcessCount);
   };
 
   return Promise.join(getNotificationsCount('message'), getOtherNotificationsCount(['message']), function(messageNotificationsCount, otherNotificationsCount) {
