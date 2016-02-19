@@ -75,9 +75,9 @@ lab.experiment('Notifications', function() {
     })
     .then(done);
   });
-  lab.test('should return notifications for a user', function(done) {
+  lab.test('should return message notifications for a user', function(done) {
     Promise.map(runtime.users, function(user) {
-      return db.notifications.latest(user.id)
+      return db.notifications.latest(user.id, { type: 'message' })
       .then(function(notifications) {
         expect(notifications).to.exist;
       })
@@ -89,17 +89,31 @@ lab.experiment('Notifications', function() {
       done();
     });
   });
-  lab.test('should return default paged notifications for a user', function(done) {
+  lab.test('should return mention notifications for a user', function(done) {
+    Promise.map(runtime.users, function(user) {
+      return db.notifications.latest(user.id, { type: 'mention' })
+      .then(function(notifications) {
+        expect(notifications).to.exist;
+      })
+      .catch(function(err) {
+        throw err;
+      });
+    })
+    .then(function() {
+      done();
+    });
+  });
+  lab.test('should return default paged message notifications for a user', function(done) {
     Promise.resolve(runtime.users[0]).then(function(user) {
       // this is the default paging limit
-      return db.notifications.latest(user.id)
+      return db.notifications.latest(user.id, { type: 'message' })
       .then(function(notifications) {
         expect(notifications).to.exist;
         expect(notifications).to.have.length(15);
       })
       .then(function() {
         // this is the first page of notifications
-        return db.notifications.latest(user.id, { page: 1 });
+        return db.notifications.latest(user.id, { type: 'message', page: 1 });
       })
       .then(function(notifications) {
         expect(notifications).to.exist;
@@ -107,7 +121,39 @@ lab.experiment('Notifications', function() {
       })
       .then(function() {
         // this is the second page of notifications
-        return db.notifications.latest(user.id, { page: 2 });
+        return db.notifications.latest(user.id, { type: 'message', page: 2 });
+      })
+      .then(function(notifications) {
+        expect(notifications).to.exist;
+        expect(notifications).to.have.length(3);
+      })
+      .catch(function(err) {
+        throw err;
+      });
+    })
+    .then(function() {
+      done();
+    });
+  });
+  lab.test('should return default paged mention notifications for a user', function(done) {
+    Promise.resolve(runtime.users[0]).then(function(user) {
+      // this is the default paging limit
+      return db.notifications.latest(user.id, { type: 'mention' })
+      .then(function(notifications) {
+        expect(notifications).to.exist;
+        expect(notifications).to.have.length(15);
+      })
+      .then(function() {
+        // this is the first page of notifications
+        return db.notifications.latest(user.id, { type: 'mention', page: 1 });
+      })
+      .then(function(notifications) {
+        expect(notifications).to.exist;
+        expect(notifications).to.have.length(15);
+      })
+      .then(function() {
+        // this is the second page of notifications
+        return db.notifications.latest(user.id, { type: 'mention', page: 2 });
       })
       .then(function(notifications) {
         expect(notifications).to.exist;
@@ -124,7 +170,7 @@ lab.experiment('Notifications', function() {
   lab.test('should not return notifications for a user for empty page', function(done) {
     Promise.resolve(runtime.users[0]).then(function(user) {
       // this is the default paging limit
-      return db.notifications.latest(user.id, { page: 3 })
+      return db.notifications.latest(user.id, { type: 'message', page: 3 })
       .then(function(notifications) {
         expect(notifications).to.not.exist;
         expect(notifications).to.have.length(0);
@@ -140,20 +186,20 @@ lab.experiment('Notifications', function() {
   lab.test('should return limited paged notifications for a user', function(done) {
     Promise.resolve(runtime.users[0]).then(function(user) {
       // this is the default paging limit
-      return db.notifications.latest(user.id, { limit: 1 })
+      return db.notifications.latest(user.id, { type: 'message', limit: 1 })
       .then(function(notifications) {
         expect(notifications).to.exist;
         expect(notifications).to.have.length(1);
       })
       .then(function() {
-        return db.notifications.latest(user.id, { limit: 10, page: 2 });
+        return db.notifications.latest(user.id, { type: 'message', limit: 10, page: 2 });
       })
       .then(function(notifications) {
         expect(notifications).to.exist;
         expect(notifications).to.have.length(8);
       })
       .then(function() {
-        return db.notifications.latest(user.id, { limit: 20 });
+        return db.notifications.latest(user.id, { type: 'message', limit: 20 });
       })
       .then(function(notifications) {
         expect(notifications).to.exist;
@@ -170,13 +216,13 @@ lab.experiment('Notifications', function() {
   lab.test('should not return notifications for empty limited page', function(done) {
     Promise.resolve(runtime.users[0]).then(function(user) {
       // this is the default paging limit
-      return db.notifications.latest(user.id, { limit: 20, page: 2 })
+      return db.notifications.latest(user.id, { type: 'message', limit: 20, page: 2 })
       .then(function(notifications) {
         expect(notifications).to.not.exist;
         expect(notifications).to.have.length(0);
       })
       .then(function() {
-        return db.notifications.latest(user.id, { limit: 1, page: 19 });
+        return db.notifications.latest(user.id, { type: 'message', limit: 1, page: 19 });
       })
       .then(function(notifications) {
         expect(notifications).to.not.exist;
@@ -196,6 +242,8 @@ lab.experiment('Notifications', function() {
       .then(function(counts) {
         expect(counts.message).to.exist;
         expect(counts.message).to.equal('10+');
+        expect(counts.mention).to.exist;
+        expect(counts.mention).to.equal('10+');
       })
       .catch(function(err) {
         throw err;
