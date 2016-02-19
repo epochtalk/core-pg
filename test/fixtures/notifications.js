@@ -70,6 +70,9 @@ module.exports = {
       { receiver_id: 'users.2.id', sender_id: 'users.0.id', type: 'message' },
       { receiver_id: 'users.2.id', sender_id: 'users.1.id', type: 'message' },
       { receiver_id: 'users.2.id', sender_id: 'users.2.id', type: 'message' },
+      { receiver_id: 'users.2.id', sender_id: 'users.0.id', type: 'mention' },
+      { receiver_id: 'users.2.id', sender_id: 'users.1.id', type: 'mention' },
+      { receiver_id: 'users.2.id', sender_id: 'users.2.id', type: 'mention' },
       { receiver_id: 'users.3.id', sender_id: 'users.0.id', type: 'message' },
       { receiver_id: 'users.3.id', sender_id: 'users.1.id', type: 'message' }
     ]

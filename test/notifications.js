@@ -257,6 +257,8 @@ lab.experiment('Notifications', function() {
       .then(function(counts) {
         expect(counts.message).to.exist;
         expect(counts.message).to.equal('10+');
+        expect(counts.mention).to.not.exist;
+        expect(counts.mention).to.equal(0);
       })
       .catch(function(err) {
         throw err;
@@ -270,6 +272,8 @@ lab.experiment('Notifications', function() {
       .then(function(counts) {
         expect(counts.message).to.exist;
         expect(counts.message).to.equal(3);
+        expect(counts.mention).to.exist;
+        expect(counts.mention).to.equal(3);
       })
       .catch(function(err) {
         throw err;
