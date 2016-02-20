@@ -283,4 +283,37 @@ lab.experiment('Notifications', function() {
       done();
     });
   });
+  lab.test('should dismiss notifications', function(done) {
+    Promise.resolve(runtime.users[0]).then(function(user) {
+      // this is the default paging limit
+      return db.notifications.dismiss({ receiver_id: user.id, type: 'message' })
+      .then(function() { return db.notifications.counts(user.id); })
+      .then(function(counts) {
+        expect(counts.message).to.equal(0);
+        expect(counts.mention).to.equal('10+');
+      })
+      .then(function() { return db.notifications.counts(runtime.users[1].id); })
+      .then(function(counts) {
+        expect(counts.message).to.equal('10+');
+      })
+      .then(function() {
+        return db.notifications.latest(user.id, { type: 'message' });
+      })
+      .then(function(notifications) {
+        expect(notifications).to.have.length(0);
+      })
+      .then(function(notifications) {
+        return db.notifications.dismiss({ receiver_id: user.id, type: 'message' })
+        .catch(function(err) {
+          expect(err).to.not.exist();
+        });
+      })
+      .catch(function(err) {
+        throw err;
+      });
+    })
+    .then(function() {
+      done();
+    });
+  });
 });
