@@ -25,6 +25,26 @@ notifications.create = function(notification) {
   .then(function() { return helper.slugify(notification); });
 };
 
+notifications.dismiss = function(options) {
+  options = helper.deslugify(options);
+  var notifications;
+  var q;
+
+  return using(db.createTransaction(), function(client) {
+    // lock up notification row
+    q = 'SELECT * from notifications WHERE receiver_id = $1 AND type = $2 AND viewed = FALSE FOR UPDATE';
+    return client.queryAsync(q, [_.get(options, 'receiver_id'), _.get(options, 'type')])
+    .then(function(results) {
+      if (results.rows.length > 0) {
+        notifications = results.rows;
+        q = 'UPDATE notifications SET viewed = TRUE WHERE receiver_id = $1 AND type = $2 AND viewed = FALSE';
+        return client.queryAsync(q, [_.get(options, 'receiver_id'), _.get(options, 'type')])
+      }
+    })
+    .then(helper.slugify);
+  });
+};
+
 // get the latest notifications for a user
 notifications.latest = function(user_id, opts) {
   var receiver_id = helper.deslugify(user_id);
