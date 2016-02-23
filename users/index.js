@@ -275,7 +275,7 @@ users.unban = function(userId) {
 users.banFromBoards = function(userId, boardIds) {
   var deslugifiedBoardIds = boardIds.map(function(boardId) { return helper.deslugify(boardId); });
   var deslugifiedUserId = helper.deslugify(userId);
-  var q = 'INSERT INTO users.board_bans(user_id, board_id) VALUES($1, $2)';
+  var q = 'INSERT INTO users.board_bans(user_id, board_id) SELECT $1, $2 WHERE NOT EXISTS (SELECT user_id, board_id FROM users.board_bans WHERE user_id = $1 AND board_id = $2)';
   return Promise.each(deslugifiedBoardIds, function(boardId) {
     var params = [ deslugifiedUserId, boardId ];
     return db.sqlQuery(q, params);
@@ -309,6 +309,13 @@ users.isNotBannedFromBoard = function(userId, opts) {
   }
   return db.sqlQuery(q, params)
   .then(function(rows) { return rows.length < 1; });
+};
+
+users.getBannedBoards = function(username) {
+  var q = 'SELECT b.id, b.name FROM users.board_bans JOIN boards b ON board_id = b.id WHERE user_id = (SELECT id from users WHERE username = $1)';
+  var params = [ username ];
+  return db.sqlQuery(q, params)
+  .then(helper.slugify);
 };
 
 /* returns values including email, confirm token, and roles */
