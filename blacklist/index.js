@@ -28,8 +28,14 @@ blacklist.updateRule = function(rule) {
 
 blacklist.deleteRule = function(ruleId) {
   ruleId = helper.deslugify(ruleId);
-  var q = 'DELETE FROM blacklist WHERE id = $1';
+  var q = 'DELETE FROM blacklist WHERE id = $1 RETURNING ip_data, note';
   var params = [ruleId];
+  var result = {};
   return db.sqlQuery(q, params)
-  .then(blacklist.all);
+  .then(function(results) { result.rule = results[0]; })
+  .then(blacklist.all)
+  .then(function(blacklist) {
+    result.blacklist = blacklist;
+    return result;
+  });
 };

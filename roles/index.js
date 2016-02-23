@@ -13,6 +13,12 @@ roles.all = function() {
   .then(helper.slugify);
 };
 
+roles.find = function(roleId) {
+  var q = 'SELECT id, name, description, lookup, priority, highlight_color, permissions FROM roles WHERE id = $1';
+  return db.scalar(q, [helper.deslugify(roleId)])
+  .then(helper.slugify);
+};
+
 roles.update = function(role) {
   role.id = helper.deslugify(role.id);
   role.permissions = JSON.stringify(role.permissions);
@@ -52,13 +58,15 @@ roles.add = function(role) {
   }
 };
 
-/* returns user with removed role(s) */
+/* returns removed role id */
 roles.remove = function(roleId) {
   roleId = helper.deslugify(roleId);
+  var result = { id: roleId };
   return using(db.createTransaction(), function(client) {
-    var q = 'DELETE FROM roles WHERE id = $1;';
+    var q = 'DELETE FROM roles WHERE id = $1 RETURNING name;';
     return client.queryAsync(q, [roleId]) //remove role
-    .then(function() {
+    .then(function(results) {
+      result.name = results.rows[0].name;
       q = 'DELETE FROM roles_users WHERE role_id = $1;';
       return client.queryAsync(q, [roleId]); // remove users from role
     })
@@ -76,7 +84,7 @@ roles.remove = function(roleId) {
       });
     });
   })
-  .then(function() { return { id: roleId }; }) // return id of removed role
+  .then(function() { return result; }) // return id of removed role
   .then(helper.slugify);
 };
 

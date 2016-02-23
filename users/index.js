@@ -155,7 +155,7 @@ users.userByEmail = function(email) {
 /* returns all values */
 users.userByUsername = function(username) {
   // TODO: optimize calls by merge both queries
-  var q = 'SELECT u.id, u.username, u.email, u.passhash, u.confirmation_token, u.reset_token, u.reset_expiration, u.deleted, u.created_at, u.updated_at, u.imported_at, p.avatar, p.position, p.signature, p.raw_signature, p.fields, p.post_count FROM users u LEFT JOIN users.profiles p ON u.id = p.user_id WHERE u.username = $1';
+  var q = 'SELECT u.id, u.username, u.email, u.passhash, u.confirmation_token, u.reset_token, u.reset_expiration, u.deleted, u.created_at, u.updated_at, u.imported_at,CASE WHEN EXISTS (SELECT user_id FROM roles_users WHERE role_id = (SELECT id FROM roles WHERE lookup = \'banned\') and user_id = u.id) THEN (SELECT expiration FROM users.bans WHERE user_id = u.id) ELSE NULL END AS ban_expiration, p.avatar, p.position, p.signature, p.raw_signature, p.fields, p.post_count FROM users u LEFT JOIN users.profiles p ON u.id = p.user_id WHERE u.username = $1';
   var params = [username];
   return db.sqlQuery(q, params)
   .then(function(rows) {
@@ -514,8 +514,9 @@ users.delete = function(userId) {
     })
     // delete user
     .then(function() {
-      q = 'DELETE FROM users WHERE id = $1';
-      return client.queryAsync(q, [userId]);
+      q = 'DELETE FROM users WHERE id = $1 RETURNING username, email';
+      return client.queryAsync(q, [userId])
+      .then(function(results) { return results.rows[0]; });
     });
   });
 };
