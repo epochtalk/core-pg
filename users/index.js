@@ -339,7 +339,7 @@ users.byBannedBoards = function(opts) {
   limit = limit + 1;
 
   var promise;
-  var q = 'SELECT u.username, u.id, u.email, array_agg(b.id) as board_ids, array_agg(b.name) as board_names FROM users.board_bans ubb JOIN users u ON u.id = ubb.user_id JOIN boards b ON b.id = ubb.board_id GROUP BY u.username, u.id';
+  var q = 'SELECT u.username, u.id, u.created_at, u.email, array_agg(b.id) as board_ids, array_agg(b.name) as board_names FROM users.board_bans ubb JOIN users u ON u.id = ubb.user_id JOIN boards b ON b.id = ubb.board_id GROUP BY u.username, u.id';
   var pageClause = 'ORDER by username OFFSET $1 LIMIT $2';
   var params = [ offset, limit ];
   if (filterBoardId || filterModId) { // Has filter
@@ -369,6 +369,10 @@ users.byBannedBoards = function(opts) {
     // Change userId for mod back to modded
     results.modded = results.userId ? true : undefined;
     delete results.userId;
+
+    // Change boardId back to board
+    results.board = results.boardId;
+    delete results.boardId;
 
     // Check for next page then remove extra record
     if (data.length === limit) {
