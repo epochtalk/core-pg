@@ -318,6 +318,69 @@ users.getBannedBoards = function(username) {
   .then(helper.slugify);
 };
 
+users.byBannedBoards = function(opts) {
+  // Define opts if it doesn't exist
+  opts = opts || {};
+  // Build results object for return
+  var results = Object.assign({}, opts);
+  results.prev = results.page > 1 ? results.page - 1 : undefined;
+
+  // Filter by a single board
+  var filterBoardId = opts.boardId;
+  // Filter by moderators boards
+  var filterModId = opts.userId;
+  // Page Default
+  var page = opts.page || 1;
+  // Limit Default
+  var limit = opts.limit || 25;
+  // Calculate Offset
+  var offset = (page * limit) - limit;
+  // query one extra to see if there's another page
+  limit = limit + 1;
+
+  var promise;
+  var q = 'SELECT u.username, u.id, u.email, array_agg(b.id) as board_ids, array_agg(b.name) as board_names FROM users.board_bans ubb JOIN users u ON u.id = ubb.user_id JOIN boards b ON b.id = ubb.board_id GROUP BY u.username, u.id';
+  var pageClause = 'ORDER by username OFFSET $1 LIMIT $2';
+  var params = [ offset, limit ];
+  if (filterBoardId || filterModId) { // Has filter
+    q = ['SELECT * FROM (', q, ') AS data WHERE data.board_ids && $3::uuid[]', pageClause].join(' ');
+
+    if (filterBoardId) {
+      params.push([helper.deslugify(filterBoardId)]);
+      promise = db.sqlQuery(q, params);
+    }
+    else if (filterModId) {
+      var modBoardsQuery = 'SELECT array_agg(board_id) AS board_ids FROM board_moderators WHERE user_id = $1';
+      var modBoardsParams = [ helper.deslugify(filterModId) ];
+
+      promise = db.scalar(modBoardsQuery, modBoardsParams)
+      .then(function(row) {
+        params.push(row.board_ids);
+        return db.sqlQuery(q, params);
+      });
+    }
+  }
+  else { // No Filters
+    q = [q, pageClause].join(' ');
+    promise = db.sqlQuery(q, params);
+  }
+  return promise
+  .then(function(data) {
+    // Change userId for mod back to modded
+    results.modded = results.userId ? true : undefined;
+    delete results.userId;
+
+    // Check for next page then remove extra record
+    if (data.length === limit) {
+      results.next = page + 1;
+      data.pop();
+    }
+    // Append page data and slugify
+    results.data = helper.slugify(data);
+    return results;
+  });
+};
+
 /* returns values including email, confirm token, and roles */
 users.create = function(user, isAdmin) {
   var q, params, passhash;
