@@ -319,52 +319,81 @@ users.getBannedBoards = function(username) {
 };
 
 users.byBannedBoards = function(opts) {
-  // Define opts if it doesn't exist
-  opts = opts || {};
+  var limit = 25;
+  var page = 1;
+
   // Build results object for return
   var results = Object.assign({}, opts);
   results.prev = results.page > 1 ? results.page - 1 : undefined;
 
-  // Filter by a single board
-  var filterBoardId = opts.boardId;
-  // Filter by moderators boards
-  var filterModId = opts.userId;
-  // Page Default
-  var page = opts.page || 1;
-  // Limit Default
-  var limit = opts.limit || 25;
+  // Calculate query vars
+  var modId, boardId, search;
+  var searchUserId; // if populated search keyword is a userId
+  if (opts && opts.limit) { limit = opts.limit; }
+  if (opts && opts.page) { page = opts.page; }
+  if (opts && opts.userId) { modId = opts.userId; }
+  if (opts && opts.boardId) { boardId = opts.boardId; }
+  if (opts && opts.search) { // search can be a username, email or userId
+    search = opts.search;
+    // Try to deslugify search to determine if it is a userId
+    searchUserId = helper.deslugify(search);
+    var uuidv4 = /^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$/;
+    searchUserId = new RegExp(uuidv4).test(searchUserId) ? searchUserId : undefined;
+    search = searchUserId || '%' + search + '%';
+  }
+
+  // Dynamically build query and params
+  var baseQuery = 'SELECT u.username, u.id as user_id, u.created_at, u.email, array_agg(b.id) as board_ids, array_agg(b.name) as board_names FROM users.board_bans ubb JOIN users u ON u.id = ubb.user_id JOIN boards b ON b.id = ubb.board_id';
+  var groupByClause = 'GROUP BY u.username, u.id';
+  var query = [ baseQuery, groupByClause ]; // Array used to build query
+  var params = []; // holds parameters
+  var paramPos; // tracks position of current parameter
+
+  // 1) Append filter to query which only returns data for moderated boards
+  if (modId) {
+    params.push(helper.deslugify(modId));
+    paramPos = params.length;
+    query.unshift('SELECT * FROM (');
+    query.push(') AS mdata WHERE mdata.board_ids && (SELECT array_agg(board_id) AS board_ids FROM board_moderators WHERE user_id = $' + paramPos + ')::uuid[]');
+  }
+
+  // 2) Append filter to query which only returns users banned from a specific board
+  if (boardId) {
+    params.push(helper.deslugify(boardId));
+    paramPos = params.length;
+    query.unshift('SELECT * FROM (');
+    query.push(') AS bdata WHERE $' + paramPos + ' = ANY(bdata.board_ids)');
+  }
+
+  // 3) Append search to query and params if present
+  if (search) {
+    params.push(search);
+    paramPos = params.length;
+    var clauseSep = paramPos === 1 ? 'WHERE' : 'AND';
+    var clause = clauseSep + (
+      searchUserId ?
+      ' user_id = $' + paramPos :
+      ' (username LIKE $' + paramPos + ' OR LOWER(email) LIKE LOWER($' + paramPos + '))'
+    );
+    // GROUP BY must be after WHERE clause if a search without filters is being performed
+    if (clauseSep === 'WHERE') { query = [ baseQuery, clause, groupByClause ]; }
+    else { query.push(clause); }
+  }
+
+  // 4) Append offset and limit
   // Calculate Offset
   var offset = (page * limit) - limit;
+  params.push(offset);
   // query one extra to see if there's another page
   limit = limit + 1;
+  params.push(limit);
+  paramPos = params.length;
+  query.push('ORDER by username OFFSET $' + (paramPos - 1) + ' LIMIT $' + paramPos);
 
-  var promise;
-  var q = 'SELECT u.username, u.id, u.created_at, u.email, array_agg(b.id) as board_ids, array_agg(b.name) as board_names FROM users.board_bans ubb JOIN users u ON u.id = ubb.user_id JOIN boards b ON b.id = ubb.board_id GROUP BY u.username, u.id';
-  var pageClause = 'ORDER by username OFFSET $1 LIMIT $2';
-  var params = [ offset, limit ];
-  if (filterBoardId || filterModId) { // Has filter
-    q = ['SELECT * FROM (', q, ') AS data WHERE data.board_ids && $3::uuid[]', pageClause].join(' ');
+  // Join the array of clauses into a single string
+  query = query.join(' ').replace('  ', ' ');
 
-    if (filterBoardId) {
-      params.push([helper.deslugify(filterBoardId)]);
-      promise = db.sqlQuery(q, params);
-    }
-    else if (filterModId) {
-      var modBoardsQuery = 'SELECT array_agg(board_id) AS board_ids FROM board_moderators WHERE user_id = $1';
-      var modBoardsParams = [ helper.deslugify(filterModId) ];
-
-      promise = db.scalar(modBoardsQuery, modBoardsParams)
-      .then(function(row) {
-        params.push(row.board_ids);
-        return db.sqlQuery(q, params);
-      });
-    }
-  }
-  else { // No Filters
-    q = [q, pageClause].join(' ');
-    promise = db.sqlQuery(q, params);
-  }
-  return promise
+  return db.sqlQuery(query, params)
   .then(function(data) {
     // Change userId for mod back to modded
     results.modded = results.userId ? true : undefined;
