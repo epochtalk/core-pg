@@ -162,13 +162,16 @@ users.userByUsername = function(username) {
     if (rows.length > 0) { return formatUser(rows[0]); }
   })
   .then(function(user) {
-    if (user) {
-      var q = 'SELECT roles.* FROM roles_users, roles WHERE roles_users.user_id = $1 AND roles.id = roles_users.role_id';
-      var params = [user.id];
-      return db.sqlQuery(q, params)
-      .then(function(rows) { user.roles = rows; })
-      .then(function() { return user; });
-    }
+    var q = 'SELECT roles.* FROM roles_users, roles WHERE roles_users.user_id = $1 AND roles.id = roles_users.role_id';
+    var q2 = 'SELECT roles.* FROM roles WHERE lookup = \'user\'';
+    var allRoles = db.sqlQuery(q, [user.id]);
+    var defaultRole = db.sqlQuery(q2);
+    return Promise.join(allRoles, defaultRole, function(roles, userRole) {
+      // return user's roles or default to the user role
+      return roles.length ? roles : userRole;
+    })
+    .then(function(rows) { user.roles = rows; })
+    .then(function() { return user; });
   })
   .then(helper.slugify);
 };
