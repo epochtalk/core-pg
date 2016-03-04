@@ -159,7 +159,8 @@ users.userByUsername = function(username) {
   var params = [username];
   return db.sqlQuery(q, params)
   .then(function(rows) {
-    if (rows.length > 0) { return formatUser(rows[0]); }
+    if (rows.length > 0) { return rows[0]; }
+    else { throw new NotFoundError('User Not Found'); }
   })
   .then(function(user) {
     var q = 'SELECT roles.* FROM roles_users, roles WHERE roles_users.user_id = $1 AND roles.id = roles_users.role_id';
