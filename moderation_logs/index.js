@@ -34,7 +34,7 @@ moderationLogs.page = function(opts) {
 
   // Calculate query vars
   var mod, action, keyword, bdate, adate, sdate, edate;
-  var searchedModId; // bool indicating if mod search is for an id
+  var searchedModId; // if populated search is for a moderator's userId
   if (opts && opts.limit) { limit = opts.limit; }
   if (opts && opts.page) { page = opts.page; }
   if (opts && opts.mod) {
