@@ -582,6 +582,13 @@ users.trackIp = function(id, ip) {
   return db.sqlQuery(q, params);
 };
 
+users.getKnownIps = function(id) {
+  id = helper.deslugify(id);
+  var q = 'SELECT array_agg(user_ip) as ips FROM users.ips WHERE user_id = $1';
+  return db.scalar(q, [ id ])
+  .then(function(results) { return results.ips; });
+};
+
 users.putUserThreadViews = function(userId, threadId) {
   userId = helper.deslugify(userId);
   threadId = helper.deslugify(threadId);
