@@ -226,6 +226,50 @@ boards.allCategories = function(userPriority, opts) {
   .then(function() { return helper.slugify(categories); });
 };
 
+boards.byCategory = function(categoryId, userId) {
+  categoryId = helper.deslugify(categoryId);
+  userId = helper.deslugify(userId || undefined);
+  var category;
+
+  return db.scalar('SELECT * FROM categories WHERE id = $1', [categoryId])
+  .then(function(dbCategory) { category = dbCategory; })
+  .then(function() {
+    return db.sqlQuery('SELECT * FROM ( SELECT b.id, b.name, b.description, b.thread_count, b.post_count, b.created_at, b.updated_at, b.imported_at, mb.last_post_username, mb.last_post_created_at, mb.last_thread_id, mb.last_thread_title, mb.last_post_position, bm.parent_id, bm.category_id, bm.view_order FROM board_mapping bm LEFT JOIN boards b ON bm.board_id = b.id LEFT JOIN metadata.boards mb ON b.id = mb.board_id ) blist LEFT JOIN LATERAL ( SELECT p.deleted as post_deleted, u.id as user_id, u.deleted as user_deleted FROM posts p LEFT JOIN users u ON p.user_id = u.id WHERE blist.last_thread_id = p.thread_id ORDER BY p.created_at DESC LIMIT 1 ) p ON true LEFT JOIN LATERAL (SELECT json_agg(row_to_json((SELECT x FROM ( SELECT bm.user_id as id, u.username as username) x ))) as moderators from board_moderators bm LEFT JOIN users u ON bm.user_id = u.id WHERE bm.board_id = blist.id) mods on true');
+  })
+  .then(function(boards) {
+    return boards.map(function(board) {
+      if (board.post_deleted || board.user_deleted || !board.user_id) {
+        board.last_post_username = 'deleted';
+      }
+      if (!board.user_id) {
+        board.last_post_username = undefined;
+        board.last_post_created_at = undefined;
+        board.last_thread_id = undefined;
+        board.last_thread_title = undefined;
+        board.last_post_position = undefined;
+      }
+      return board;
+    });
+  })
+  // stitch boards together
+  .then(function(boardMapping) {
+    // get all child boards for this category
+    category.boards = _.filter(boardMapping, function(board) {
+      return board.category_id === category.id;
+    });
+    category.boards = _.sortBy(category.boards, 'view_order');
+
+    // recurse through category boards
+    category.boards.map(function(board) {
+      return boardStitching(boardMapping, board);
+    });
+
+    // return category
+    return category;
+  })
+  .then(helper.slugify);
+};
+
 function boardStitching(boardMapping, currentBoard) {
   var hasChildren = _.find(boardMapping, function(board) {
     return board.parent_id === currentBoard.id;

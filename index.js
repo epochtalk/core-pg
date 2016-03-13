@@ -1,5 +1,6 @@
 module.exports = core;
 var path = require('path');
+var _ = require('lodash');
 var setup = require(path.join(__dirname, 'setup'));
 var pg = require('pg');
 var core = {};
@@ -21,6 +22,8 @@ function core(opts) {
   core.moderators = require(path.join(__dirname, 'moderators'));
   core.roles = require(path.join(__dirname, 'roles'));
   core.watchlist = require(path.join(__dirname, 'watchlist'));
+  core.plugins = require(path.join(__dirname, 'plugins'));
+  core.helpers = _.merge(require(path.join(__dirname, 'db')), require(path.join(__dirname, 'helper')));
   core.polls = require(path.join(__dirname, 'polls'));
   core.moderationLogs = require(path.join(__dirname, 'moderation_logs'));
   core.helper = require(path.join(__dirname, 'helper'));
