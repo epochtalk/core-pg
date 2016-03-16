@@ -2,9 +2,9 @@ var roles = {};
 module.exports = roles;
 
 var path = require('path');
+var Promise = require('bluebird');
 var db = require(path.normalize(__dirname + '/../db'));
 var helper = require(path.normalize(__dirname + '/../helper'));
-var Promise = require('bluebird');
 var using = Promise.using;
 
 roles.all = function() {
@@ -29,7 +29,7 @@ roles.update = function(role) {
 };
 
 /* returns user with added role(s) */
-roles.add = function(role) {
+roles.create = function(role) {
   var q, params;
   var permissions = JSON.stringify(role.permissions);
   if (role.id) { // for hardcoded roles with ids, don't slugify id
@@ -59,7 +59,7 @@ roles.add = function(role) {
 };
 
 /* returns removed role id */
-roles.remove = function(roleId) {
+roles.delete = function(roleId) {
   roleId = helper.deslugify(roleId);
   var result = { id: roleId };
   return using(db.createTransaction(), function(client) {
@@ -144,6 +144,82 @@ roles.users = function(roleId, opts) {
   .then(function(row) {
     userData.count = Number(row.count);
     return userData;
+  })
+  .then(helper.slugify);
+};
+
+/* returns user with added role(s) */
+roles.addRoles = function(usernames, roleId) {
+  roleId = helper.deslugify(roleId);
+  var q = 'SELECT id, username, email, created_at, updated_at FROM users WHERE username = ANY($1::text[])';
+  var params = [ usernames ];
+  return using(db.createTransaction(), function(client) {
+    return client.queryAsync(q, params)
+    .then(function(results) { // fetch user and ensure user exists
+      var rows = results.rows;
+      if (rows.length > 0) { return rows; } // return role names to be mapped
+      else { return Promise.reject(); } // users dont exist
+    })
+    .map(function(user) { // insert userid and roleid into roles_users if it doesnt exist already
+      q = 'INSERT INTO roles_users(role_id, user_id) SELECT $1, $2 WHERE NOT EXISTS (SELECT 1 FROM roles_users WHERE role_id = $1 AND user_id = $2);';
+      params = [roleId, user.id];
+      return client.queryAsync(q, params)
+      .then(function() { // append roles to updated user and return
+        q = 'SELECT roles.* FROM roles_users, roles WHERE roles_users.user_id = $1 AND roles.id = roles_users.role_id';
+        params = [user.id];
+        return client.queryAsync(q, params);
+      })
+      .then(function(results) {
+        user.roles = results.rows;
+        return user;
+      });
+    }).then(function(allUsers) { return allUsers; });
+  })
+  .then(helper.slugify);
+};
+
+/* returns user with removed role(s) */
+roles.removeRoles = function(userId, roleId) {
+  userId = helper.deslugify(userId);
+  roleId = helper.deslugify(roleId);
+  var q = 'SELECT id, username, email, created_at, updated_at FROM users WHERE id = $1';
+  var params = [ userId ];
+  var updatedUser;
+  return using(db.createTransaction(), function(client) {
+    return client.queryAsync(q, params)
+    .then(function(results) { // fetch user and ensure user exists
+      var rows = results.rows;
+      if (rows.length > 0) { return rows[0]; } // return user
+      else { return Promise.reject(); } // user doesnt exist
+    })
+    .then(function(user) {
+      updatedUser = user;
+      q = 'DELETE FROM roles_users WHERE role_id = $1 AND user_id = $2';
+      params = [roleId, user.id];
+      return client.queryAsync(q, params);
+    })
+    .then(function() {
+      q = 'SELECT lookup FROM roles WHERE id = $1';
+      return client.queryAsync(q, [roleId]);
+    })
+    .then(function(results) {
+      var rows = results.rows;
+      // Remove ban from users.ban table if the role being removed is the banned role
+      if (rows.length && rows[0].lookup === 'banned') {
+        q = 'UPDATE users.bans SET expiration = now(), updated_at = now() WHERE user_id = $1';
+        return client.queryAsync(q, [userId]);
+      }
+      return;
+    })
+    .then(function() { // append roles to updated user and return
+      q = 'SELECT roles.* FROM roles_users, roles WHERE roles_users.user_id = $1 AND roles.id = roles_users.role_id';
+      params = [userId];
+      return client.queryAsync(q, params);
+    })
+    .then(function(results) {
+      updatedUser.roles = results.rows;
+      return updatedUser;
+    });
   })
   .then(helper.slugify);
 };
