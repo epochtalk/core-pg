@@ -16,38 +16,30 @@ lab.experiment('Categories', function() {
     expect(category.name).to.equal(seededCategory.name);
   };
   lab.before(function(done) {
-    return seed(fixture).then(function(results) {
-      runtime = results;
-    })
-    .then(function() {
-      done();
-    });
+    return seed(fixture)
+    .tap('here')
+    .then(function(results) { runtime = results; })
+    .then(function() { done(); });
   });
   lab.test('should return all categories', function(done) {
     db.categories.all(function(categories) {
       expect(categories).to.be.an.array();
       expect(categories).to.have.length(runtime.categories.length);
     })
-    .then(function() {
-      done();
-    });
+    .then(function() { done(); });
   });
   lab.test('should find a category by id', function(done) {
     Promise.map(runtime.categories, function(seededCategory) {
       return db.categories.find(seededCategory.id).then(function(category) {
         expectations(seededCategory, category);
       })
-      .catch(function(err) {
-        throw err;
-      });
+      .catch(function(err) { throw err; });
     })
-    .then(function() {
-      done();
-    });
+    .then(function() { done(); });
   });
   lab.test('should fail to find a category by invalid id', function(done) {
-    return db.categories.find()
-    .then(function(user) {
+    db.categories.find()
+    .then(function() {
       throw new Error('Should not have found a category');
     })
     .catch(function(err) {

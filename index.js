@@ -7,12 +7,11 @@ var core = {};
 function core(opts) {
   setup(opts);
 
+  core.bans = require(path.join(__dirname, 'bans'));
   core.blacklist = require(path.join(__dirname, 'blacklist'));
   core.configurations = require(path.join(__dirname, 'configurations'));
-  core.users = require(path.join(__dirname, 'users'));
   core.categories = require(path.join(__dirname, 'categories'));
   core.boards = require(path.join(__dirname, 'boards'));
-  core.posts = require(path.join(__dirname, 'posts'));
   core.threads = require(path.join(__dirname, 'threads'));
   core.reports = require(path.join(__dirname, 'reports'));
   core.images = require(path.join(__dirname, 'images'));

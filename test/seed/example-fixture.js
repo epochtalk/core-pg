@@ -5,26 +5,16 @@ var fake = require(path.join(__dirname, 'seed', 'fake'));
 // ex: 'users.0.id'
 module.exports = {
   run: [
-    'users',
     'categories',
     'boards',
-    'threads',
-    'posts'
+    'threads'
   ],
   methods: {
-    users: fake.userData,
     categories: fake.userData,
     boards: fake.boardData,
-    threads: fake.threadData,
-    posts: fake.postData
+    threads: fake.threadData
   },
   data: {
-    users: [
-      {},
-      {},
-      {},
-      {}
-    ],
     /*
     * fake.categoryData();
     */
@@ -64,29 +54,6 @@ module.exports = {
       { board_id: 'boards.2.id' },
       { board_id: 'boards.2.id' },
       { board_id: 'boards.2.id' },
-      {}
-    ],
-    /*
-    * fake.postData({
-    *   thread_id: runtime.threads[currentPost.thread].id,
-    *   user_id: runtime.users[currentPost.user].id
-    * });
-    */
-    posts: [
-      { thread_id: 'threads.0.id', user_id: 'users.0.id' },
-      { thread_id: 'threads.0.id', user_id: 'users.1.id' },
-      { thread_id: 'threads.0.id', user_id: 'users.2.id' },
-      { thread_id: 'threads.1.id', user_id: 'users.0.id' },
-      { thread_id: 'threads.2.id', user_id: 'users.1.id' },
-      { thread_id: 'threads.3.id', user_id: 'users.2.id' },
-      { thread_id: 'threads.4.id', user_id: 'users.0.id' },
-      { thread_id: 'threads.5.id', user_id: 'users.1.id' },
-      { thread_id: 'threads.6.id', user_id: 'users.2.id' },
-      { thread_id: 'threads.7.id', user_id: 'users.0.id' },
-      { thread_id: 'threads.8.id', user_id: 'users.1.id' },
-      { thread_id: 'threads.9.id', user_id: 'users.2.id' },
-      { thread_id: 'threads.0.id' },
-      { user_id: 'users.0.id' },
       {}
     ]
   }

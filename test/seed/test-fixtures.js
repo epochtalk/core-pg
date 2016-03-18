@@ -6,10 +6,8 @@ var Promise = require('bluebird');
 var seed = require(path.join(__dirname, '..', 'seed', 'populate'));
 var fixtures = {
   categories: require(path.join(__dirname, '..', 'fixtures', 'categories')),
-  users: require(path.join(__dirname, '..', 'fixtures', 'users')),
   boards: require(path.join(__dirname, '..', 'fixtures', 'boards')),
   threads: require(path.join(__dirname, '..', 'fixtures', 'threads')),
-  posts: require(path.join(__dirname, '..', 'fixtures', 'categories'))
 };
 
 lab.experiment('_Fixtures', function() {
@@ -20,10 +18,6 @@ lab.experiment('_Fixtures', function() {
       runtime.categories = categories;
       return seed(fixtures.users);
     })
-    .then(function(users) {
-      runtime.users = users;
-      return seed(fixtures.boards);
-    })
     .then(function(boards) {
       runtime.boards = boards;
       return seed(fixtures.threads);
@@ -31,10 +25,6 @@ lab.experiment('_Fixtures', function() {
     .then(function(threads) {
       runtime.threads = threads;
       return seed(fixtures.posts);
-    })
-    .then(function(posts) {
-      runtime.posts = posts;
-      done();
     });
   });
   lab.test('should have corresponding amount of runtime data', function(done) {
