@@ -1,3 +1,5 @@
+DROP TABLE IF EXISTS users.ips;
+
 CREATE TABLE users.ips (
   user_id uuid NOT NULL,
   user_ip character varying(255) NOT NULL,
@@ -10,15 +12,21 @@ CREATE UNIQUE INDEX index_ips_on_user_id_and_user_ip ON users.ips USING btree(us
 CREATE INDEX index_ips_on_created_at ON users.ips USING btree (created_at);
 
 CREATE TABLE banned_addresses (
-  address character varying(255) NOT NULL,
-  undecayed_score decimal NOT NULL,
-  decay_multiplier decimal,
-  decay_exponent decimal,
+  hostname character varying(255),
+  ip1 integer,
+  ip2 integer,
+  ip3 integer,
+  ip4 integer,
+  initial_weight decimal NOT NULL,
+  decay boolean NOT NULL,
   created_at timestamp with time zone NOT NULL,
-  updated_at timestamp with time zone NOT NULL
+  updates timestamp with time zone[]
 );
 
-CREATE UNIQUE INDEX index_banned_addresses_on_address ON banned_addresses USING btree (address);
-CREATE INDEX index_banned_addresses_on_undecayed_score ON banned_addresses USING btree (undecayed_score);
+ALTER TABLE banned_addresses ADD CONSTRAINT banned_addresses_unique_ip_contraint UNIQUE (ip1, ip2, ip3, ip4);
+ALTER TABLE banned_addresses ADD CONSTRAINT banned_addresses_hostname_or_ip_contraint CHECK ( (ip1 IS NOT NULL AND ip2 IS NOT NULL AND ip3 IS NOT NULL AND ip4 IS NOT NULL AND hostname IS NULL) OR (hostname IS NOT NULL AND ip1 IS NULL AND ip2 IS NULL AND ip3 IS NULL AND ip4 IS NULL) );
+
+CREATE UNIQUE INDEX index_banned_addresses_on_hostname ON banned_addresses USING btree (hostname);
+CREATE INDEX index_banned_addresses_on_intial_weight ON banned_addresses USING btree (initial_weight);
+CREATE INDEX index_banned_addresses_on_decay ON banned_addresses USING btree (decay);
 CREATE INDEX index_banned_addresses_on_created_at ON banned_addresses USING btree (created_at);
-CREATE INDEX index_banned_addresses_on_updated_at ON banned_addresses USING btree (updated_at);
