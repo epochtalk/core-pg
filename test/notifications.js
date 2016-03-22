@@ -11,10 +11,6 @@ var CreationError = Promise.OperationalError;
 
 lab.experiment('Notifications', function() {
   var runtime;
-  // var expectations = function(seededThread, thread) {
-  //   expect(thread).to.exist;
-  //   expect(thread.board_id).to.equal(seededThread.board_id);
-  // };
   lab.before({timeout: 5000}, function(done) {
     return seed(fixture)
     .then(function(results) {
