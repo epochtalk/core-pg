@@ -5,6 +5,15 @@ var Promise = require('bluebird');
 var fake = {};
 module.exports = fake;
 
+fake.users = function() {
+  var user = {
+    password: faker.internet.password(),
+    email: faker.internet.email(),
+    username: faker.internet.userName()
+  };
+  return Promise.resolve(user).then(db.users.create);
+};
+
 fake.categories = function() {
   var category = {
     name: faker.company.bsAdjective()
@@ -37,3 +46,31 @@ fake.threads = function(options) {
       return createdThread;
     });
 };
+
+fake.posts = function(options) {
+  var body = '';
+  var length = faker.random.number(7) + 1;
+  for(var i = 0; i < length; i++) {
+    body += faker.hacker.phrase() + '\n';
+  }
+  var post = {
+    body: body,
+    raw_body: body,
+    title: faker.hacker.ingverb() + ' the ' + faker.hacker.adjective() + ' ' + faker.hacker.noun()
+  };
+  if (options) {
+    if (options.thread_id) post.thread_id = options.thread_id;
+    if (options.user_id) post.user_id = options.user_id;
+  }
+  return Promise.resolve(post).then(db.posts.create);
+};
+
+fake.notifications = function(options) {
+  var notification = {
+    type: options.type,
+    sender_id: options.sender_id,
+    receiver_id: options.receiver_id,
+    data: {}
+  };
+  return Promise.resolve(notification).then(db.notifications.create);
+}
