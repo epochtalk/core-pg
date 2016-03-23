@@ -20,7 +20,7 @@ CREATE TABLE banned_addresses (
   initial_weight decimal NOT NULL,
   decay boolean NOT NULL,
   created_at timestamp with time zone NOT NULL,
-  updates timestamp with time zone[]
+  updates timestamp with time zone[] DEFAULT array[]::timestamp with time zone[]
 );
 
 ALTER TABLE banned_addresses ADD CONSTRAINT banned_addresses_unique_ip_contraint UNIQUE (ip1, ip2, ip3, ip4);
