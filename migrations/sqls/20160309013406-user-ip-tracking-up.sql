@@ -17,7 +17,7 @@ CREATE TABLE banned_addresses (
   ip2 integer,
   ip3 integer,
   ip4 integer,
-  initial_weight decimal NOT NULL,
+  weight decimal NOT NULL,
   decay boolean NOT NULL,
   created_at timestamp with time zone NOT NULL,
   updates timestamp with time zone[] DEFAULT array[]::timestamp with time zone[]
@@ -27,6 +27,6 @@ ALTER TABLE banned_addresses ADD CONSTRAINT banned_addresses_unique_ip_contraint
 ALTER TABLE banned_addresses ADD CONSTRAINT banned_addresses_hostname_or_ip_contraint CHECK ( (ip1 IS NOT NULL AND ip2 IS NOT NULL AND ip3 IS NOT NULL AND ip4 IS NOT NULL AND hostname IS NULL) OR (hostname IS NOT NULL AND ip1 IS NULL AND ip2 IS NULL AND ip3 IS NULL AND ip4 IS NULL) );
 
 CREATE UNIQUE INDEX index_banned_addresses_on_hostname ON banned_addresses USING btree (hostname);
-CREATE INDEX index_banned_addresses_on_intial_weight ON banned_addresses USING btree (initial_weight);
+CREATE INDEX index_banned_addresses_on_weight ON banned_addresses USING btree (weight);
 CREATE INDEX index_banned_addresses_on_decay ON banned_addresses USING btree (decay);
 CREATE INDEX index_banned_addresses_on_created_at ON banned_addresses USING btree (created_at);
