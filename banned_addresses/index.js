@@ -49,23 +49,31 @@ bannedAddresses.calculateMaliciousScore = function(ip) {
   var hostnameScore = reverse(ip)
   .map(function(hostname) { // Calculate hostname score
     return db.scalar(baseQuery + ' WHERE $1 LIKE hostname', [ hostname ])
-    .then(calculateScoreDecay);
-  }).then(sumArr);
+    .then(calculateScoreDecay); // Calculate decay for each result
+  })
+  .then(sumArr) // Sum the weight for each match
+  .catch(function() { return 0; }); // hostname doesn't exit for ip return 0 for weight
 
   // 2) Get score for ip32 (There should only be 1 match since address is unique)
-  var ip32Score = db.scalar(baseQuery + ' WHERE ip1 = $1 AND ip2 = $2 AND ip3 = $3 AND ip4 = $4', [ ipArr[0], ipArr[1], ipArr[2], ipArr[3] ]).then(calculateScoreDecay);
+  var ip32Score = db.scalar(baseQuery + ' WHERE ip1 = $1 AND ip2 = $2 AND ip3 = $3 AND ip4 = $4', [ ipArr[0], ipArr[1], ipArr[2], ipArr[3] ])
+  .then(calculateScoreDecay); // calculate the decayed weight for full ip match
 
   // 3) Calculate sum for ip24 matches
   var ip24Score = db.sqlQuery(baseQuery + ' WHERE ip1 = $1 AND ip2 = $2 AND ip3 = $3', [ ipArr[0], ipArr[1], ipArr[2] ])
-  .map(calculateScoreDecay).then(sumArr);
+  .map(calculateScoreDecay) // calculate decayed weight for each ip24 match
+  .then(sumArr); // sum all decayed weights for ip24
 
   // 4) calculate sum for ip16 matches
   var ip16Score = db.sqlQuery(baseQuery + ' WHERE ip1 = $1 AND ip2 = $2', [ ipArr[0], ipArr[1] ])
-  .map(calculateScoreDecay).then(sumArr);
+  .map(calculateScoreDecay) // calculate decayed weight for each ip16 match
+  .then(sumArr); // sum all decayed weights for ip16
 
+  // Run queries for hostname, ip32, ip24, ip16
   Promise.join(hostnameScore, ip32Score, ip24Score, ip16Score, function(hostnameSum, ip32Sum, ip24Sum, ip16Sum) {
+    // Return final weight sums for each
     return { hostname: hostnameSum, ip32: ip32Sum, ip24: ip24Sum, ip16: ip16Sum };
   })
+  // Malicious score calculated using: hostnameSum + ip32Sum + 0.04 * ip24Sum + 0.0016 * ip16Sum
   .then(function(sums) { return sums.hostname + sums.ip32 + 0.04 * sums.ip24 + 0.0016 * sums.ip16; });
 };
 
@@ -98,12 +106,12 @@ bannedAddresses.add = function(opts) {
       // Existing Ban: IP address or Proxy IP
       else if (banData) {
         q = 'UPDATE banned_addresses SET weight = $1, decay = $2, updates = array_cat(updates, \'{now()}\') WHERE ip1 = $3 AND ip2 = $4 AND ip3 = $5 AND ip4 = $6 RETURNING ip1, ip2, ip3, ip4, weight, decay, created_at, updates';
-        // Get existing decay since last seen
+        // Get existing decayed weight since ip was last seen
         weight = calculateScoreDecay(banData);
         // Since this ip has been previously banned run through algorithm
-        // min(2 * old_score, old_score + 1000) to get new weight
+        // min(2 * old_score, old_score + 1000) to get new weight where
+        // old_score accounts for previous decay
         weight = Math.min(2 * weight, weight + 1000);
-
         params = [ weight, decay, ip[0], ip[1], ip[2], ip[3] ];
       }
       else if (hostname) { // New Ban: Hostname
