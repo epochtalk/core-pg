@@ -288,53 +288,62 @@ bans.getMaliciousScore = function(ip) {
   .then(function(sums) { return sums.hostname + sums.ip32 + 0.04 * sums.ip24 + 0.0016 * sums.ip16; });
 };
 
-bans.addAddress = function(opts) {
-  opts = opts || {};
-  var hostname = opts.hostname;
-  var ip = opts.ip ? opts.ip.split('.') : undefined;
-  var weight = opts.weight;
-  var decay = opts.decay || false;
+bans.copyUserIps = function(opts) {
+  var userId = helper.deslugify(opts.userId);
+  var weight = opts.weight || 50;
+  var decay = opts.decay === false ? false : true;
+  var q = 'SELECT user_ip FROM users.ips WHERE user_id = $1';
+  return db.sqlQuery(q, [ userId ])
+  .map(function(info) { return { ip: info.user_ip, weight: weight, decay: decay }; })
+  .then(function(addresses) { return bans.addAddresses(addresses); });
+};
 
-  var q, params;
-  if (hostname) {
-    q = 'SELECT hostname, weight, decay, created_at, updates FROM banned_addresses WHERE hostname = $1';
-    params = [ hostname ];
-  }
-  else {
-    q = 'SELECT ip1, ip2, ip3, ip4, weight, decay, created_at, updates FROM banned_addresses WHERE ip1 = $1 AND ip2 = $2 AND ip3 = $3 AND ip4 = $4';
-    params = [ ip[0], ip[1], ip[2], ip[3] ];
-  }
-
+bans.addAddresses = function(addresses) {
   return using(db.createTransaction(), function(client) {
-    return client.queryAsync(q, params)
-    .then(function(results) {
-      var banData = results.rows.length ? results.rows[0] : undefined;
-      // Existing Ban: Hostname
-      if (banData && banData.hostname) {
-        q = 'UPDATE banned_addresses SET weight = $1, decay = $2, updates = array_cat(updates, \'{now()}\') WHERE hostname = $3 RETURNING hostname, weight, decay, created_at, updates';
-        params = [ weight, decay, hostname ];
+    return Promise.map(addresses, function(addrInfo) {
+      var hostname = addrInfo.hostname;
+      var ip = addrInfo.ip ? addrInfo.ip.split('.') : undefined;
+      var weight = addrInfo.weight;
+      var decay = addrInfo.decay || false;
+      var q, params;
+      if (hostname) {
+        q = 'SELECT hostname, weight, decay, created_at, updates FROM banned_addresses WHERE hostname = $1';
+        params = [ hostname ];
       }
-      // Existing Ban: IP address or Proxy IP
-      else if (banData) {
-        q = 'UPDATE banned_addresses SET weight = $1, decay = $2, updates = array_cat(updates, \'{now()}\') WHERE ip1 = $3 AND ip2 = $4 AND ip3 = $5 AND ip4 = $6 RETURNING ip1, ip2, ip3, ip4, weight, decay, created_at, updates';
-        // Get existing decayed weight since ip was last seen
-        weight = calculateScoreDecay(banData);
-        // Since this ip has been previously banned run through algorithm
-        // min(2 * old_score, old_score + 1000) to get new weight where
-        // old_score accounts for previous decay
-        weight = Math.min(2 * weight, weight + 1000);
-        params = [ weight, decay, ip[0], ip[1], ip[2], ip[3] ];
-      }
-      else if (hostname) { // New Ban: Hostname
-        q = 'INSERT INTO banned_addresses(hostname, weight, decay, created_at) VALUES($1, $2, $3, now()) RETURNING hostname, weight, decay, created_at, updates';
-        params = [ hostname, weight, decay ];
-      }
-      else { // New Ban: IP Address or Proxy IP
-        q = 'INSERT INTO banned_addresses(ip1, ip2, ip3, ip4, weight, decay, created_at) VALUES($1, $2, $3, $4, $5, $6, now()) RETURNING ip1, ip2, ip3, ip4, weight, decay, created_at, updates';
-          params = [ ip[0], ip[1], ip[2], ip[3], weight, decay ];
+      else {
+        q = 'SELECT ip1, ip2, ip3, ip4, weight, decay, created_at, updates FROM banned_addresses WHERE ip1 = $1 AND ip2 = $2 AND ip3 = $3 AND ip4 = $4';
+        params = [ ip[0], ip[1], ip[2], ip[3] ];
       }
       return client.queryAsync(q, params)
-      .then(function(results) { return results.rows; });
+      .then(function(results) {
+        var banData = results.rows.length ? results.rows[0] : undefined;
+        // Existing Ban: Hostname
+        if (banData && banData.hostname) {
+          q = 'UPDATE banned_addresses SET weight = $1, decay = $2, updates = array_cat(updates, \'{now()}\') WHERE hostname = $3 RETURNING hostname, weight, decay, created_at, updates';
+          params = [ weight, decay, hostname ];
+        }
+        // Existing Ban: IP address or Proxy IP
+        else if (banData) {
+          q = 'UPDATE banned_addresses SET weight = $1, decay = $2, updates = array_cat(updates, \'{now()}\') WHERE ip1 = $3 AND ip2 = $4 AND ip3 = $5 AND ip4 = $6 RETURNING ip1, ip2, ip3, ip4, weight, decay, created_at, updates';
+          // Get existing decayed weight since ip was last seen
+          weight = calculateScoreDecay(banData);
+          // Since this ip has been previously banned run through algorithm
+          // min(2 * old_score, old_score + 1000) to get new weight where
+          // old_score accounts for previous decay
+          weight = Math.min(2 * weight, weight + 1000);
+          params = [ weight, decay, ip[0], ip[1], ip[2], ip[3] ];
+        }
+        else if (hostname) { // New Ban: Hostname
+          q = 'INSERT INTO banned_addresses(hostname, weight, decay, created_at) VALUES($1, $2, $3, now()) RETURNING hostname, weight, decay, created_at, updates';
+          params = [ hostname, weight, decay ];
+        }
+        else { // New Ban: IP Address or Proxy IP
+          q = 'INSERT INTO banned_addresses(ip1, ip2, ip3, ip4, weight, decay, created_at) VALUES($1, $2, $3, $4, $5, $6, now()) RETURNING ip1, ip2, ip3, ip4, weight, decay, created_at, updates';
+            params = [ ip[0], ip[1], ip[2], ip[3], weight, decay ];
+        }
+        return client.queryAsync(q, params)
+        .then(function(results) { return results.rows; });
+      });
     });
   });
 };
