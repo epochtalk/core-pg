@@ -12,8 +12,6 @@ function core(opts) {
   core.configurations = require(path.join(__dirname, 'configurations'));
   core.reports = require(path.join(__dirname, 'reports'));
   core.images = require(path.join(__dirname, 'images'));
-  core.messages = require(path.join(__dirname, 'messages'));
-  core.conversations = require(path.join(__dirname, 'conversations'));
   core.moderators = require(path.join(__dirname, 'moderators'));
   core.roles = require(path.join(__dirname, 'roles'));
   core.watchlist = require(path.join(__dirname, 'watchlist'));
