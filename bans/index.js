@@ -80,6 +80,10 @@ bans.unban = function(userId) {
       }
       else { return Promise.reject(); }
     })
+    .then(function() {
+      q = 'UPDATE users SET malicious_score = null WHERE id = $1';
+      return client.queryAsync(q, [ userId ]);
+    })
     .then(function() { // lookup the banned role id
       q = 'SELECT id FROM roles where lookup = $1';
       return client.queryAsync(q, ['banned']);
@@ -249,12 +253,16 @@ bans.byBannedBoards = function(opts) {
   });
 };
 
-bans.getMaliciousScore = function(ip) {
+bans.getMaliciousScore = function(opts) {
+  var ip = opts.ip;
+  var userId = helper.deslugify(opts.userId);
   // EG: 127.0.0.1
   var ipArr = ip.split('.');
 
   // Base select statement for querying banend addresses
   var baseQuery = 'SELECT weight, decay, created_at, updates FROM banned_addresses';
+
+  var maliciousScore = null;
 
   // 1) Calculate sum for hostname matches
   var hostnameScore = reverse(ip)
@@ -285,7 +293,18 @@ bans.getMaliciousScore = function(ip) {
     return { hostname: hostnameSum, ip32: ip32Sum, ip24: ip24Sum, ip16: ip16Sum };
   })
   // Malicious score calculated using: hostnameSum + ip32Sum + 0.04 * ip24Sum + 0.0016 * ip16Sum
-  .then(function(sums) { return sums.hostname + sums.ip32 + 0.04 * sums.ip24 + 0.0016 * sums.ip16; });
+  .then(function(sums) {
+    maliciousScore = sums.hostname + sums.ip32 + 0.04 * sums.ip24 + 0.0016 * sums.ip16;
+    return maliciousScore;
+  })
+  .then(function() {
+    if (userId) {
+      var q = 'UPDATE users SET malicious_score = $1 WHERE id = $2';
+      return db.sqlQuery(q, [ maliciousScore, userId ])
+      .then(function() { return maliciousScore; });
+    }
+    else { return maliciousScore; }
+  });
 };
 
 bans.copyUserIps = function(opts) {

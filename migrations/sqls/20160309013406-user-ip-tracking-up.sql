@@ -30,3 +30,5 @@ CREATE UNIQUE INDEX index_banned_addresses_on_hostname ON banned_addresses USING
 CREATE INDEX index_banned_addresses_on_weight ON banned_addresses USING btree (weight);
 CREATE INDEX index_banned_addresses_on_decay ON banned_addresses USING btree (decay);
 CREATE INDEX index_banned_addresses_on_created_at ON banned_addresses USING btree (created_at);
+
+ALTER TABLE users ADD COLUMN malicious_score decimal;
