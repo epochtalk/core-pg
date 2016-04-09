@@ -321,8 +321,12 @@ bans.pageBannedAddresses = function(opts) {
     // Calculate current weight
     address.weight = calculateScoreDecay(address);
 
+    // Replace wildcard % with *
+    if (address.hostname) {
+      address.hostname = address.hostname.replace(new RegExp('%', 'g'), '*');
+    }
     // Remove Hostname if not present and calculate joined ip address
-    if (!address.hostname) {
+    else {
       delete address.hostname;
       address.ip = [address.ip1, address.ip2, address.ip3, address.ip4].join('.');
     }
@@ -432,12 +436,15 @@ bans.addAddresses = function(addresses) {
         // Existing Ban: IP address or Proxy IP
         else if (banData) {
           q = 'UPDATE banned_addresses SET weight = $1, decay = $2, updates = array_cat(updates, \'{now()}\') WHERE ip1 = $3 AND ip2 = $4 AND ip3 = $5 AND ip4 = $6 RETURNING ip1, ip2, ip3, ip4, weight, decay, created_at, updates';
-          // Get existing decayed weight since ip was last seen
-          weight = calculateScoreDecay(banData);
-          // Since this ip has been previously banned run through algorithm
-          // min(2 * old_score, old_score + 1000) to get new weight where
-          // old_score accounts for previous decay
-          weight = Math.min(2 * weight, weight + 1000);
+          // If ip decays calculate new score
+          if (banData.decay && decay) {
+            // Get existing decayed weight since ip was last seen
+            weight = calculateScoreDecay(banData);
+            // Since this ip has been previously banned run through algorithm
+            // min(2 * old_score, old_score + 1000) to get new weight where
+            // old_score accounts for previous decay
+            weight = Math.min(2 * weight, weight + 1000);
+          }
           params = [ weight, decay, ip[0], ip[1], ip[2], ip[3] ];
         }
         else if (hostname) { // New Ban: Hostname
