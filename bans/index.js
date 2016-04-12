@@ -253,6 +253,39 @@ bans.byBannedBoards = function(opts) {
   });
 };
 
+bans.editAddress = function(addrInfo) {
+  var hostname = addrInfo.hostname;
+  var ip = addrInfo.ip ? addrInfo.ip.split('.') : undefined;
+
+  var q, params;
+  if (hostname) {
+    q = 'UPDATE banned_addresses SET weight = $1, decay = $2, updates = array_cat(updates, \'{now()}\') WHERE hostname = $3 RETURNING hostname, weight, decay, created_at, updates';
+    params = [ addrInfo.weight, addrInfo.decay, hostname ];
+  }
+  else {
+    q = 'UPDATE banned_addresses SET weight = $1, decay = $2, updates = array_cat(updates, \'{now()}\') WHERE ip1 = $3 AND ip2 = $4 AND ip3 = $5 AND ip4 = $6 RETURNING ip1, ip2, ip3, ip4, weight, decay, created_at, updates';
+    params = [ addrInfo.weight, addrInfo.decay, ip[0], ip[1], ip[2], ip[3] ];
+  }
+
+  return db.scalar(q, params);
+};
+
+bans.deleteAddress = function(addrInfo) {
+  var hostname = addrInfo.hostname;
+  var ip = addrInfo.ip ? addrInfo.ip.split('.') : undefined;
+  console.log(ip, hostname);
+  var q, params;
+  if (hostname) {
+    q = 'DELETE FROM banned_addresses WHERE hostname = $1 RETURNING hostname, weight, decay, created_at, updates';
+    params = [ hostname ];
+  }
+  else {
+    q = 'DELETE FROM banned_addresses WHERE ip1 = $1 AND ip2 = $2 AND ip3 = $3 AND ip4 = $4 RETURNING ip1, ip2, ip3, ip4, weight, decay, created_at, updates';
+    params = [ ip[0], ip[1], ip[2], ip[3] ];
+  }
+  return db.scalar(q, params);
+};
+
 bans.pageBannedAddresses = function(opts) {
   opts = opts || { page: 1, limit: 25 };
   // Set defaults
