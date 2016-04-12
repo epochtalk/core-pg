@@ -6,6 +6,7 @@ var Promise = require('bluebird');
 var db = require(path.normalize(__dirname + '/../db'));
 var helper = require(path.normalize(__dirname + '/../helper'));
 var using = Promise.using;
+var reverse = Promise.promisify(require('dns').reverse);
 
 /* returns the created row in bans.bans */
 bans.ban = function(userId, expiration) {
@@ -78,6 +79,10 @@ bans.unban = function(userId) {
         return;
       }
       else { return Promise.reject(); }
+    })
+    .then(function() {
+      q = 'UPDATE users SET malicious_score = null WHERE id = $1';
+      return client.queryAsync(q, [ userId ]);
     })
     .then(function() { // lookup the banned role id
       q = 'SELECT id FROM roles where lookup = $1';
@@ -246,4 +251,282 @@ bans.byBannedBoards = function(opts) {
     results.data = helper.slugify(data);
     return results;
   });
+};
+
+bans.editAddress = function(addrInfo) {
+  var hostname = addrInfo.hostname;
+  var ip = addrInfo.ip ? addrInfo.ip.split('.') : undefined;
+
+  var q, params;
+  if (hostname) {
+    q = 'UPDATE banned_addresses SET weight = $1, decay = $2, updates = array_cat(updates, \'{now()}\') WHERE hostname = $3 RETURNING hostname, weight, decay, created_at, updates';
+    params = [ addrInfo.weight, addrInfo.decay, hostname ];
+  }
+  else {
+    q = 'UPDATE banned_addresses SET weight = $1, decay = $2, updates = array_cat(updates, \'{now()}\') WHERE ip1 = $3 AND ip2 = $4 AND ip3 = $5 AND ip4 = $6 RETURNING ip1, ip2, ip3, ip4, weight, decay, created_at, updates';
+    params = [ addrInfo.weight, addrInfo.decay, ip[0], ip[1], ip[2], ip[3] ];
+  }
+
+  return db.scalar(q, params);
+};
+
+bans.deleteAddress = function(addrInfo) {
+  var hostname = addrInfo.hostname;
+  var ip = addrInfo.ip ? addrInfo.ip.split('.') : undefined;
+  console.log(ip, hostname);
+  var q, params;
+  if (hostname) {
+    q = 'DELETE FROM banned_addresses WHERE hostname = $1 RETURNING hostname, weight, decay, created_at, updates';
+    params = [ hostname ];
+  }
+  else {
+    q = 'DELETE FROM banned_addresses WHERE ip1 = $1 AND ip2 = $2 AND ip3 = $3 AND ip4 = $4 RETURNING ip1, ip2, ip3, ip4, weight, decay, created_at, updates';
+    params = [ ip[0], ip[1], ip[2], ip[3] ];
+  }
+  return db.scalar(q, params);
+};
+
+bans.pageBannedAddresses = function(opts) {
+  opts = opts || { page: 1, limit: 25 };
+  // Set defaults
+  var limit = 25;
+  var page = 1;
+  var sortField = 'created_at';
+  var sortOrder = opts.desc ? 'DESC' : 'ASC';
+  var search = opts.search;
+
+  // Build results object for return
+  var results = Object.assign({}, opts);
+  results.prev = results.page > 1 ? results.page - 1 : undefined;
+
+  // Calculate query vars
+  if (opts.limit) { limit = opts.limit; }
+  if (opts.page) { page = opts.page; }
+  if (opts.field) {
+    sortField = opts.field;
+    // If sortfield is updates, sort by the last timestamp in updates array
+    if (sortField === 'updates') {
+      sortField = 'CASE WHEN updates[array_upper(updates, 1)] IS NULL THEN 1 else 0 END, updates[array_upper(updates, 1)] ' + sortOrder + ', created_at';
+    }
+    else if (sortField === 'update_count') {
+      sortField = 'CASE WHEN array_upper(updates, 1) IS NULL THEN 0 ELSE array_upper(updates, 1) END';
+    }
+  }
+
+  // Base paging query for banned addresses
+  var baseQuery = 'SELECT hostname, ip1, ip2, ip3, ip4, weight, decay, created_at, updates, updates[array_upper(updates, 1)] as updated_at, array_upper(updates, 1) AS update_count FROM banned_addresses';
+
+  // Calculate pagination vars
+  var offset = (page * limit) - limit;
+  limit = limit + 1; // query one extra result to see if theres another page
+
+  var q, params;
+  if (search) { // Update query to accomodate search
+    var searchArr = search.split('.');
+    var whereClause = 'WHERE hostname LIKE $1 OR CAST(ip1 AS TEXT) LIKE $1';
+    params = ['%' + search + '%', offset, limit];
+    // Append like clause for each arr element
+    var ipParamStart = 4;
+    for(var x = 0; x < searchArr.length; x++) {
+      var clause = x === 0 ? ' OR' : ' AND';
+      whereClause += clause + ' CAST(ip' + (x + 1) + ' AS TEXT) LIKE $' + (x + ipParamStart);
+      params.push(searchArr[x]);
+    }
+    q = [baseQuery, whereClause, 'ORDER BY', sortField, sortOrder, 'OFFSET $2', 'LIMIT $3'].join(' ');
+  }
+  else { // Join query and opts ( no search )
+    q = [baseQuery, 'ORDER BY', sortField, sortOrder, 'OFFSET $1', 'LIMIT $2'].join(' ');
+    params = [offset, limit];
+  }
+
+
+  // Run query
+  return db.sqlQuery(q, params)
+  .then(function(data) {
+    // Check for next page then remove extra record
+    if (data.length === limit) {
+      results.next = page + 1;
+      data.pop();
+    }
+    return data;
+  })
+  .map(function(address) {
+    // Calculate current weight
+    address.weight = calculateScoreDecay(address);
+
+    // Replace wildcard % with *
+    if (address.hostname) {
+      address.hostname = address.hostname.replace(new RegExp('%', 'g'), '*');
+    }
+    // Remove Hostname if not present and calculate joined ip address
+    else {
+      delete address.hostname;
+      address.ip = [address.ip1, address.ip2, address.ip3, address.ip4].join('.');
+    }
+
+    // Remove individual IP fields
+    delete address.ip1;
+    delete address.ip2;
+    delete address.ip3;
+    delete address.ip4;
+    return address;
+  })
+  .then(function(data) {
+    // Append banned addresses data to results
+    results.data = data;
+    return results;
+  });
+};
+
+bans.getMaliciousScore = function(opts) {
+  var ip = opts.ip;
+  var userId = helper.deslugify(opts.userId);
+  // EG: 127.0.0.1
+  var ipArr = ip.split('.');
+
+  // Base select statement for querying banend addresses
+  var baseQuery = 'SELECT weight, decay, created_at, updates FROM banned_addresses';
+
+  var maliciousScore = null;
+
+  // 1) Calculate sum for hostname matches
+  var hostnameScore = reverse(ip)
+  .map(function(hostname) { // Calculate hostname score
+    return db.scalar(baseQuery + ' WHERE $1 LIKE hostname', [ hostname ])
+    .then(calculateScoreDecay); // Calculate decay for each result
+  })
+  .then(sumArr) // Sum the weight for each match
+  .catch(function() { return 0; }); // hostname doesn't exit for ip return 0 for weight
+
+  // 2) Get score for ip32 (There should only be 1 match since address is unique)
+  var ip32Score = db.scalar(baseQuery + ' WHERE ip1 = $1 AND ip2 = $2 AND ip3 = $3 AND ip4 = $4', [ ipArr[0], ipArr[1], ipArr[2], ipArr[3] ])
+  .then(calculateScoreDecay); // calculate the decayed weight for full ip match
+
+  // 3) Calculate sum for ip24 matches
+  var ip24Score = db.sqlQuery(baseQuery + ' WHERE ip1 = $1 AND ip2 = $2 AND ip3 = $3', [ ipArr[0], ipArr[1], ipArr[2] ])
+  .map(calculateScoreDecay) // calculate decayed weight for each ip24 match
+  .then(sumArr); // sum all decayed weights for ip24
+
+  // 4) calculate sum for ip16 matches
+  var ip16Score = db.sqlQuery(baseQuery + ' WHERE ip1 = $1 AND ip2 = $2', [ ipArr[0], ipArr[1] ])
+  .map(calculateScoreDecay) // calculate decayed weight for each ip16 match
+  .then(sumArr); // sum all decayed weights for ip16
+
+  // Run queries for hostname, ip32, ip24, ip16
+  return Promise.join(hostnameScore, ip32Score, ip24Score, ip16Score, function(hostnameSum, ip32Sum, ip24Sum, ip16Sum) {
+    // Return final weight sums for each
+    return { hostname: hostnameSum, ip32: ip32Sum, ip24: ip24Sum, ip16: ip16Sum };
+  })
+  // Malicious score calculated using: hostnameSum + ip32Sum + 0.04 * ip24Sum + 0.0016 * ip16Sum
+  .then(function(sums) {
+    maliciousScore = sums.hostname + sums.ip32 + 0.04 * sums.ip24 + 0.0016 * sums.ip16;
+    return maliciousScore;
+  })
+  .then(function() {
+    if (userId) {
+      var q = 'UPDATE users SET malicious_score = $1 WHERE id = $2';
+      return db.sqlQuery(q, [ maliciousScore, userId ])
+      .then(function() { return maliciousScore; });
+    }
+    else { return maliciousScore; }
+  });
+};
+
+bans.copyUserIps = function(opts) {
+  var userId = helper.deslugify(opts.userId);
+  var weight = opts.weight || 50;
+  var decay = opts.decay === false ? false : true;
+  var q = 'SELECT user_ip FROM users.ips WHERE user_id = $1';
+  return db.sqlQuery(q, [ userId ])
+  .map(function(info) { return { ip: info.user_ip, weight: weight, decay: decay }; })
+  .then(function(addresses) { return bans.addAddresses(addresses); });
+};
+
+bans.addAddresses = function(addresses) {
+  return using(db.createTransaction(), function(client) {
+    return Promise.map(addresses, function(addrInfo) {
+      var hostname = addrInfo.hostname;
+      var ip = addrInfo.ip ? addrInfo.ip.split('.') : undefined;
+      var weight = addrInfo.weight;
+      var decay = addrInfo.decay || false;
+      var q, params;
+      if (hostname) {
+        q = 'SELECT hostname, weight, decay, created_at, updates FROM banned_addresses WHERE hostname = $1';
+        params = [ hostname ];
+      }
+      else {
+        q = 'SELECT ip1, ip2, ip3, ip4, weight, decay, created_at, updates FROM banned_addresses WHERE ip1 = $1 AND ip2 = $2 AND ip3 = $3 AND ip4 = $4';
+        params = [ ip[0], ip[1], ip[2], ip[3] ];
+      }
+      return client.queryAsync(q, params)
+      .then(function(results) {
+        var banData = results.rows.length ? results.rows[0] : undefined;
+        // Existing Ban: Hostname
+        if (banData && banData.hostname) {
+          q = 'UPDATE banned_addresses SET weight = $1, decay = $2, updates = array_cat(updates, \'{now()}\') WHERE hostname = $3 RETURNING hostname, weight, decay, created_at, updates';
+          params = [ weight, decay, hostname ];
+        }
+        // Existing Ban: IP address or Proxy IP
+        else if (banData) {
+          q = 'UPDATE banned_addresses SET weight = $1, decay = $2, updates = array_cat(updates, \'{now()}\') WHERE ip1 = $3 AND ip2 = $4 AND ip3 = $5 AND ip4 = $6 RETURNING ip1, ip2, ip3, ip4, weight, decay, created_at, updates';
+          // If ip decays calculate new score
+          if (banData.decay && decay) {
+            // Get existing decayed weight since ip was last seen
+            weight = calculateScoreDecay(banData);
+            // Since this ip has been previously banned run through algorithm
+            // min(2 * old_score, old_score + 1000) to get new weight where
+            // old_score accounts for previous decay
+            weight = Math.min(2 * weight, weight + 1000);
+          }
+          params = [ weight, decay, ip[0], ip[1], ip[2], ip[3] ];
+        }
+        else if (hostname) { // New Ban: Hostname
+          q = 'INSERT INTO banned_addresses(hostname, weight, decay, created_at) VALUES($1, $2, $3, now()) RETURNING hostname, weight, decay, created_at, updates';
+          params = [ hostname, weight, decay ];
+        }
+        else { // New Ban: IP Address or Proxy IP
+          q = 'INSERT INTO banned_addresses(ip1, ip2, ip3, ip4, weight, decay, created_at) VALUES($1, $2, $3, $4, $5, $6, now()) RETURNING ip1, ip2, ip3, ip4, weight, decay, created_at, updates';
+            params = [ ip[0], ip[1], ip[2], ip[3], weight, decay ];
+        }
+        return client.queryAsync(q, params)
+        .then(function(results) { return results.rows; });
+      });
+    });
+  });
+};
+
+// Sums an array of numbers
+var sumArr = function(arr) { return arr.reduce(function(a, b) { return a + b; }, 0); };
+
+// Calculates decay given MS and a weight
+// Decay algorithm is 0.8897*curWeight^0.9644 run weekly
+// This will calculate decay given the amount of time that has passed
+// in ms since the weight was last updated
+var decayForTime = function(time, weight) {
+  var oneWeek = 1000 * 60 * 60 * 24 * 7;
+  var weeks = time / oneWeek;
+  var a = 0.8897;
+  var r = 0.9644;
+  return Math.pow(a, (Math.pow(r, weeks) - 1) / (r - 1)) * Math.pow(weight, Math.pow(r, weeks));
+};
+
+// Returns the decayed score given a row
+var calculateScoreDecay = function(row) {
+  // Score does decay
+  if (row && row.decay) {
+    // Current timestamp
+    var currentDate = new Date();
+    // Length of updates array
+    var updatesLen = row.updates.length;
+    // Date the record was last updated
+    var lastUpdateDate = updatesLen ? row.updates[updatesLen - 1] : new Date(row.created_at);
+    // Diff in ms between last update date and current date
+    var diffMs = Math.abs(currentDate.getTime() - lastUpdateDate.getTime());
+    // Return the decayed score
+    return decayForTime(diffMs, row.weight);
+  }
+  // Score does not decay
+  else if (row && !row.decay) { return Number(row.weight); }
+  // No match found return 0
+  else { return 0; }
 };

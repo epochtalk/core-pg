@@ -1,3 +1,4 @@
+/* This is a duplicate of user-ip tracking to fix existing installations */
 DROP TABLE IF EXISTS users.ips;
 
 CREATE TABLE users.ips (
@@ -11,7 +12,9 @@ CREATE INDEX index_ips_on_user_ip ON users.ips USING btree (user_ip);
 CREATE UNIQUE INDEX index_ips_on_user_id_and_user_ip ON users.ips USING btree(user_id, user_ip);
 CREATE INDEX index_ips_on_created_at ON users.ips USING btree (created_at);
 
-CREATE TABLE banned_addresses (
+DROP TABLE IF EXISTS banned_addresses;
+
+CREATE TABLE IF NOT EXISTS banned_addresses (
   hostname character varying(255),
   ip1 integer,
   ip2 integer,
