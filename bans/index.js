@@ -273,7 +273,6 @@ bans.editAddress = function(addrInfo) {
 bans.deleteAddress = function(addrInfo) {
   var hostname = addrInfo.hostname;
   var ip = addrInfo.ip ? addrInfo.ip.split('.') : undefined;
-  console.log(ip, hostname);
   var q, params;
   if (hostname) {
     q = 'DELETE FROM banned_addresses WHERE hostname = $1 RETURNING hostname, weight, decay, created_at, updates';
