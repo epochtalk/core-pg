@@ -313,7 +313,7 @@ bans.pageBannedAddresses = function(opts) {
   }
 
   // Base paging query for banned addresses
-  var baseQuery = 'SELECT hostname, ip1, ip2, ip3, ip4, weight, decay, created_at, updates, updates[array_upper(updates, 1)] as updated_at, array_upper(updates, 1) AS update_count FROM banned_addresses';
+  var baseQuery = 'SELECT hostname, ip1, ip2, ip3, ip4, weight, decay, created_at, updates, updates[array_upper(updates, 1)] as updated_at, array_upper(updates, 1) AS update_count, imported_at FROM banned_addresses';
 
   // Calculate pagination vars
   var offset = (page * limit) - limit;
