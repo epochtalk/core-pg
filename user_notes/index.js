@@ -36,16 +36,23 @@ userNotes.delete = function(id) {
 };
 
 userNotes.page = function(opts) {
+  opts = opts;
+
   // Defaults
-  var limit = opts.limit || 25;
-  var page = opts.page || 1;
+  var limit = 25;
+  var page = 1;
+
+  if (opts.limit) { limit = opts.limit; }
+  else { opts.limit = limit; }
+  if (opts.page) { page = opts.page; }
+  else { opts.page = page; }
 
   // Build results object for return
   var results = Object.assign({}, opts);
   results.prev = results.page > 1 ? results.page - 1 : undefined;
 
   // Base Query
-  var q = 'SELECT user_id, author_id, note, created_at, updated_at WHERE user_id = $1 ORDER BY created_at DESC OFFSET $2 LIMIT $3';
+  var q = 'SELECT author_id, (SELECT username FROM users WHERE id = author_id) AS author_name, (SELECT avatar FROM users.profiles WHERE user_id = author_id) AS author_avatar, note, created_at, updated_at FROM user_notes WHERE user_id = $1 ORDER BY created_at DESC OFFSET $2 LIMIT $3';
 
   // Calculate pagination vars
   var offset = (page * limit) - limit;
@@ -53,7 +60,6 @@ userNotes.page = function(opts) {
 
   // Assign query params
   var params = [ helper.deslugify(opts.user_id), offset, limit ];
-
   return db.sqlQuery(q, params)
   .then(function(data) {
     // Check for next page then remove extra record
@@ -61,7 +67,7 @@ userNotes.page = function(opts) {
       results.next = page + 1;
       data.pop();
     }
-    return data;
-  })
-  .then(helper.slugify);
+    results.data = helper.slugify(data);
+    return results;
+  });
 };
