@@ -36,8 +36,6 @@ userNotes.delete = function(id) {
 };
 
 userNotes.page = function(opts) {
-  opts = opts;
-
   // Defaults
   var limit = 25;
   var page = 1;
@@ -52,7 +50,7 @@ userNotes.page = function(opts) {
   results.prev = results.page > 1 ? results.page - 1 : undefined;
 
   // Base Query
-  var q = 'SELECT author_id, (SELECT username FROM users WHERE id = author_id) AS author_name, (SELECT avatar FROM users.profiles WHERE user_id = author_id) AS author_avatar, note, created_at, updated_at FROM user_notes WHERE user_id = $1 ORDER BY created_at DESC OFFSET $2 LIMIT $3';
+  var q = 'SELECT id, author_id, (SELECT username FROM users WHERE id = author_id) AS author_name, (SELECT avatar FROM users.profiles WHERE user_id = author_id) AS author_avatar, (SELECT r.highlight_color FROM roles_users ru LEFT JOIN roles r ON ru.role_id = r.id WHERE author_id = ru.user_id) as author_highlight_color, note, created_at, updated_at FROM user_notes WHERE user_id = $1 ORDER BY created_at DESC OFFSET $2 LIMIT $3';
 
   // Calculate pagination vars
   var offset = (page * limit) - limit;
