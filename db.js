@@ -6,6 +6,15 @@ var Promise = require('bluebird');
 var config = require(path.join(__dirname, 'config'));
 Promise.promisifyAll(pg);
 
+db.testConnection = function(q, params) {
+  return new Promise(function(resolve, reject) {
+    pg.connect(config.conString, function(err, client, done) {
+      if (err) { return reject(err); }
+      else { return resolve(); }
+    });
+  });
+};
+
 db.sqlQuery = function(q, params) {
   return new Promise(function(resolve, reject) {
     pg.connect(config.conString, function(err, client, done) {
