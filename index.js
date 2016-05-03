@@ -16,6 +16,7 @@ function core(opts) {
   core.polls = require(path.join(__dirname, 'polls'));
   core.notifications = require(path.join(__dirname, 'notifications'));
   core.moderationLogs = require(path.join(__dirname, 'moderation_logs'));
+  core.userNotes = require(path.join(__dirname, 'user_notes'));
   core.helper = require(path.join(__dirname, 'helper'));
   core.db = require(path.join(__dirname, 'db'));
   core.close = function() { pg.end(); };
