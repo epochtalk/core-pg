@@ -7,6 +7,7 @@ var slugKeywords = [
   'post_id',
   'user_id',
   'mod_id',
+  'author_id',
   'parent_id',
   'category_id',
   'last_thread_id',
