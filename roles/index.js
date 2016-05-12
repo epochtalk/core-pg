@@ -223,3 +223,18 @@ roles.removeRoles = function(userId, roleId) {
   })
   .then(helper.slugify);
 };
+
+roles.posterHasRole = function(postId, roleLookup) {
+  postId = helper.deslugify(postId);
+
+  var q =
+  `SELECT EXISTS (
+  SELECT 1
+  FROM roles r
+  LEFT JOIN roles_users ru ON ru.role_id = r.id
+  LEFT JOIN posts p ON ru.user_id = p.user_id
+  WHERE p.id = $1
+  AND r.lookup = $2);`;
+  return db.sqlQuery(q, [postId, roleLookup])
+  .then(function(rows) { return rows[0].exists; });
+};
