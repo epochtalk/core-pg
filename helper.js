@@ -11,6 +11,7 @@ var slugKeywords = [
   'parent_id',
   'category_id',
   'last_thread_id',
+  'ignored_user_id',
   'reporter_user_id',
   'reviewer_user_id',
   'offender_user_id',
