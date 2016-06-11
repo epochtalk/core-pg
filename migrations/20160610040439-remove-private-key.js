@@ -7,7 +7,6 @@ exports.up = function(db, callback) {
   var filePath = path.join(__dirname + '/sqls/20160610040439-remove-private-key-up.sql');
   fs.readFile(filePath, {encoding: 'utf-8'}, function(err,data){
     if (err) return callback(err);
-      console.log('received data: ' + data);
 
     db.runSql(data, function(err) {
       if (err) return callback(err);
@@ -20,7 +19,6 @@ exports.down = function(db, callback) {
   var filePath = path.join(__dirname + '/sqls/20160610040439-remove-private-key-down.sql');
   fs.readFile(filePath, {encoding: 'utf-8'}, function(err,data){
     if (err) return callback(err);
-      console.log('received data: ' + data);
 
     db.runSql(data, function(err) {
       if (err) return callback(err);
