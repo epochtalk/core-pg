@@ -1,5 +1,5 @@
 ALTER TABLE posts ADD COLUMN tsv tsvector;
-UPDATE posts SET  
+UPDATE posts SET
     tsv = x.tsv
 FROM (  
     SELECT id,
