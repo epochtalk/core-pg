@@ -7,6 +7,7 @@ var core = {};
 function core(opts) {
   setup(opts);
 
+  core.posts = require(path.join(__dirname, 'posts'));
   core.bans = require(path.join(__dirname, 'bans'));
   core.blacklist = require(path.join(__dirname, 'blacklist'));
   core.configurations = require(path.join(__dirname, 'configurations'));
