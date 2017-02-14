@@ -42,13 +42,6 @@ CREATE TRIGGER create_post_trigger
   FOR EACH ROW
   EXECUTE PROCEDURE create_post();
 
-CREATE TRIGGER unhide_post_trigger
-  AFTER UPDATE
-  ON posts
-  WHEN (OLD.deleted = true AND NEW.deleted = false)
-  FOR EACH ROW
-  EXECUTE PROCEDURE create_post();
-
 -- Posts Delete
 CREATE OR REPLACE FUNCTION delete_post() RETURNS TRIGGER AS $delete_post$
   BEGIN
@@ -66,13 +59,6 @@ CREATE OR REPLACE FUNCTION delete_post() RETURNS TRIGGER AS $delete_post$
 $delete_post$ LANGUAGE plpgsql;
 CREATE TRIGGER delete_post_trigger
   AFTER DELETE ON posts
-  FOR EACH ROW
-  EXECUTE PROCEDURE delete_post();
-
-CREATE TRIGGER hide_post_trigger
-  AFTER UPDATE
-  ON posts
-  WHEN (OLD.deleted = false AND NEW.deleted = true)
   FOR EACH ROW
   EXECUTE PROCEDURE delete_post();
 
