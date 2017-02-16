@@ -1,7 +1,7 @@
-DROP TRIGGER unhide_post_trigger ON posts;
-DROP TRIGGER hide_post_trigger ON posts;
-DROP FUNCTION unhide_post();
-DROP FUNCTION hide_post();
+DROP TRIGGER IF EXISTS unhide_post_trigger ON posts;
+DROP TRIGGER IF EXISTS hide_post_trigger ON posts;
+DROP FUNCTION IF EXISTS unhide_post();
+DROP FUNCTION IF EXISTS hide_post();
 
 -- Update Posts Create trigger
 CREATE OR REPLACE FUNCTION create_post() RETURNS TRIGGER AS $create_post$
