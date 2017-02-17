@@ -71,8 +71,8 @@ CREATE OR REPLACE FUNCTION create_post() RETURNS TRIGGER AS $create_post$
     -- update thread's updated_at
     UPDATE threads SET updated_at = (SELECT created_at FROM posts WHERE thread_id = NEW.thread_id ORDER BY created_at DESC limit 1) WHERE id = NEW.thread_id;
 
-    -- update with post position
-    UPDATE posts SET position = (SELECT post_count + 1 FROM threads WHERE id = NEW.thread_id) WHERE id = NEW.id;
+    -- update with post position and account for deleted (hidden) posts
+    UPDATE posts SET position = (SELECT post_count + 1 + (SELECT COUNT(*) FROM posts WHERE thread_id = NEW.thread_id AND deleted = true) FROM threads WHERE id = NEW.thread_id) WHERE id = NEW.id;
 
     -- increment metadata.threads' post_count
     UPDATE threads SET post_count = post_count + 1 WHERE id = NEW.thread_id;
