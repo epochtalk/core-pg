@@ -26,6 +26,8 @@ var slugKeywords = [
   'conversation_id',
   'sender_id',
   'receiver_id',
+  'mentionee_id',
+  'mentioner_id',
   'last_post_id',
   'latest_unread_post_id',
   'new_board_id',
