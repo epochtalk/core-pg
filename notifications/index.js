@@ -63,7 +63,7 @@ notifications.latest = function(user_id, opts) {
 
 notifications.counts = function(user_id) {
   // results > 11 are interpreted as 10+
-  var postProcessCount = function(rows) { return rows.length > 10 ? '10+' : rows.length; }
+  var postProcessCount = function(rows) { return rows.length > 10 ? '10+' : rows.length; };
   var receiver_id = helper.deslugify(user_id);
   var getNotificationsCount = function(type) {
     // count notifications received by user
