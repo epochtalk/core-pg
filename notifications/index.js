@@ -61,9 +61,19 @@ notifications.latest = function(user_id, opts) {
   .then(helper.slugify);
 };
 
-notifications.counts = function(user_id) {
-  // results > 11 are interpreted as 10+
-  var postProcessCount = function(rows) { return rows.length > 10 ? '10+' : rows.length; };
+notifications.counts = function(user_id, opts) {
+  var max = opts.max || 10;
+  var postProcessCount = function(rows) {
+    // if the total rows returned exceeds the max
+    // return string value '{max}+'
+    if (rows.length > max) {
+      return max + '+';
+    }
+    // otherwise, return the count
+    else {
+      return rows.length;
+    }
+  };
   var receiver_id = helper.deslugify(user_id);
   var getNotificationsCount = function(type) {
     // count notifications received by user
