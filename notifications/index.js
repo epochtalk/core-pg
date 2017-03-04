@@ -62,7 +62,7 @@ notifications.latest = function(user_id, opts) {
 };
 
 notifications.counts = function(user_id, opts) {
-  var max = opts.max || 10;
+  var max = _.get(opts, 'max', 10);
   var postProcessCount = function(rows) {
     // if the total rows returned exceeds the max
     // return string value '{max}+'
