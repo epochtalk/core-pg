@@ -10,6 +10,7 @@ var slugKeywords = [
   'mod_id',
   'author_id',
   'parent_id',
+  'notification_id',
   'category_id',
   'last_thread_id',
   'ignored_user_id',
