@@ -19,6 +19,7 @@ function core(opts) {
   core.userNotes = require(path.join(__dirname, 'user_notes'));
   core.helper = require(path.join(__dirname, 'helper'));
   core.db = require(path.join(__dirname, 'db'));
+  core.errors = require(path.join(__dirname, 'errors'));
   core.close = function() { pg.end(); };
   return core;
 }
