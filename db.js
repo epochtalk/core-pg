@@ -4,6 +4,7 @@ var pg = require('pg');
 var path = require('path');
 var Promise = require('bluebird');
 var config = require(path.join(__dirname, 'config'));
+var errors = require(path.join(__dirname, 'errors'));
 Promise.promisifyAll(pg);
 
 db.testConnection = function(q, params) {
@@ -26,7 +27,8 @@ db.sqlQuery = function(q, params) {
     return client.queryAsync(q, params)
     .then(function(result) { return result.rows; })
     .finally(done);
-  });
+  })
+  .catch(errors.handlePgError);
 };
 
 db.scalar = function(q, params) {
@@ -44,7 +46,8 @@ db.scalar = function(q, params) {
       return ret;
     })
     .finally(done);
-  });
+  })
+  .catch(errors.handlePgError);
 };
 
 db.createTransaction = function() {
@@ -74,5 +77,6 @@ db.createTransaction = function() {
         if (err) { throw err; }
       });
     }
-  });
+  })
+  .catch(errors.handlePgError);
 };
