@@ -74,9 +74,8 @@ db.createTransaction = function() {
       .then(closeConnection)
       .catch(function(err) {
         if (close) { close(client); }
-        if (err) { throw err; }
+        if (err) { return errors.handlePgError(err); }
       });
     }
-  })
-  .catch(errors.handlePgError);
+  });
 };
