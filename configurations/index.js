@@ -9,7 +9,8 @@ var changeCase = require('change-case');
 var renameKeys = require('deep-rename-keys');
 var db = require(path.normalize(__dirname + '/../db'));
 var helper = require(path.normalize(__dirname + '/../helper'));
-var NotFoundError = Promise.OperationalError;
+var errors = require(path.normalize(__dirname + '/../errors'));
+var NotFoundError = errors.NotFoundError;
 
 configurations.create = function(options) {
   if (options.portal && options.portal.board_id) {

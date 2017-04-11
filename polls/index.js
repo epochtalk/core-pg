@@ -5,8 +5,8 @@ var path = require('path');
 var Promise = require('bluebird');
 var db = require(path.join(__dirname, '..', 'db'));
 var helper = require(path.join(__dirname, '..', 'helper'));
-var CreationError = Promise.OperationalError;
-var using = Promise.using;
+var errors = require(path.normalize(__dirname + '/../errors'));
+var CreationError = errors.CreationError;
 
 polls.byThread = function(threadId) {
   threadId = helper.deslugify(threadId);
@@ -77,7 +77,7 @@ polls.vote = function(answerIds, userId) {
   answerIds = answerIds.map(function(answerId) { return helper.deslugify(answerId); });
 
   return Promise.each(answerIds, function(answerId) {
-    q = 'INSERT INTO poll_responses (answer_id, user_id) VALUES ($1, $2)';
+    var q = 'INSERT INTO poll_responses (answer_id, user_id) VALUES ($1, $2)';
     return db.sqlQuery(q, [answerId, userId]);
   });
 };
@@ -168,6 +168,6 @@ polls.update = function(options) {
   var q = 'UPDATE polls SET (max_answers, change_vote, expiration, display_mode) = ($1, $2, $3, $4) WHERE id = $5';
   var params = [options.max_answers, options.change_vote, options.expiration, options.display_mode, options.id];
   return db.sqlQuery(q, params)
-  .then(function(rows) { return options; })
+  .then(function() { return options; })
   .then(helper.slugify);
 };
