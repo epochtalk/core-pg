@@ -6,6 +6,7 @@ var errorTemplate = function(name) {
     this.name = name;
     this.message = message;
     this.extra = extra;
+    this.isOperational = true;
   };
 };
 
