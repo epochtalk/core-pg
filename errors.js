@@ -1,12 +1,12 @@
 var _ = require('lodash');
+var Promise = require('bluebird');
 
 var errorTemplate = function(name) {
   return function (message, extra) {
-    const error = new Error(message ? message : undefined);
+    const error = new Promise.OperationalError(message ? message : undefined);
     Error.captureStackTrace(error, this.constructor);
     error.name = name;
     error.extra = extra;
-    error.isOperational = true;
     return error;
   };
 };
