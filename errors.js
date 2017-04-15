@@ -2,11 +2,12 @@ var _ = require('lodash');
 
 var errorTemplate = function(name) {
   return function (message, extra) {
-    Error.captureStackTrace(this, this.constructor);
-    this.name = name;
-    this.message = message;
-    this.extra = extra;
-    this.isOperational = true;
+    const error = new Error(message ? message : undefined);
+    Error.captureStackTrace(error, this.constructor);
+    error.name = name;
+    error.extra = extra;
+    error.isOperational = true;
+    return error;
   };
 };
 
