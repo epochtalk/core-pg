@@ -7,7 +7,8 @@ var Promise = require('bluebird');
 var db = require(path.join(__dirname, '..', 'db'));
 var helper = require(path.join(__dirname, '..', 'helper'));
 var using = Promise.using;
-var CreationError = Promise.OperationalError;
+var errors = require(path.normalize(__dirname + '/../errors'));
+var CreationError = errors.CreationError;
 
 notifications.create = function(notification) {
   notification = helper.deslugify(notification);
