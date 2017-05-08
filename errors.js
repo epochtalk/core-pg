@@ -30,7 +30,9 @@ function handlePgError(error) {
   // map to the correct custom error or return a generic PostgresError
   var ErrorType = _.get(pgErrorMap, error.code, errorTemplate('PostgresError'));
   // initialize the error with details and code
-  var pgError = new ErrorType(error.detail, error.code);
+  var pgError = new ErrorType(error.detail || error.message, error.code);
+
+
   throw pgError;
 }
 
