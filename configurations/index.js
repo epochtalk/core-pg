@@ -1,4 +1,5 @@
 var configurations = {};
+var _ = require('lodash');
 module.exports = configurations;
 
 var _ = require('lodash');
@@ -28,10 +29,10 @@ configurations.create = function(options) {
     options.website.keywords,
     options.website.logo,
     options.website.favicon,
-    options.emailer.sender,
-    options.emailer.host,
-    options.emailer.port,
-    options.emailer.secure,
+    _.get(options, 'emailer.sender'),
+    _.get(options, 'emailer.options.host'),
+    _.get(options, 'emailer.options.port'),
+    _.get(options, 'emailer.options.secure'),
     options.images.storage,
     options.images.maxSize,
     options.images.expiration,
