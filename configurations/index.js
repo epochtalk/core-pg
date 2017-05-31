@@ -151,17 +151,17 @@ configurations.update = function(options) {
       identifiers.push('"emailer.sender"');
       params.push(emailer.sender);
     }
-    if (emailer.host !== undefined) {
-      identifiers.push('"emailer.host"');
-      params.push(emailer.host);
+    if (emailer.options.host !== undefined) {
+      identifiers.push('"emailer.options.host"');
+      params.push(emailer.options.host);
     }
-    if (emailer.port !== undefined) {
-      identifiers.push('"emailer.port"');
-      params.push(emailer.port);
+    if (emailer.options.port !== undefined) {
+      identifiers.push('"emailer.options.port"');
+      params.push(emailer.options.port);
     }
-    if (emailer.secure !== undefined) {
-      identifiers.push('"emailer.secure"');
-      params.push(emailer.secure);
+    if (emailer.options.secure !== undefined) {
+      identifiers.push('"emailer.options.secure"');
+      params.push(emailer.options.secure);
     }
   }
   if (options.images !== undefined) {
