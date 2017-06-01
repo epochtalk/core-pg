@@ -32,7 +32,6 @@ function handlePgError(error) {
   // initialize the error with details and code
   var pgError = new ErrorType(error.detail || error.message, error.code);
 
-
   throw pgError;
 }
 
