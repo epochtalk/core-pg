@@ -100,12 +100,12 @@ polls.hasVoted = function(threadId, userId) {
   .then(function(rows) { return rows[0].exists; });
 };
 
-polls.lock = function(pollId, lockValue) {
+polls.lock = function(pollId, locked) {
   pollId = helper.deslugify(pollId);
 
   var q = 'UPDATE polls SET locked = $2 WHERE id = $1';
-  return db.sqlQuery(q, [pollId, lockValue])
-  .then(function() { return { id: pollId, lockValue: lockValue }; })
+  return db.sqlQuery(q, [pollId, locked])
+  .then(function() { return { id: pollId, locked }; })
   .then(helper.slugify);
 };
 
