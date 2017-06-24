@@ -1,4 +1,5 @@
 var configurations = {};
+var _ = require('lodash');
 module.exports = configurations;
 
 var _ = require('lodash');
@@ -17,7 +18,7 @@ configurations.create = function(options) {
     options.portal.board_id = db.deslugify(options.portal.board_id);
   }
 
-  var q = 'INSERT INTO configurations ("log_enabled", "verify_registration", "login_required", "ga_key", "website.title", "website.description", "website.keywords", "website.logo", "website.favicon", "emailer.sender", "emailer.host", "emailer.port", "emailer.secure", "images.storage", "images.max_size", "images.expiration", "images.interval", "images.local.dir", "images.local.path", "images.s_3.root", "images.s_3.dir", "images.s_3.bucket", "images.s_3.region", "rate_limiting.namespace", "rate_limiting.get.interval", "rate_limiting.get.max_in_interval", "rate_limiting.get.min_difference", "rate_limiting.post.interval", "rate_limiting.post.max_in_interval", "rate_limiting.post.min_difference", "rate_limiting.put.interval", "rate_limiting.put.max_in_interval", "rate_limiting.put.min_difference", "rate_limiting.delete.interval", "rate_limiting.delete.max_in_interval", "rate_limiting.delete.min_difference", "portal.enabled", "portal.board_id", "invite_only") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39)';
+  var q = 'INSERT INTO configurations ("log_enabled", "verify_registration", "login_required", "ga_key", "website.title", "website.description", "website.keywords", "website.logo", "website.favicon", "emailer.sender", "emailer.options.host", "emailer.options.port", "emailer.options.secure", "images.storage", "images.max_size", "images.expiration", "images.interval", "images.local.dir", "images.local.path", "images.s_3.root", "images.s_3.dir", "images.s_3.bucket", "images.s_3.region", "rate_limiting.namespace", "rate_limiting.get.interval", "rate_limiting.get.max_in_interval", "rate_limiting.get.min_difference", "rate_limiting.post.interval", "rate_limiting.post.max_in_interval", "rate_limiting.post.min_difference", "rate_limiting.put.interval", "rate_limiting.put.max_in_interval", "rate_limiting.put.min_difference", "rate_limiting.delete.interval", "rate_limiting.delete.max_in_interval", "rate_limiting.delete.min_difference", "portal.enabled", "portal.board_id", "invite_only") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39)';
   var params = [
     options.logEnabled,
     options.verifyRegistration,
@@ -28,10 +29,10 @@ configurations.create = function(options) {
     options.website.keywords,
     options.website.logo,
     options.website.favicon,
-    options.emailer.sender,
-    options.emailer.host,
-    options.emailer.port,
-    options.emailer.secure,
+    _.get(options, 'emailer.sender'),
+    _.get(options, 'emailer.options.host'),
+    _.get(options, 'emailer.options.port'),
+    _.get(options, 'emailer.options.secure'),
     options.images.storage,
     options.images.maxSize,
     options.images.expiration,
@@ -150,17 +151,17 @@ configurations.update = function(options) {
       identifiers.push('"emailer.sender"');
       params.push(emailer.sender);
     }
-    if (emailer.host !== undefined) {
-      identifiers.push('"emailer.host"');
-      params.push(emailer.host);
+    if (emailer.options.host !== undefined) {
+      identifiers.push('"emailer.options.host"');
+      params.push(emailer.options.host);
     }
-    if (emailer.port !== undefined) {
-      identifiers.push('"emailer.port"');
-      params.push(emailer.port);
+    if (emailer.options.port !== undefined) {
+      identifiers.push('"emailer.options.port"');
+      params.push(emailer.options.port);
     }
-    if (emailer.secure !== undefined) {
-      identifiers.push('"emailer.secure"');
-      params.push(emailer.secure);
+    if (emailer.options.secure !== undefined) {
+      identifiers.push('"emailer.options.secure"');
+      params.push(emailer.options.secure);
     }
   }
   if (options.images !== undefined) {
