@@ -105,7 +105,7 @@ polls.lock = function(pollId, locked) {
 
   var q = 'UPDATE polls SET locked = $2 WHERE id = $1';
   return db.sqlQuery(q, [pollId, locked])
-  .then(function() { return { id: pollId, locked: locked }; })
+  .then(function() { return { id: pollId, locked }; })
   .then(helper.slugify);
 };
 
