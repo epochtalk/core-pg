@@ -4,7 +4,6 @@ module.exports = configurations;
 var _ = require('lodash');
 var flat = require('flat');
 var path = require('path');
-var Promise = require('bluebird');
 var changeCase = require('change-case');
 var renameKeys = require('deep-rename-keys');
 var db = require(path.normalize(__dirname + '/../db'));
@@ -17,54 +16,13 @@ configurations.create = function(options) {
     options.portal.board_id = db.deslugify(options.portal.board_id);
   }
 
-  var q = 'INSERT INTO configurations ("log_enabled", "verify_registration", "login_required", "ga_key", "website.title", "website.description", "website.keywords", "website.logo", "website.favicon", "emailer.sender", "emailer.host", "emailer.port", "emailer.secure", "images.storage", "images.max_size", "images.expiration", "images.interval", "images.local.dir", "images.local.path", "images.s_3.root", "images.s_3.dir", "images.s_3.bucket", "images.s_3.region", "rate_limiting.namespace", "rate_limiting.get.interval", "rate_limiting.get.max_in_interval", "rate_limiting.get.min_difference", "rate_limiting.post.interval", "rate_limiting.post.max_in_interval", "rate_limiting.post.min_difference", "rate_limiting.put.interval", "rate_limiting.put.max_in_interval", "rate_limiting.put.min_difference", "rate_limiting.delete.interval", "rate_limiting.delete.max_in_interval", "rate_limiting.delete.min_difference", "portal.enabled", "portal.board_id", "invite_only") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39)';
-  var params = [
-    options.logEnabled,
-    options.verifyRegistration,
-    options.loginRequired,
-    options.gaKey,
-    options.website.title,
-    options.website.description,
-    options.website.keywords,
-    options.website.logo,
-    options.website.favicon,
-    options.emailer.sender,
-    options.emailer.host,
-    options.emailer.port,
-    options.emailer.secure,
-    options.images.storage,
-    options.images.maxSize,
-    options.images.expiration,
-    options.images.interval,
-    options.images.local.dir,
-    options.images.local.path,
-    options.images.s3.root,
-    options.images.s3.dir,
-    options.images.s3.bucket,
-    options.images.s3.region,
-    options.rateLimiting.namespace,
-    options.rateLimiting.get.interval,
-    options.rateLimiting.get.maxInInterval,
-    options.rateLimiting.get.minDifference,
-    options.rateLimiting.post.interval,
-    options.rateLimiting.post.maxInInterval,
-    options.rateLimiting.post.minDifference,
-    options.rateLimiting.put.interval,
-    options.rateLimiting.put.maxInInterval,
-    options.rateLimiting.put.minDifference,
-    options.rateLimiting.delete.interval,
-    options.rateLimiting.delete.maxInInterval,
-    options.rateLimiting.delete.minDifference,
-    options.portal.enabled,
-    options.portal.board_id,
-    options.inviteOnly
-  ];
-  return db.sqlQuery(q, params);
+  var q = 'INSERT INTO configurations (name, config) VALUES (\'default\', $1)';
+  return db.sqlQuery(q, [options]);
 };
 
 /* returns object of public configurations */
 configurations.getPublic = function() {
-  var q = 'SELECT "website.title", "website.description", "website.keywords", "website.logo", "website.favicon" FROM configurations';
+  var q = 'SELECT configs ->> "website.title", configs ->> "website.description", configs ->> "website.keywords", configs ->> "website.logo", configs ->> "website.favicon" FROM configurations';
   return db.sqlQuery(q)
   .then(function(queryResults) {
     var publicConfigurations = flat.unflatten(queryResults[0]);
@@ -80,11 +38,11 @@ configurations.getPublic = function() {
 
 // returns object of private configurations
 configurations.get = function() {
-  var q = 'SELECT * FROM configurations';
+  var q = 'SELECT config FROM configurations WHERE name = \'default\'';
   return db.sqlQuery(q)
   .then(function(queryResults) {
     if (queryResults.length > 0) {
-      var privateConfigurations = flat.unflatten(queryResults[0]);
+      var privateConfigurations = queryResults[0].config;
 
       if (_.isObject(privateConfigurations)) {
         privateConfigurations = renameKeys(privateConfigurations, function(key) {
