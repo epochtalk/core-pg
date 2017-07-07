@@ -2,7 +2,6 @@ var configurations = {};
 module.exports = configurations;
 
 var _ = require('lodash');
-var flat = require('flat');
 var path = require('path');
 var changeCase = require('change-case');
 var renameKeys = require('deep-rename-keys');
@@ -22,17 +21,10 @@ configurations.create = function(options) {
 
 /* returns object of public configurations */
 configurations.getPublic = function() {
-  var q = 'SELECT configs ->> "website.title", configs ->> "website.description", configs ->> "website.keywords", configs ->> "website.logo", configs ->> "website.favicon" FROM configurations';
-  return db.sqlQuery(q)
+  var q = 'SELECT config->>\'website\' as website FROM configurations WHERE name = \'default\'';
+  return db.scalar(q)
   .then(function(queryResults) {
-    var publicConfigurations = flat.unflatten(queryResults[0]);
-
-    if (_.isObject(publicConfigurations)) {
-      publicConfigurations = renameKeys(publicConfigurations, function(key) {
-        return changeCase.camel(key);
-      });
-    }
-    return publicConfigurations.website;
+    return queryResults.website;
   });
 };
 
@@ -61,6 +53,6 @@ configurations.get = function() {
 
 // updates configurations from an object
 configurations.update = function(config) {
-  var query = 'UPDATE configurations SET config = $1';
+  var query = 'UPDATE configurations SET config = $1 WHERE name = \'default\'';
   return db.sqlQuery(query, [config]);
 };
