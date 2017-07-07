@@ -10,13 +10,14 @@ var helper = require(path.normalize(__dirname + '/../helper'));
 var errors = require(path.normalize(__dirname + '/../errors'));
 var NotFoundError = errors.NotFoundError;
 
-configurations.create = function(options) {
-  if (options.portal && options.portal.board_id) {
-    options.portal.board_id = db.deslugify(options.portal.board_id);
+configurations.create = function(config) {
+  if (config.portal && config.portal.board_id) {
+    config.portal.board_id = db.deslugify(config.portal.board_id);
   }
-
+  // For now we are hardcoding 'default' as the main config
+  // In the future we can support swappable configs
   var q = 'INSERT INTO configurations (name, config) VALUES (\'default\', $1)';
-  return db.sqlQuery(q, [options]);
+  return db.sqlQuery(q, [config]);
 };
 
 /* returns object of public configurations */
