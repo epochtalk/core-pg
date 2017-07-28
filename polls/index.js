@@ -32,6 +32,7 @@ polls.byThread = function(threadId) {
 };
 
 polls.create = function(threadId, poll) {
+  var slugThreadId = threadId;
   threadId = helper.deslugify(threadId);
   var pollId = '';
 
@@ -60,8 +61,7 @@ polls.create = function(threadId, poll) {
 
     return db.sqlQuery(answerQ, params);
   })
-  .then(function() { return { id: pollId }; })
-  .then(helper.slugify);
+  .then(function() { return polls.byThread(slugThreadId); });
 };
 
 polls.exists = function(threadId) {
