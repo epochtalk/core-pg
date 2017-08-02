@@ -1,6 +1,5 @@
 var configurations = {};
 module.exports = configurations;
-
 var _ = require('lodash');
 var path = require('path');
 var changeCase = require('change-case');
@@ -14,10 +13,36 @@ configurations.create = function(config) {
   if (config.portal && config.portal.board_id) {
     config.portal.board_id = db.deslugify(config.portal.board_id);
   }
+
+  // Copy fields from config
+  var storedConfig = (({
+    gaKey,
+    images,
+    portal,
+    emailer,
+    website,
+    inviteOnly,
+    logEnabled,
+    rateLimiting,
+    loginRequired,
+    verifyRegistration
+  }) => ({
+    gaKey,
+    images,
+    portal,
+    emailer,
+    website,
+    inviteOnly,
+    logEnabled,
+    rateLimiting,
+    loginRequired,
+    verifyRegistration
+  }))(config);
+
   // For now we are hardcoding 'default' as the main config
   // In the future we can support swappable configs
   var q = 'INSERT INTO configurations (name, config) VALUES (\'default\', $1)';
-  return db.sqlQuery(q, [config]);
+  return db.sqlQuery(q, [storedConfig]);
 };
 
 /* returns object of public configurations */
