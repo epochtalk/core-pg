@@ -69,7 +69,7 @@ configurations.get = function() {
       }
 
       // slugify
-      privateConfigurations.portal.boardId = helper.slugify(privateConfigurations.portal.boardId);
+      privateConfigurations.portal.boardId = privateConfigurations.portal.boardId;
 
       return privateConfigurations;
     }
