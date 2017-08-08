@@ -68,9 +68,6 @@ configurations.get = function() {
         });
       }
 
-      // slugify
-      privateConfigurations.portal.boardId = privateConfigurations.portal.boardId;
-
       return privateConfigurations;
     }
     else { throw new NotFoundError('Configurations Not Found'); }
