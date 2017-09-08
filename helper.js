@@ -35,7 +35,7 @@ var slugKeywords = [
   'old_board_id',
   'role_id'
 ];
-var slugArrayKeywords = ['children_ids', 'board_ids', 'copied_ids', 'answer_ids'];
+var slugArrayKeywords = ['children_ids', 'board_ids', 'copied_ids', 'answer_ids', 'receiver_ids'];
 
 module.exports = {
   intToUUID: function(id) {
