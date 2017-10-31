@@ -13,7 +13,7 @@ moderators.add = function(usernames, boardId) {
   var q = 'SELECT id, username FROM users WHERE username = ANY($1::text[])';
   var params = [ usernames ];
   return using(db.createTransaction(), function(client) {
-    return client.queryAsync(q, params)
+    return client.query(q, params)
     .then(function(results) {
       var rows = results.rows;
       if (rows.length > 0) { return rows; }
@@ -22,13 +22,13 @@ moderators.add = function(usernames, boardId) {
     .map(function(user) {
       q = 'INSERT INTO board_moderators (user_id, board_id) SELECT $1, $2 WHERE NOT EXISTS (SELECT 1 FROM board_moderators WHERE user_id = $1 AND board_id = $2);';
       params = [ user.id, boardId ];
-      return client.queryAsync(q, params)
+      return client.query(q, params)
       .then(function() { return user; });
     })
     .map(function(user) {
       var q = 'SELECT roles.* FROM roles_users, roles WHERE roles_users.user_id = $1 AND roles.id = roles_users.role_id';
       var params = [user.id];
-      return client.queryAsync(q, params)
+      return client.query(q, params)
       .then(function(results) {
         user.roles = results.rows || [];
         return user;
@@ -44,7 +44,7 @@ moderators.remove = function(usernames, boardId) {
   var q = 'SELECT id, username FROM users WHERE username = ANY($1::text[])';
   var params = [ usernames ];
   return using(db.createTransaction(), function(client) {
-    return client.queryAsync(q, params)
+    return client.query(q, params)
     .then(function(results) {
       var rows = results.rows;
       if (rows.length > 0) { return rows; }
@@ -53,7 +53,7 @@ moderators.remove = function(usernames, boardId) {
     .map(function(user) {
       q = 'DELETE FROM board_moderators WHERE user_id = $1 AND board_id = $2';
       params = [ user.id, boardId ];
-      return client.queryAsync(q, params)
+      return client.query(q, params)
       .then(function() {  return user; });
     });
   })

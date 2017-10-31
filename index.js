@@ -1,10 +1,9 @@
-module.exports = core;
 var path = require('path');
 var setup = require(path.join(__dirname, 'setup'));
-var pg = require('pg');
-var core = {};
 
 function core(opts) {
+  var core = {};
+
   setup(opts);
 
   core.bans = require(path.join(__dirname, 'bans'));
@@ -18,8 +17,15 @@ function core(opts) {
   core.moderationLogs = require(path.join(__dirname, 'moderation_logs'));
   core.userNotes = require(path.join(__dirname, 'user_notes'));
   core.helper = require(path.join(__dirname, 'helper'));
-  core.db = require(path.join(__dirname, 'db'));
   core.errors = require(path.join(__dirname, 'errors'));
-  core.close = function() { pg.end(); };
+
+  var db = require(path.join(__dirname, 'db'));
+  core.db = db;
+  core.close = function() {
+    console.log('Closing db connection pool');
+    db.pool.end();
+  };
   return core;
 }
+
+module.exports = core;

@@ -16,7 +16,7 @@ bans.ban = function(userId, expiration) {
   var returnObj;
   expiration = expiration ? expiration : new Date(8640000000000000); // permanent ban
   return using(db.createTransaction(), function(client) {
-    return client.queryAsync(q, params)
+    return client.query(q, params)
     .then(function(results) {
       var rows = results.rows;
       if (rows.length > 0) { // user has been previously banned
@@ -27,7 +27,7 @@ bans.ban = function(userId, expiration) {
         q = 'INSERT INTO users.bans(user_id, expiration, created_at, updated_at) VALUES($1, $2, now(), now()) RETURNING id, user_id, expiration, created_at, updated_at';
         params = [userId, expiration];
       }
-      return client.queryAsync(q, params);
+      return client.query(q, params);
     })
     .then(function(results) {
       var rows = results.rows;
@@ -39,7 +39,7 @@ bans.ban = function(userId, expiration) {
     })
     .then(function() { // lookup the banned role id to add to user
       q = 'SELECT id FROM roles where lookup = $1';
-      return client.queryAsync(q, ['banned']);
+      return client.query(q, ['banned']);
     })
     .then(function(results) {
       var rows = results.rows;
@@ -49,11 +49,11 @@ bans.ban = function(userId, expiration) {
     .then(function(bannedRoleId) {
       q = 'INSERT INTO roles_users(role_id, user_id) SELECT $1, $2 WHERE NOT EXISTS (SELECT 1 FROM roles_users WHERE role_id = $1 AND user_id = $2);';
       params = [bannedRoleId, userId];
-      return client.queryAsync(q, params)
+      return client.query(q, params)
       .then(function() { // append roles to updated user and return
         q = 'SELECT roles.* FROM roles_users, roles WHERE roles_users.user_id = $1 AND roles.id = roles_users.role_id';
         params = [userId];
-        return client.queryAsync(q, params);
+        return client.query(q, params);
       })
       .then(function(results) {
         returnObj.roles = results.rows;
@@ -71,7 +71,7 @@ bans.unban = function(userId) {
   var params = [userId];
   var returnObj;
   return using(db.createTransaction(), function(client) {
-    return client.queryAsync(q, params)
+    return client.query(q, params)
     .then(function(results) {
       var rows = results.rows;
       if (rows.length > 0) {
@@ -82,11 +82,11 @@ bans.unban = function(userId) {
     })
     .then(function() {
       q = 'UPDATE users SET malicious_score = null WHERE id = $1';
-      return client.queryAsync(q, [ userId ]);
+      return client.query(q, [ userId ]);
     })
     .then(function() { // lookup the banned role id
       q = 'SELECT id FROM roles where lookup = $1';
-      return client.queryAsync(q, ['banned']);
+      return client.query(q, ['banned']);
     })
     .then(function(results) {
       var rows = results.rows;
@@ -96,12 +96,12 @@ bans.unban = function(userId) {
     .then(function(bannedRoleId) {
       q = 'DELETE FROM roles_users WHERE role_id = $1 AND user_id = $2';
       params = [bannedRoleId, userId];
-      return client.queryAsync(q, params);
+      return client.query(q, params);
     })
     .then(function() { // append roles to updated user and return
       q = 'SELECT roles.* FROM roles_users, roles WHERE roles_users.user_id = $1 AND roles.id = roles_users.role_id';
       params = [userId];
-      return client.queryAsync(q, params);
+      return client.query(q, params);
     })
     .then(function(results) {
       returnObj.roles = results.rows;
@@ -457,7 +457,7 @@ bans.addAddresses = function(addresses) {
         q = 'SELECT ip1, ip2, ip3, ip4, weight, decay, created_at, updates FROM banned_addresses WHERE ip1 = $1 AND ip2 = $2 AND ip3 = $3 AND ip4 = $4';
         params = [ ip[0], ip[1], ip[2], ip[3] ];
       }
-      return client.queryAsync(q, params)
+      return client.query(q, params)
       .then(function(results) {
         var banData = results.rows.length ? results.rows[0] : undefined;
         // Existing Ban: Hostname
@@ -487,7 +487,7 @@ bans.addAddresses = function(addresses) {
           q = 'INSERT INTO banned_addresses(ip1, ip2, ip3, ip4, weight, decay, created_at) VALUES($1, $2, $3, $4, $5, $6, now()) RETURNING ip1, ip2, ip3, ip4, weight, decay, created_at, updates';
             params = [ ip[0], ip[1], ip[2], ip[3], weight, decay ];
         }
-        return client.queryAsync(q, params)
+        return client.query(q, params)
         .then(function(results) { return results.rows; });
       });
     });
