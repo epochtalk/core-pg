@@ -15,7 +15,7 @@ notifications.create = function(notification) {
   var q = 'INSERT INTO notifications(sender_id, receiver_id, type, data, created_at) VALUES ($1, $2, $3, $4, now()) RETURNING id, sender_id, receiver_id, created_at, viewed';
   var params = [_.get(notification, 'sender_id'), _.get(notification, 'receiver_id'), _.get(notification, 'type'), _.get(notification, 'data')];
   return using(db.createTransaction(), function(client) {
-    return client.queryAsync(q, params)
+    return client.query(q, params)
     .then(function(results) {
       if (results.rows.length > 0) {
         notification = results.rows[0];
