@@ -16,6 +16,7 @@ configurations.create = function(config) {
 
   // Copy fields from config
   var storedConfig = (({
+    saasMode,
     gaKey,
     images,
     portal,
@@ -27,6 +28,7 @@ configurations.create = function(config) {
     loginRequired,
     verifyRegistration
   }) => ({
+    saasMode,
     gaKey,
     images,
     portal,
