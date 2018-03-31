@@ -47,15 +47,6 @@ configurations.create = function(config) {
   return db.sqlQuery(q, [storedConfig]);
 };
 
-/* returns object of public configurations */
-configurations.getPublic = function() {
-  var q = 'SELECT config->>\'website\' as website FROM configurations WHERE name = \'default\'';
-  return db.scalar(q)
-  .then(function(queryResults) {
-    return queryResults.website;
-  });
-};
-
 // returns object of private configurations
 configurations.get = function() {
   var q = 'SELECT config FROM configurations WHERE name = \'default\'';
