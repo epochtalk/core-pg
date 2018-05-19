@@ -39,6 +39,7 @@ var errors = {
   CreationError: errorTemplate('CreationError'),
   DeletionError: errorTemplate('DeletionError'),
   NotFoundError: errorTemplate('NotFoundError'), // 404
+  BadRequestError: errorTemplate('BadRequestError'), // 400
   ConflictError: errorTemplate('ConflictError'),
   handlePgError: handlePgError
 };
