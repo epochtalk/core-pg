@@ -38,8 +38,8 @@
   },
   "devDependencies": {
     "brototype": "0.0.5",
-    "code": "^2.1.0",
+    "code": "^5.2.4",
     "faker": "^3.0.1",
-    "lab": "^13.0.1"
+    "lab": "^18.0.1"
   }
 }
