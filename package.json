@@ -26,20 +26,20 @@
   },
   "homepage": "https://github.com/epochtalk/core-pg",
   "dependencies": {
-    "bcrypt": "^0.8.0",
+    "bcrypt": "^3.0.3",
     "bluebird": "^3.5.1",
     "change-case": "^2.3.0",
     "deep-rename-keys": "^0.1.0",
     "flat": "^1.6.0",
     "json": "^9.0.3",
-    "lodash": "^4.0.1",
-    "pg": "^7.3.0",
+    "lodash": "^4.17.11",
+    "pg": "^7.8.0",
     "slugid": "^1.0.3"
   },
   "devDependencies": {
     "brototype": "0.0.5",
-    "code": "^2.1.0",
+    "code": "^5.2.4",
     "faker": "^3.0.1",
-    "lab": "^8.2.0"
+    "lab": "^18.0.1"
   }
 }
