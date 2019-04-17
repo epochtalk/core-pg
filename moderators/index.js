@@ -78,6 +78,47 @@ moderators.getUsersBoards = function(userId) {
   return db.sqlQuery(q, [userId]).then(helper.slugify);
 };
 
+moderators.isModeratorSelfModeratedThread = function(userId, threadId) {
+  userId = helper.deslugify(userId);
+  threadId = helper.deslugify(threadId);
+  var q = 'SELECT user_id, t.moderated FROM posts p LEFT JOIN threads t ON t.id = $1 WHERE thread_id = $1 ORDER BY p.created_at LIMIT 1';
+  return db.sqlQuery(q, [threadId])
+  .then(function(rows) {
+    if (rows && rows.length > 0) { return rows[0]; }
+    else { return false; }
+  })
+  .then(function(firstPost) {
+    if (firstPost && firstPost.user_id == userId && firstPost.moderated) {
+      return true;
+    }
+    else { return false; }
+  });
+};
+
+moderators.isModeratorSelfModerated = function(userId, postId) {
+  userId = helper.deslugify(userId);
+  postId = helper.deslugify(postId);
+  var q = 'SELECT thread_id FROM posts WHERE id = $1';
+  return db.sqlQuery(q, [postId])
+  .then(function(rows) {
+    if (rows.length > 0) {
+      q = 'SELECT user_id, t.moderated FROM posts p LEFT JOIN threads t ON t.id = $1 WHERE thread_id = $1 ORDER BY p.created_at LIMIT 1';
+      return db.sqlQuery(q, [rows[0].thread_id]);
+    }
+    else { return false; }
+  })
+  .then(function(rows) {
+    if (rows && rows.length > 0) { return rows[0]; }
+    else { return false; }
+  })
+  .then(function(firstPost) {
+    if (firstPost && firstPost.user_id == userId && firstPost.moderated) {
+      return true;
+    }
+    else { return false; }
+  });
+};
+
 moderators.isModerator = function(userId, boardId) {
   userId = helper.deslugify(userId);
   boardId = helper.deslugify(boardId);
