@@ -3,6 +3,10 @@ jobs:
   build:
     docker:
       - image: node:11.14.0
+        environment:
+          PGHOST: localhost
+          PGUSER: docker
+          PGDATABASE:docker
       - image: circleci/postgres:11.2
         environment:
           POSTGRES_USER: docker
