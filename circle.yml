@@ -18,7 +18,7 @@ jobs:
           command: npm install
       - run:
           name: Install postgres client
-          command: sudo apt install -y postgresql-client
+          command: apt install -y postgresql-client
       - run:
           name: Run tests
           command: npm test
