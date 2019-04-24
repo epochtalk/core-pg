@@ -6,7 +6,7 @@ jobs:
         environment:
           PGHOST: localhost
           PGUSER: docker
-          PGDATABASE:docker
+          PGDATABASE: docker
       - image: circleci/postgres:11.2
         environment:
           POSTGRES_USER: docker
