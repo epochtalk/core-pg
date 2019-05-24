@@ -10,28 +10,6 @@ var using = Promise.using;
 var errors = require(path.normalize(__dirname + '/../errors'));
 var CreationError = errors.CreationError;
 
-notifications.dismiss = function(options) {
-  options = helper.deslugify(options);
-  var q, params;
-  var receiverId = _.get(options, 'receiver_id');
-  var type =  _.get(options, 'type');
-  var id =  _.get(options, 'id');
-
-  // Dismiss specific notification
-  if (id) {
-    q = 'UPDATE notifications SET viewed = TRUE WHERE receiver_id = $1 AND type = $2 AND id = $3 AND viewed = FALSE';
-    params = [receiverId, type, id];
-  }
-  // Dimiss all notifications
-  else {
-    q = 'UPDATE notifications SET viewed = TRUE WHERE receiver_id = $1 AND type = $2 AND viewed = FALSE';
-    params = [receiverId, type];
-  }
-
-  return db.sqlQuery(q, params)
-  .then(function() { return; });
-};
-
 // get the latest notifications for a user
 notifications.latest = function(user_id, opts) {
   var receiver_id = helper.deslugify(user_id);
