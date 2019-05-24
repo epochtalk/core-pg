@@ -13,7 +13,6 @@ function core(opts) {
   core.moderators = require(path.join(__dirname, 'moderators'));
   core.roles = require(path.join(__dirname, 'roles'));
   core.polls = require(path.join(__dirname, 'polls'));
-  core.notifications = require(path.join(__dirname, 'notifications'));
   core.moderationLogs = require(path.join(__dirname, 'moderation_logs'));
   core.userNotes = require(path.join(__dirname, 'user_notes'));
   core.helper = require(path.join(__dirname, 'helper'));
