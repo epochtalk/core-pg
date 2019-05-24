@@ -10,22 +10,6 @@ var using = Promise.using;
 var errors = require(path.normalize(__dirname + '/../errors'));
 var CreationError = errors.CreationError;
 
-// get the latest notifications for a user
-notifications.latest = function(user_id, opts) {
-  var receiver_id = helper.deslugify(user_id);
-
-  var query = 'SELECT * FROM notifications WHERE receiver_id = $1 AND type = $2 AND viewed = FALSE ORDER BY created_at DESC LIMIT $3 OFFSET $4';
-
-  var type = _.get(opts, 'type');
-  var limit = _.get(opts, 'limit', 15);
-  var page = _.get(opts, 'page', 1);
-  var offset = (page * limit) - limit;
-
-  var params = [receiver_id, type, limit, offset];
-  return db.sqlQuery(query, params)
-  .then(helper.slugify);
-};
-
 notifications.counts = function(user_id, opts) {
   var max = _.get(opts, 'max', 10);
   var postProcessCount = function(rows) {
