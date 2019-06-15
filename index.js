@@ -6,7 +6,6 @@ function core(opts) {
 
   setup(opts);
 
-  core.notifications = require(path.join(__dirname, 'notifications'));
   core.helper = require(path.join(__dirname, 'helper'));
   core.errors = require(path.join(__dirname, 'errors'));
 
