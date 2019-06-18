@@ -1,7 +1,0 @@
-CREATE INDEX index_reports_messages_on_offender_message_id_and_reporter_user_id ON administration.reports_messages USING btree (offender_message_id, reporter_user_id);
-
-ALTER TABLE administration.reports_messages ADD CONSTRAINT unique_index_reports_messages_on_offender_message_id_and_reporter_user_id UNIQUE(offender_message_id, reporter_user_id);
-
-CREATE INDEX index_reports_messages_on_offender_post_id_and_reporter_user_id ON administration.reports_posts USING btree (offender_post_id, reporter_user_id);
-
-ALTER TABLE administration.reports_posts ADD CONSTRAINT unique_index_reports_posts_on_offender_post_id_and_reporter_user_id UNIQUE(offender_post_id, reporter_user_id);
