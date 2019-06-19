@@ -13,7 +13,7 @@
     "test-categories": "NODE_ENV=test npm run db-drop && NODE_ENV=test npm run db-create && npm run test-migrate && NODE_ENV=test node_modules/.bin/lab test/categories.js --flat -v",
     "test-boards": "NODE_ENV=test npm run db-drop && NODE_ENV=test npm run db-create && npm run test-migrate && NODE_ENV=test node_modules/.bin/lab test/boards.js --flat -v",
     "test-threads": "NODE_ENV=test npm run db-drop && NODE_ENV=test npm run db-create && npm run test-migrate && NODE_ENV=test node_modules/.bin/lab test/threads.js --flat -v",
-    "test": "npm run test-migrate && npm run test-migrate-down"
+    "test": ""
   },
   "repository": {
     "type": "git",
