@@ -565,11 +565,10 @@ flat-cache@^1.2.1:
     graceful-fs "^4.1.2"
     write "^0.2.1"
 
-flat@^1.6.0:
-  version "1.6.1"
-  resolved "https://registry.yarnpkg.com/flat/-/flat-1.6.1.tgz#476b9dbb70d5e9340dbbc038bde084a20945921c"
-  dependencies:
-    is-buffer "~1.1.2"
+flat@^5.0.1:
+  version "5.0.1"
+  resolved "https://registry.yarnpkg.com/flat/-/flat-5.0.1.tgz#ed5f357d6c9e754d1fdc392b1d570426f8e013c2"
+  integrity sha512-DUYDWLlMhV9qvhjbgmhDQ3ZycXmoOKzrj4KN0+5BEat5SqTlXcXzxNgwiSN1UQHA5Z0BsgYYPelhQHVhpfqaVA==
 
 fs-minipass@^1.2.5:
   version "1.2.5"
@@ -743,7 +742,7 @@ inquirer@^6.1.0:
     strip-ansi "^5.0.0"
     through "^2.3.6"
 
-is-buffer@^1.1.5, is-buffer@~1.1.2:
+is-buffer@^1.1.5:
   version "1.1.6"
   resolved "https://registry.yarnpkg.com/is-buffer/-/is-buffer-1.1.6.tgz#efaa2ea9daa0d7ab2ea13a97b2b8ad51fefbe8be"
 

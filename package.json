@@ -30,7 +30,7 @@
     "bluebird": "^3.5.1",
     "change-case": "^2.3.0",
     "deep-rename-keys": "^0.1.0",
-    "flat": "^1.6.0",
+    "flat": "^5.0.1",
     "json": "^9.0.3",
     "lodash": "^4.17.11",
     "pg": "^7.8.0",
